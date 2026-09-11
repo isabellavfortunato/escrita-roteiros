@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#fffdfa">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b121f'/%3E%3Crect x='16' y='18' width='32' height='5' rx='2.5' fill='%23e6ded4'/%3E%3Crect x='16' y='29' width='24' height='5' rx='2.5' fill='%23e6ded4'/%3E%3Ccircle cx='44' cy='44' r='6' fill='%23c14b21'/%3E%3C/svg%3E">
 <title>Caderno de roteiros</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,12 +12,12 @@
 <style>
   :root {
     color-scheme: light;
-    --fundo: #f6f2ec;
-    --fundo-lateral: #eee8e0;
-    --papel: #fffdfa;
-    --creme: #e6ded4;
-    --linha: #e2d9cd;
-    --linha-forte: #cfc4b6;
+    --fundo: #f2f3f5;
+    --fundo-lateral: #e8eaee;
+    --papel: #ffffff;
+    --creme: #e6e8ec;
+    --linha: #dde0e5;
+    --linha-forte: #c3c8d0;
     --navy: #0b121f;
     --navy-medio: #1c2a44;
     --navy-suave: #3d475a;
@@ -83,10 +83,10 @@
   .nav-ideias-nome { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .nav-ideias-nome b { font-family: var(--display); font-weight: 400; font-size: 58px; letter-spacing: 0.04em; line-height: 0.9; }
   .nav-ideias-nome b i { font-style: normal; color: var(--laranja); }
-  .nav-ideias .sub { font-size: 13.5px; color: #b9b3ab; }
+  .nav-ideias .sub { font-size: 13.5px; color: #aab1bd; }
   .nav-ideias-conta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
   .nav-ideias-conta strong { font-family: var(--display); font-weight: 400; font-size: 52px; line-height: 0.9; color: var(--laranja); font-variant-numeric: tabular-nums; }
-  .nav-ideias-conta span { font-size: 13px; color: #b9b3ab; }
+  .nav-ideias-conta span { font-size: 13px; color: #aab1bd; }
   .quadrante { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: var(--celula); gap: var(--vao); }
   .quad {
     background: var(--fundo); border: 1px solid var(--linha-forte); border-radius: 10px;
@@ -115,11 +115,11 @@
     color: var(--navy); padding: 8px 14px; font-weight: 600; font-size: 14px;
   }
   .btn:hover { background: var(--navy); color: var(--papel); }
-  .btn-laranja { background: var(--laranja); border-color: var(--laranja); color: #fffdfa; }
-  .btn-laranja:hover { background: var(--laranja-hover); border-color: var(--laranja-hover); color: #fffdfa; }
+  .btn-laranja { background: var(--laranja); border-color: var(--laranja); color: #ffffff; }
+  .btn-laranja:hover { background: var(--laranja-hover); border-color: var(--laranja-hover); color: #ffffff; }
   .btn-perigo { background: transparent; border-color: var(--linha-forte); color: var(--navy-suave); }
   .btn-perigo:hover { background: transparent; border-color: var(--vermelho); color: var(--vermelho); }
-  .btn-perigo[data-confirmar="1"] { background: var(--vermelho); border-color: var(--vermelho); color: #fffdfa; }
+  .btn-perigo[data-confirmar="1"] { background: var(--vermelho); border-color: var(--vermelho); color: #ffffff; }
   .busca {
     width: 100%; background: var(--papel); border: 1px solid var(--linha-forte);
     border-radius: 8px; padding: 9px 12px; font-size: 14px;
@@ -191,7 +191,7 @@
     font-size: 12.5px; font-weight: 600; border: 1px solid var(--laranja); color: var(--laranja); white-space: nowrap;
   }
   .pilula[data-s="dentro"] { background: var(--navy); border-color: var(--navy); color: var(--creme); }
-  .pilula[data-s="acima"] { background: var(--vermelho); border-color: var(--vermelho); color: #fffdfa; }
+  .pilula[data-s="acima"] { background: var(--vermelho); border-color: var(--vermelho); color: #ffffff; }
   .pilula[data-s="vazio"] { border-color: var(--linha-forte); color: var(--navy-fraco); }
 
   .regua { position: relative; height: 30px; }
@@ -219,7 +219,7 @@
     font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-suave);
   }
   .contador { font-size: 12.5px; color: var(--navy-suave); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
-  .contador[data-s="acima"] { color: #fffdfa; background: var(--vermelho); padding: 1px 8px; border-radius: 999px; }
+  .contador[data-s="acima"] { color: #ffffff; background: var(--vermelho); padding: 1px 8px; border-radius: 999px; }
   .entrada, .area {
     width: 100%; background: var(--papel); border: 1px solid var(--linha-forte);
     border-radius: var(--raio); padding: 12px 14px; font-family: var(--texto); font-size: 17px; line-height: 1.6;
@@ -240,7 +240,7 @@
   .bloco-pos { font-size: 12px; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
   .bloco-topo .contador { margin-left: auto; }
   .bloco-dica { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--navy-suave); max-width: 72ch; }
-  .bloco .area { font-size: 18px; line-height: 1.7; min-height: 96px; border-color: var(--linha); background: #fffefc; }
+  .bloco .area { font-size: 18px; line-height: 1.7; min-height: 96px; border-color: var(--linha); background: #ffffff; }
   .apagar {
     background: transparent; border: 1px solid var(--linha-forte); border-radius: 6px;
     color: var(--navy-fraco); font-size: 12.5px; padding: 3px 9px;
@@ -288,7 +288,7 @@
   .ideia-topo { display: flex; align-items: center; gap: 12px; }
   .ideia-data { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
   .ideia-topo .contador { margin-left: auto; }
-  .ideia .area { min-height: 72px; border-color: var(--linha); background: #fffefc; }
+  .ideia .area { min-height: 72px; border-color: var(--linha); background: #ffffff; }
 
   /* Entrada (versão do GitHub) */
   .login { position: fixed; inset: 0; z-index: 50; background: var(--fundo); display: grid; place-items: center; padding: 24px 16px; overflow-y: auto; }
@@ -297,7 +297,7 @@
   .login-card h1 span { color: var(--laranja); }
   .login-card p { margin: 0 0 8px; color: var(--navy-suave); font-size: 14px; }
   .login-card label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-suave); margin-top: 6px; }
-  .login-card input { width: 100%; background: #fffefc; border: 1px solid var(--linha-forte); border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+  .login-card input { width: 100%; background: #ffffff; border: 1px solid var(--linha-forte); border-radius: 8px; padding: 10px 12px; font-size: 15px; }
   .login-card input:focus-visible { outline: none; border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy); }
   .login-card .btn { margin-top: 12px; padding: 10px 14px; }
   .link { background: none; border: 0; padding: 4px 0; color: var(--navy-suave); text-decoration: underline; font-size: 13.5px; align-self: flex-start; }
@@ -401,8 +401,8 @@
   /* ---------- Configuração ---------- */
   var PALAVRAS_POR_SEGUNDO = 2.9; // 174 palavras por minuto no vídeo editado
   var TIPOS = {
-    instagram: { nome: "Instagram", sub: "Vídeo curto · 280 a 300 palavras", video: true, min: 280, max: 300, duracao: "1 min 40 s" },
-    tiktok:    { nome: "TikTok", sub: "Vídeo longo · 350 a 435 palavras", video: true, min: 350, max: 435, duracao: "2 min a 2 min 30 s" },
+    instagram: { nome: "Instagram", sub: "Vídeo curto · 280 a 300 palavras", video: true, min: 280, max: 300, duracao: "1:40<small>min</small>" },
+    tiktok:    { nome: "TikTok", sub: "Vídeo longo · 350 a 435 palavras", video: true, min: 350, max: 435, duracao: "2:00<small>a</small>2:30<small>min</small>" },
     carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, porTela: 25 },
     stories:   { nome: "Stories", sub: "Até 10 telas · 25 palavras por tela", video: false, telas: 10, porTela: 25 },
     ideias:    { nome: "Ideias", sub: "Até 50 palavras por ideia", ideias: true }
@@ -844,7 +844,7 @@
           '<div class="card card-principal"><span class="card-rotulo">Palavras</span><span class="card-valor" id="m-palavras">0</span><span class="pilula" id="m-pilula" data-s="vazio"></span></div>' +
           '<div class="card estatico"><span class="card-rotulo">Faixa</span><span class="card-valor">' + c.min + "<small>a</small>" + c.max + '</span><span class="card-nota">palavras somando os blocos</span></div>' +
           '<div class="card"><span class="card-rotulo">Duração estimada</span><span class="card-valor" id="m-duracao">0<small>s</small></span><span class="card-nota">174 palavras por minuto</span></div>' +
-          '<div class="card estatico"><span class="card-rotulo">Duração do vídeo</span><span class="card-valor menor">' + c.duracao + '</span><span class="card-nota">no vídeo editado</span></div>' +
+          '<div class="card estatico"><span class="card-rotulo">Duração do vídeo</span><span class="card-valor">' + c.duracao + '</span><span class="card-nota">no vídeo editado</span></div>' +
         "</div>" +
         '<div class="regua" id="regua" data-s="vazio" aria-hidden="true"><div class="regua-trilho"><div class="regua-faixa" id="r-faixa"></div><div class="regua-cheio" id="r-cheio"></div></div>' +
           '<span class="regua-marca ini" style="left:0">0</span><span class="regua-marca" id="r-min"></span><span class="regua-marca" id="r-max"></span></div>' +
