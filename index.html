@@ -66,21 +66,39 @@
   .estado[data-s="salvando"]::before { background: var(--laranja); }
   .estado[data-s="erro"]::before { background: var(--vermelho); }
 
-  /* Abas */
+  /* Navegação: Ideias em destaque e o quadrante dos formatos */
   .abas {
-    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
-    background: var(--papel); border-bottom: 1px solid var(--linha); padding-inline: 28px;
+    --celula: 62px; --vao: 10px;
+    background: var(--papel); border-bottom: 1px solid var(--linha);
+    padding: 16px 28px 18px; display: flex; flex-direction: column; gap: var(--vao);
   }
-  .aba {
-    background: none; border: 0; text-align: left; padding: 14px 16px 12px;
-    border-bottom: 3px solid transparent; display: flex; flex-direction: column; gap: 2px;
-    color: var(--navy-fraco);
+  .nav-ideias {
+    width: 100%; height: calc(var(--celula) * 2 + var(--vao));
+    background: var(--navy); color: var(--creme); border: 0; border-radius: 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 0 28px; text-align: left; transition: background-color .15s ease;
   }
-  .aba:hover { color: var(--navy); }
-  .aba b { font-family: var(--display); font-weight: 400; font-size: 26px; letter-spacing: 0.04em; line-height: 1; }
-  .aba span { font-size: 12.5px; color: var(--navy-fraco); }
-  .aba[aria-selected="true"] { color: var(--navy); border-bottom-color: var(--laranja); }
-  .aba[aria-selected="true"] span { color: var(--navy-suave); }
+  .nav-ideias:hover { background: var(--navy-medio); }
+  .nav-ideias[aria-selected="true"] { box-shadow: inset 0 -5px 0 var(--laranja); }
+  .nav-ideias-nome { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .nav-ideias-nome b { font-family: var(--display); font-weight: 400; font-size: 58px; letter-spacing: 0.04em; line-height: 0.9; }
+  .nav-ideias-nome b i { font-style: normal; color: var(--laranja); }
+  .nav-ideias .sub { font-size: 13.5px; color: #b9b3ab; }
+  .nav-ideias-conta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+  .nav-ideias-conta strong { font-family: var(--display); font-weight: 400; font-size: 52px; line-height: 0.9; color: var(--laranja); font-variant-numeric: tabular-nums; }
+  .nav-ideias-conta span { font-size: 13px; color: #b9b3ab; }
+  .quadrante { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: var(--celula); gap: var(--vao); }
+  .quad {
+    background: var(--fundo); border: 1px solid var(--linha-forte); border-radius: 10px;
+    padding: 0 20px; display: flex; align-items: center; gap: 14px; text-align: left; color: var(--navy-suave); min-width: 0;
+  }
+  .quad:hover { border-color: var(--navy); }
+  .quad[aria-selected="true"] { background: var(--papel); border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy), inset 0 -4px 0 var(--laranja); }
+  .quad-nome { display: flex; align-items: baseline; gap: 12px; min-width: 0; }
+  .quad-nome b { font-family: var(--display); font-weight: 400; font-size: 30px; letter-spacing: 0.04em; line-height: 1; color: var(--navy); }
+  .quad .sub { font-size: 12.5px; color: var(--navy-fraco); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .quad .contagem { margin-left: auto; font-size: 13px; color: var(--navy-suave); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .quad .contagem strong { font-size: 15px; color: var(--navy); }
 
   /* Corpo */
   .corpo { display: grid; grid-template-columns: 290px minmax(0, 1fr); min-height: calc(100vh - 150px); }
@@ -298,13 +316,19 @@
     .editor { padding: 22px 16px 56px; }
     .medidor { margin-inline: -16px; padding-inline: 16px; }
     .topo { padding: 14px 16px 12px; }
-    .abas { padding-inline: 8px; display: flex; overflow-x: auto; scrollbar-width: none; }
-    .aba { flex: 0 0 auto; padding-inline: 12px; }
-    .aba span { display: none; }
+    .abas { --celula: 54px; padding: 12px 16px 14px; }
+    .nav-ideias { padding: 0 20px; }
+    .nav-ideias-nome b { font-size: 46px; }
+    .nav-ideias-conta strong { font-size: 40px; }
+    .quad { padding: 0 14px; }
+    .quad .sub { display: none; }
+    .quad-nome b { font-size: 26px; }
     .gancho-tipo .caixa { min-width: 0; flex: 1 1 100%; }
     .bloco { padding: 12px 14px 14px; }
   }
   @media (max-width: 480px) {
+    .quad .contagem span { display: none; }
+    .nav-ideias .sub { display: none; }
     .marca small { display: none; }
     .card.estatico { display: none; }
     .medidor { gap: 10px; padding-block: 10px 12px; }
@@ -335,7 +359,7 @@
     </div>
   </header>
 
-  <nav class="abas" role="tablist" aria-label="Tipo de conteúdo" id="abas"></nav>
+  <nav class="abas" role="tablist" aria-label="Ideias e formatos" id="abas"></nav>
 
   <div class="corpo">
     <aside class="gaveta" id="gaveta">
@@ -383,9 +407,9 @@
     stories:   { nome: "Stories", sub: "Até 10 telas · 25 palavras por tela", video: false, telas: 10, porTela: 25 },
     ideias:    { nome: "Ideias", sub: "Até 50 palavras por ideia", ideias: true }
   };
-  var ORDEM_TIPOS = ["instagram", "tiktok", "carrossel", "stories", "ideias"];
+  var QUADRANTE = ["instagram", "tiktok", "carrossel", "stories"];
   var FORMATOS = ["Tela dividida", "Fundo verde", "Falando para a câmera"];
-  var MODALIDADES = ["Sonho", "Transformação", "Fofocas", "Objeções", "Lista", "Storytelling"];
+  var MODALIDADES = ["Sonho", "Transformação", "Fofocas", "Objeções", "Lista", "Storytelling", "Posicionamento"];
   var OBJETIVOS = ["Compartilhável", "Salvável", "Likes", "Interação"];
   var BLOCOS = [
     { tipo: "gancho", nome: "Gancho", dica: "A headline falada, com o texto na tela entrando junto. Deixa o assunto cristalino sem entregar a lição já mastigada." },
@@ -423,8 +447,8 @@
   var atual = null;         // roteiro aberto
   var ideias = {};          // ideias por id
   var carregou = false, carregouIdeias = false;
-  var abaAtual = lerLocal(CHAVE_ABA) || "instagram";
-  if (!TIPOS[abaAtual]) abaAtual = "instagram";
+  var abaAtual = lerLocal(CHAVE_ABA) || "ideias";
+  if (!TIPOS[abaAtual]) abaAtual = "ideias";
   var timerSalvar = null, pendente = null;
   var timersIdeia = {};
   var busca = "";
@@ -551,6 +575,7 @@
       var focoNasIdeias = document.activeElement && document.activeElement.closest && document.activeElement.closest("#ideias");
       if (!carregouIdeias) { carregouIdeias = true; if (abaAtual === "ideias") renderIdeias(); }
       else if (abaAtual === "ideias" && mudou && !focoNasIdeias) renderIdeias();
+      atualizarContagens();
     }, erroEscuta));
   }
 
@@ -696,11 +721,30 @@
 
   /* ---------- Abas e lista ---------- */
   function renderAbas() {
-    $("abas").innerHTML = ORDEM_TIPOS.map(function (t) {
+    var h = '<button class="nav-ideias" role="tab" id="aba-ideias" data-tipo="ideias" aria-selected="' + (abaAtual === "ideias") + '">' +
+      '<span class="nav-ideias-nome"><b>Ideias<i>.</i></b><span class="sub">Até 50 palavras por ideia</span></span>' +
+      '<span class="nav-ideias-conta"><strong id="n-ideias"></strong><span id="n-ideias-rotulo"></span></span></button>';
+    h += '<div class="quadrante">' + QUADRANTE.map(function (t) {
       var c = TIPOS[t];
-      return '<button class="aba" role="tab" id="aba-' + t + '" data-tipo="' + t + '" aria-selected="' + (t === abaAtual) + '">' +
-        "<b>" + c.nome + "</b><span>" + c.sub + "</span></button>";
-    }).join("");
+      return '<button class="quad" role="tab" id="aba-' + t + '" data-tipo="' + t + '" aria-selected="' + (t === abaAtual) + '">' +
+        '<span class="quad-nome"><b>' + c.nome + '</b><span class="sub">' + c.sub + "</span></span>" +
+        '<span class="contagem" id="n-' + t + '"></span></button>';
+    }).join("") + "</div>";
+    $("abas").innerHTML = h;
+    atualizarContagens();
+  }
+  function atualizarContagens() {
+    QUADRANTE.forEach(function (t) {
+      var el = $("n-" + t); if (!el) return;
+      if (!carregou) { el.textContent = ""; return; }
+      var n = doTipo(t).length;
+      el.innerHTML = "<strong>" + n + "</strong> <span>" + plural(n, "roteiro", "roteiros") + "</span>";
+    });
+    var ni = $("n-ideias"), nr = $("n-ideias-rotulo");
+    if (!ni) return;
+    if (!carregouIdeias) { ni.textContent = ""; nr.textContent = ""; return; }
+    var q = Object.keys(ideias).filter(function (k) { return !ideias[k]._nova || (ideias[k].texto || "").trim(); }).length;
+    ni.textContent = q; nr.textContent = plural(q, "ideia guardada", "ideias guardadas");
   }
   function aplicarAba() {
     renderAbas();
@@ -731,6 +775,7 @@
     return partes.join(" · ");
   }
   function renderLista() {
+    atualizarContagens();
     if (abaAtual === "ideias") return;
     var lista = doTipo(abaAtual), total = lista.length;
     if (busca) {
@@ -1020,6 +1065,7 @@
       marcarContador($("ci-" + i.id), contar(i.texto), LIMITE_IDEIA);
     });
     var r = $("i-resumo"); if (r) r.textContent = resumoIdeias();
+    atualizarContagens();
   }
   function salvarIdeia(i) {
     delete timersIdeia[i.id];
@@ -1044,7 +1090,7 @@
 
   /* ---------- Eventos ---------- */
   $("abas").addEventListener("click", function (e) {
-    var b = e.target.closest(".aba"); if (!b) return;
+    var b = e.target.closest("[data-tipo]"); if (!b) return;
     salvarPendente(); salvarIdeiasPendentes();
     abaAtual = b.dataset.tipo;
     gravarLocal(CHAVE_ABA, abaAtual);
@@ -1091,6 +1137,7 @@
       marcarContador($("ci-" + i.id), contar(i.texto), LIMITE_IDEIA);
       agendarIdeia(i);
       var r = $("i-resumo"); if (r) r.textContent = resumoIdeias();
+      atualizarContagens();
       return;
     }
     if (!atual) return;
