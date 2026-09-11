@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#fffdfa">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b121f'/%3E%3Crect x='16' y='18' width='32' height='5' rx='2.5' fill='%23e6ded4'/%3E%3Crect x='16' y='29' width='24' height='5' rx='2.5' fill='%23e6ded4'/%3E%3Ccircle cx='44' cy='44' r='6' fill='%23c14b21'/%3E%3C/svg%3E">
+<title>Caderno de roteiros</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Bebas+Neue&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&display=swap">
+<style>
+  :root {
+    color-scheme: light;
+    --fundo: #f6f2ec;
+    --fundo-lateral: #eee8e0;
+    --papel: #fffdfa;
+    --creme: #e6ded4;
+    --linha: #e2d9cd;
+    --linha-forte: #cfc4b6;
+    --navy: #0b121f;
+    --navy-medio: #1c2a44;
+    --navy-suave: #3d475a;
+    --navy-fraco: #6a7284;
+    --laranja: #c14b21;
+    --laranja-hover: #a93f1a;
+    --vermelho: #b92e4b;
+    --display: "Bebas Neue", "Oswald", "Arial Narrow", Impact, sans-serif;
+    --ui: "Archivo", "Helvetica Neue", Arial, sans-serif;
+    --texto: "Literata", Georgia, "Times New Roman", serif;
+    --raio: 10px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { background: var(--fundo); }
+  body {
+    background: var(--fundo);
+    color: var(--navy);
+    font-family: var(--ui);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--laranja); outline-offset: 2px; }
+
+  /* Topo */
+  .topo {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 18px 28px 14px; background: var(--papel);
+    border-bottom: 1px solid var(--linha); flex-wrap: wrap;
+  }
+  .marca { display: flex; align-items: baseline; gap: 12px; }
+  .marca h1 {
+    margin: 0; font-family: var(--display); font-weight: 400; color: var(--navy);
+    font-size: 34px; letter-spacing: 0.04em; line-height: 1;
+  }
+  .marca h1 .ponto { color: var(--laranja); }
+  .marca small { color: var(--navy-fraco); font-size: 13px; }
+  .topo-dir { display: flex; align-items: center; gap: 14px; }
+  .btn-sair { padding: 5px 12px; font-size: 13px; }
+  .estado { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--navy-suave); }
+  .estado::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--linha-forte); }
+  .estado[data-s="salvo"]::before { background: var(--navy); }
+  .estado[data-s="salvando"]::before { background: var(--laranja); }
+  .estado[data-s="erro"]::before { background: var(--vermelho); }
+
+  /* Abas */
+  .abas {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+    background: var(--papel); border-bottom: 1px solid var(--linha); padding-inline: 28px;
+  }
+  .aba {
+    background: none; border: 0; text-align: left; padding: 14px 16px 12px;
+    border-bottom: 3px solid transparent; display: flex; flex-direction: column; gap: 2px;
+    color: var(--navy-fraco);
+  }
+  .aba:hover { color: var(--navy); }
+  .aba b { font-family: var(--display); font-weight: 400; font-size: 26px; letter-spacing: 0.04em; line-height: 1; }
+  .aba span { font-size: 12.5px; color: var(--navy-fraco); }
+  .aba[aria-selected="true"] { color: var(--navy); border-bottom-color: var(--laranja); }
+  .aba[aria-selected="true"] span { color: var(--navy-suave); }
+
+  /* Corpo */
+  .corpo { display: grid; grid-template-columns: 290px minmax(0, 1fr); min-height: calc(100vh - 150px); }
+  .gaveta {
+    background: var(--fundo-lateral); border-right: 1px solid var(--linha);
+    padding: 20px 18px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .gaveta-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .gaveta h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 22px; letter-spacing: 0.05em; color: var(--navy-medio); }
+  .gaveta-conteudo { display: flex; flex-direction: column; gap: 14px; }
+  .abrir-gaveta { display: none; }
+  .btn {
+    border-radius: 8px; border: 1px solid var(--navy); background: var(--papel);
+    color: var(--navy); padding: 8px 14px; font-weight: 600; font-size: 14px;
+  }
+  .btn:hover { background: var(--navy); color: var(--papel); }
+  .btn-laranja { background: var(--laranja); border-color: var(--laranja); color: #fffdfa; }
+  .btn-laranja:hover { background: var(--laranja-hover); border-color: var(--laranja-hover); color: #fffdfa; }
+  .btn-perigo { background: transparent; border-color: var(--linha-forte); color: var(--navy-suave); }
+  .btn-perigo:hover { background: transparent; border-color: var(--vermelho); color: var(--vermelho); }
+  .btn-perigo[data-confirmar="1"] { background: var(--vermelho); border-color: var(--vermelho); color: #fffdfa; }
+  .busca {
+    width: 100%; background: var(--papel); border: 1px solid var(--linha-forte);
+    border-radius: 8px; padding: 9px 12px; font-size: 14px;
+  }
+  .busca::placeholder { color: var(--navy-fraco); }
+  .lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .item {
+    width: 100%; text-align: left; background: transparent; border: 1px solid transparent;
+    border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px;
+  }
+  .item:hover { background: var(--papel); }
+  .item[aria-current="true"] { background: var(--papel); border-color: var(--navy); }
+  .item-titulo { font-weight: 600; font-size: 14.5px; line-height: 1.35; overflow-wrap: anywhere; }
+  .item-titulo.vazio { color: var(--navy-fraco); font-style: italic; font-weight: 500; }
+  .item-meta { font-size: 12.5px; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
+  .vazio-lista { color: var(--navy-fraco); font-size: 13.5px; line-height: 1.55; padding: 4px 2px; }
+
+  /* Editor */
+  .editor { padding: 28px 36px 64px; display: flex; flex-direction: column; gap: 26px; min-width: 0; }
+  .titulo {
+    width: 100%; background: transparent; border: 0; border-bottom: 2px solid var(--navy);
+    padding: 6px 0 10px; font-family: var(--texto); font-size: 28px; font-weight: 500; line-height: 1.3;
+  }
+  .titulo::placeholder { color: var(--navy-fraco); }
+  .titulo:focus-visible { outline: none; border-bottom-color: var(--laranja); }
+
+  .seletores { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+  .seletor { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .seletor label, .gancho-tipo label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-suave);
+  }
+  .caixa {
+    -webkit-appearance: none; appearance: none; width: 100%; max-width: 100%;
+    background: var(--papel) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%230b121f' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center / 12px 8px;
+    border: 1px solid var(--navy); border-radius: 8px;
+    padding: 10px 38px 10px 13px; font-family: var(--ui); font-size: 15px; font-weight: 600; color: var(--navy);
+    cursor: pointer; text-overflow: ellipsis;
+  }
+  .caixa.vazia { border-color: var(--linha-forte); color: var(--navy-fraco); font-weight: 500; }
+  .caixa:hover { border-color: var(--navy); }
+  .caixa:focus-visible { outline: none; border-color: var(--navy); box-shadow: 0 0 0 2px rgba(193, 75, 33, .35); }
+  .caixa optgroup { font-weight: 700; font-style: normal; color: var(--navy); }
+  .caixa option { font-weight: 400; color: var(--navy); }
+  .gancho-tipo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .gancho-tipo .caixa { width: auto; min-width: 260px; flex: 0 1 360px; }
+  .gancho-familia { font-size: 13.5px; color: var(--navy-suave); }
+  .gancho-familia b { color: var(--navy); }
+
+  /* Medidor */
+  .medidor {
+    position: sticky; top: 0; z-index: 5; background: var(--fundo);
+    margin-inline: -36px; padding: 14px 36px 16px;
+    border-block: 1px solid var(--linha);
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+  .card {
+    background: var(--papel); border: 1px solid var(--linha); border-radius: var(--raio);
+    padding: 10px 14px; display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  }
+  .card-rotulo { font-size: 11.5px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--navy-fraco); font-weight: 600; }
+  .card-valor { font-family: var(--display); font-size: 34px; line-height: 1.05; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; color: var(--navy); }
+  .card-valor small { font-family: var(--ui); font-size: 13px; color: var(--navy-suave); letter-spacing: 0; margin-inline: 4px; }
+  .card-valor.menor { font-size: 26px; padding-top: 6px; }
+  .card-nota { font-size: 12.5px; color: var(--navy-suave); }
+  .card-principal .card-valor { font-size: 44px; }
+  .pilula {
+    align-self: flex-start; margin-top: 4px; border-radius: 999px; padding: 3px 11px;
+    font-size: 12.5px; font-weight: 600; border: 1px solid var(--laranja); color: var(--laranja); white-space: nowrap;
+  }
+  .pilula[data-s="dentro"] { background: var(--navy); border-color: var(--navy); color: var(--creme); }
+  .pilula[data-s="acima"] { background: var(--vermelho); border-color: var(--vermelho); color: #fffdfa; }
+  .pilula[data-s="vazio"] { border-color: var(--linha-forte); color: var(--navy-fraco); }
+
+  .regua { position: relative; height: 30px; }
+  .regua-trilho { position: absolute; left: 0; right: 0; top: 6px; height: 10px; background: var(--creme); border-radius: 5px; overflow: hidden; }
+  .regua-faixa {
+    position: absolute; top: 0; bottom: 0;
+    background: repeating-linear-gradient(135deg, rgba(11,18,31,.28) 0 3px, rgba(11,18,31,.08) 3px 7px);
+    border-inline: 1px solid var(--navy);
+  }
+  .regua-cheio {
+    position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--laranja);
+    border-radius: 5px 0 0 5px; transition: width .25s ease, background-color .25s ease;
+  }
+  .regua[data-s="dentro"] .regua-cheio { background: var(--navy); }
+  .regua[data-s="acima"] .regua-cheio { background: var(--vermelho); }
+  .regua-marca { position: absolute; top: 18px; transform: translateX(-50%); font-size: 11.5px; color: var(--navy-suave); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .regua-marca.ini { transform: none; }
+  #r-min { transform: translateX(calc(-100% - 4px)); }
+  #r-max { transform: translateX(4px); }
+
+  /* Campos */
+  .campo { display: flex; flex-direction: column; gap: 8px; }
+  .campo-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .campo label, .rotulo {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-suave);
+  }
+  .contador { font-size: 12.5px; color: var(--navy-suave); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+  .contador[data-s="acima"] { color: #fffdfa; background: var(--vermelho); padding: 1px 8px; border-radius: 999px; }
+  .entrada, .area {
+    width: 100%; background: var(--papel); border: 1px solid var(--linha-forte);
+    border-radius: var(--raio); padding: 12px 14px; font-family: var(--texto); font-size: 17px; line-height: 1.6;
+  }
+  .entrada::placeholder, .area::placeholder { color: var(--navy-fraco); font-style: italic; }
+  .entrada:focus-visible, .area:focus-visible { outline: none; border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy); }
+  .area { resize: none; overflow: hidden; min-height: 84px; }
+
+  /* Blocos do vídeo */
+  .blocos { display: flex; flex-direction: column; gap: 12px; }
+  .bloco {
+    background: var(--papel); border: 1px solid var(--linha); border-left: 3px solid var(--navy);
+    border-radius: 4px 12px 12px 4px; padding: 14px 18px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .bloco-topo { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .bloco-nome { font-family: var(--display); font-size: 25px; letter-spacing: 0.05em; line-height: 1; color: var(--navy); margin: 0; font-weight: 400; }
+  .bloco-pos { font-size: 12px; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
+  .bloco-topo .contador { margin-left: auto; }
+  .bloco-dica { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--navy-suave); max-width: 72ch; }
+  .bloco .area { font-size: 18px; line-height: 1.7; min-height: 96px; border-color: var(--linha); background: #fffefc; }
+  .apagar {
+    background: transparent; border: 1px solid var(--linha-forte); border-radius: 6px;
+    color: var(--navy-fraco); font-size: 12.5px; padding: 3px 9px;
+  }
+  .apagar:hover { border-color: var(--vermelho); color: var(--vermelho); }
+  .acrescentar {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 14px 16px; border: 1px dashed var(--linha-forte); border-radius: 12px;
+  }
+  .acrescentar label { font-size: 13.5px; color: var(--navy-suave); font-weight: 600; }
+  .acrescentar .caixa { width: auto; min-width: 0; padding-block: 8px; font-size: 14px; }
+
+  .acoes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; padding-top: 18px; border-top: 1px solid var(--linha); }
+  .aviso { font-size: 13px; color: var(--navy-suave); }
+
+  /* Telas */
+  .resumo { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .telas { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+  .tela {
+    background: var(--papel); border: 1px solid var(--linha); border-radius: 12px;
+    padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0;
+  }
+  .tela.fixa { border-color: var(--navy); }
+  .tela-topo { display: flex; align-items: center; gap: 10px; }
+  .tela-nome { font-family: var(--display); font-size: 26px; letter-spacing: 0.05em; line-height: 1; color: var(--navy); }
+  .tela.fixa .tela-nome { color: var(--laranja); }
+  .tela-pos { font-size: 12px; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
+  .tela-topo .contador { margin-left: auto; }
+  .tela-fixa-tag { font-size: 11.5px; color: var(--navy-fraco); border: 1px dashed var(--linha-forte); border-radius: 6px; padding: 2px 8px; }
+  .tela .area { font-size: 16px; }
+  .tela .area-design { font-family: var(--ui); font-size: 14px; background: var(--fundo); min-height: 64px; color: var(--navy-suave); border-color: var(--linha); }
+  .tela .sub { font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-fraco); font-weight: 600; }
+
+  /* Ideias */
+  .corpo.sem-gaveta { grid-template-columns: minmax(0, 1fr); }
+  .corpo.sem-gaveta .gaveta { display: none; }
+  .ideias-wrap { width: 100%; max-width: 780px; margin-inline: auto; display: flex; flex-direction: column; gap: 18px; }
+  .ideias-topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 2px solid var(--navy); }
+  .ideias-topo h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: 0.04em; line-height: 1; }
+  .ideias { display: flex; flex-direction: column; gap: 12px; }
+  .ideia {
+    background: var(--papel); border: 1px solid var(--linha); border-left: 3px solid var(--navy);
+    border-radius: 4px 12px 12px 4px; padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .ideia-topo { display: flex; align-items: center; gap: 12px; }
+  .ideia-data { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
+  .ideia-topo .contador { margin-left: auto; }
+  .ideia .area { min-height: 72px; border-color: var(--linha); background: #fffefc; }
+
+  /* Entrada (versão do GitHub) */
+  .login { position: fixed; inset: 0; z-index: 50; background: var(--fundo); display: grid; place-items: center; padding: 24px 16px; overflow-y: auto; }
+  .login-card { width: 100%; max-width: 380px; background: var(--papel); border: 1px solid var(--linha); border-top: 3px solid var(--navy); border-radius: 12px; padding: 28px 26px; display: flex; flex-direction: column; gap: 10px; }
+  .login-card h1 { margin: 0 0 4px; font-family: var(--display); font-weight: 400; font-size: 36px; letter-spacing: 0.04em; line-height: 1; }
+  .login-card h1 span { color: var(--laranja); }
+  .login-card p { margin: 0 0 8px; color: var(--navy-suave); font-size: 14px; }
+  .login-card label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-suave); margin-top: 6px; }
+  .login-card input { width: 100%; background: #fffefc; border: 1px solid var(--linha-forte); border-radius: 8px; padding: 10px 12px; font-size: 15px; }
+  .login-card input:focus-visible { outline: none; border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy); }
+  .login-card .btn { margin-top: 12px; padding: 10px 14px; }
+  .link { background: none; border: 0; padding: 4px 0; color: var(--navy-suave); text-decoration: underline; font-size: 13.5px; align-self: flex-start; }
+  .link:hover { color: var(--navy); }
+  .login-msg { min-height: 1.4em; font-size: 13.5px; color: var(--navy-suave); }
+  .login-msg[data-s="erro"] { color: var(--vermelho); }
+
+  .carregando { color: var(--navy-fraco); padding: 40px 0; }
+
+  @media (max-width: 1100px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 900px) {
+    .corpo { grid-template-columns: minmax(0, 1fr); }
+    .gaveta { border-right: 0; border-bottom: 1px solid var(--linha); padding: 14px 16px; }
+    .abrir-gaveta { display: inline-flex; }
+    .gaveta:not(.aberta) .gaveta-conteudo { display: none; }
+    .editor { padding: 22px 16px 56px; }
+    .medidor { margin-inline: -16px; padding-inline: 16px; }
+    .topo { padding: 14px 16px 12px; }
+    .abas { padding-inline: 8px; display: flex; overflow-x: auto; scrollbar-width: none; }
+    .aba { flex: 0 0 auto; padding-inline: 12px; }
+    .aba span { display: none; }
+    .gancho-tipo .caixa { min-width: 0; flex: 1 1 100%; }
+    .bloco { padding: 12px 14px 14px; }
+  }
+  @media (max-width: 480px) {
+    .marca small { display: none; }
+    .card.estatico { display: none; }
+    .medidor { gap: 10px; padding-block: 10px 12px; }
+    .telas { grid-template-columns: minmax(0, 1fr); }
+    .card-principal .card-valor { font-size: 38px; }
+    .card-valor { font-size: 28px; }
+    .titulo { font-size: 23px; }
+    .bloco .area { font-size: 17px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .regua-cheio { transition: none; } }
+</style>
+<style>body { margin: 0; }</style>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+<div class="app">
+  <header class="topo">
+    <div class="marca">
+      <h1>Caderno de roteiros<span class="ponto">.</span></h1>
+      <small>Isabella Fortunato</small>
+    </div>
+    <div class="topo-dir">
+      <span class="estado" id="estado" data-s="neutro">Abrindo seus roteiros</span>
+      <button class="btn btn-sair" id="sair" type="button" hidden>Sair</button>
+    </div>
+  </header>
+
+  <nav class="abas" role="tablist" aria-label="Tipo de conteúdo" id="abas"></nav>
+
+  <div class="corpo">
+    <aside class="gaveta" id="gaveta">
+      <div class="gaveta-topo">
+        <h2 id="gaveta-titulo">Roteiros</h2>
+        <button class="btn abrir-gaveta" id="abrir-gaveta" aria-expanded="false" aria-controls="gaveta-conteudo">Ver lista</button>
+        <button class="btn btn-laranja" id="novo">Novo</button>
+      </div>
+      <div class="gaveta-conteudo" id="gaveta-conteudo">
+        <input class="busca" id="busca" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título">
+        <ul class="lista" id="lista"></ul>
+      </div>
+    </aside>
+
+    <main class="editor" id="editor">
+      <p class="carregando">Abrindo o caderno.</p>
+    </main>
+  </div>
+</div>
+
+<div class="login" id="login" hidden>
+  <form class="login-card" id="form-login">
+    <h1>Caderno de roteiros<span>.</span></h1>
+    <p>Entre com o e-mail e a senha cadastrados no Firebase.</p>
+    <label for="login-email">E-mail</label>
+    <input id="login-email" type="email" autocomplete="username" required>
+    <label for="login-senha">Senha</label>
+    <input id="login-senha" type="password" autocomplete="current-password" required>
+    <button class="btn btn-laranja" type="submit">Entrar</button>
+    <button class="link" type="button" id="esqueci">Esqueci a senha</button>
+    <p class="login-msg" id="login-msg" role="status"></p>
+  </form>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- Configuração ---------- */
+  var PALAVRAS_POR_SEGUNDO = 2.9; // 174 palavras por minuto no vídeo editado
+  var TIPOS = {
+    instagram: { nome: "Instagram", sub: "Vídeo curto · 280 a 300 palavras", video: true, min: 280, max: 300, duracao: "1 min 40 s" },
+    tiktok:    { nome: "TikTok", sub: "Vídeo longo · 350 a 435 palavras", video: true, min: 350, max: 435, duracao: "2 min a 2 min 30 s" },
+    carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, porTela: 25 },
+    stories:   { nome: "Stories", sub: "Até 10 telas · 25 palavras por tela", video: false, telas: 10, porTela: 25 },
+    ideias:    { nome: "Ideias", sub: "Até 50 palavras por ideia", ideias: true }
+  };
+  var ORDEM_TIPOS = ["instagram", "tiktok", "carrossel", "stories", "ideias"];
+  var FORMATOS = ["Tela dividida", "Fundo verde", "Falando para a câmera"];
+  var MODALIDADES = ["Sonho", "Transformação", "Fofocas", "Objeções", "Lista", "Storytelling"];
+  var OBJETIVOS = ["Compartilhável", "Salvável", "Likes", "Interação"];
+  var BLOCOS = [
+    { tipo: "gancho", nome: "Gancho", dica: "A headline falada, com o texto na tela entrando junto. Deixa o assunto cristalino sem entregar a lição já mastigada." },
+    { tipo: "ponte", nome: "Ponte", dica: "Direto ao ponto e a promessa do que vem, sem contexto longo." },
+    { tipo: "causa", nome: "Causa", dica: "Por que o problema do gancho acontece, sem entregar a solução ainda. É aqui que a leitura se desloca: a pessoa acha que o problema mora num lugar e você mostra que ele mora em outro. A cena concreta em que a Letícia se vê cabe dentro deste bloco." },
+    { tipo: "solucao", nome: "Solução", dica: "A entrega prática, com o passo concreto, verbo no imperativo e objeto definido. É o bloco mais denso e o que mais se apoia no texto na tela." },
+    { tipo: "chamada", nome: "Chamada do meio", dica: "O pedido de seguir, espelhando a dor daquele roteiro específico." },
+    { tipo: "detalhe", nome: "Detalhe ignorado", dica: "Um detalhe só, o mais valioso, o erro comum que separa quem faz certo de quem faz errado." },
+    { tipo: "crenca", nome: "Crença", dica: "A ideia que fica depois que o vídeo acaba, dita em uma ou 2 frases. Precisa ser discutível, algo com que alguém possa discordar, nunca frase motivacional." },
+    { tipo: "prova", nome: "Prova", dica: "Um exemplo só, o mais forte, com caso, número ou resultado, para sustentar a crença que acabou de ser dita." },
+    { tipo: "fechamento", nome: "Fechamento com pergunta", dica: "Retomada de uma palavra do gancho, a pergunta que pede resposta escrita e o resumo salvável na tela." },
+    { tipo: "livre", nome: "Bloco livre", dica: "Texto fora da estrutura, para o que não se encaixa nos outros blocos." }
+  ];
+  var GANCHOS = [
+    { familia: "Identificação", tipos: ["Dor nomeada", "Você também", "POV", "Com quantos anos você descobriu"] },
+    { familia: "Culpa", tipos: ["Inimigo comum", "Erro que a pessoa comete", "Provocação direta"] },
+    { familia: "Relato próprio", tipos: ["Como eu fiz", "Parei de fazer", "Bastidores", "História"] },
+    { familia: "Contraste", tipos: ["Dualidade", "Antes e depois", "Expectativa versus realidade", "Tipos de pessoas"] },
+    { familia: "Ensino", tipos: ["Educativo", "Passo a passo", "O subestimado", "Pergunta com lacuna"] },
+    { familia: "Convite à ação", tipos: ["Na próxima vez que", "Desafio", "Autoteste"] },
+    { familia: "Alívio", tipos: ["Permissão", "Recorte do público"] },
+    { familia: "Autoridade", tipos: ["Como eu faria", "Autoridade por associação", "Números e dados"] }
+  ];
+  var BLOCO = {}; BLOCOS.forEach(function (b, i) { b.ordem = i; BLOCO[b.tipo] = b; });
+  var PADRAO_BLOCOS = BLOCOS.slice(0, 9).map(function (b) { return b.tipo; });
+  var LIMITE_TEXTO_TELA = 9;
+  var LIMITE_LEGENDA = 50;
+  var LIMITE_IDEIA = 50;
+  var CHAVE_ABA = "caderno-roteiros-aba";
+
+  /* ---------- Estado ---------- */
+  var arm = null;           // armazenamento em uso
+  var desligar = [];        // cancela as escutas do armazenamento
+  var acervo = {};          // roteiros por id
+  var atual = null;         // roteiro aberto
+  var ideias = {};          // ideias por id
+  var carregou = false, carregouIdeias = false;
+  var abaAtual = lerLocal(CHAVE_ABA) || "instagram";
+  if (!TIPOS[abaAtual]) abaAtual = "instagram";
+  var timerSalvar = null, pendente = null;
+  var timersIdeia = {};
+  var busca = "";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ---------- Utilidades ---------- */
+  function lerLocal(chave) { try { return localStorage.getItem(chave); } catch (e) { return null; } }
+  function gravarLocal(chave, valor) { try { localStorage.setItem(chave, valor); } catch (e) {} }
+  function novoId() { return "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function contar(t) {
+    if (!t) return 0;
+    var m = String(t).match(/[\p{L}\p{N}]+(?:[-'’][\p{L}\p{N}]+)*/gu);
+    return m ? m.length : 0;
+  }
+  function plural(n, s, p) { return n === 1 ? s : p; }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function clonar(o) { return JSON.parse(JSON.stringify(o)); }
+  function duracao(palavras) {
+    var s = Math.round(palavras / PALAVRAS_POR_SEGUNDO);
+    var m = Math.floor(s / 60), r = s % 60;
+    if (m === 0) return { valor: String(r), unidade: "s" };
+    return { valor: m + ":" + String(r).padStart(2, "0"), unidade: "min" };
+  }
+  function dataCurta(iso) {
+    if (!iso) return "";
+    var d = new Date(iso);
+    return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+  }
+  function hora(d) { return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function mostrarEstado(s, texto) { var el = $("estado"); el.dataset.s = s; el.textContent = texto; }
+  function avisarSalvo() {
+    mostrarEstado("salvo", (arm && arm.tipo === "local" ? "Salvo neste navegador às " : "Salvo às ") + hora(new Date()));
+  }
+
+  /* ---------- Armazenamento ----------
+     Três lugares possíveis, com a mesma interface:
+     o banco do artefato no Claude, o Firebase (versão do GitHub, com login) e o próprio navegador. */
+  function adaptadorLocal() {
+    var chaves = { roteiros: "caderno-roteiros-v1", ideias: "caderno-ideias-v1" };
+    var mapas = {};
+    function ler(n) {
+      if (!mapas[n]) { try { mapas[n] = JSON.parse(lerLocal(chaves[n]) || "{}") || {}; } catch (e) { mapas[n] = {}; } }
+      return mapas[n];
+    }
+    function gravar(n) { gravarLocal(chaves[n], JSON.stringify(ler(n))); }
+    return {
+      tipo: "local",
+      ouvir: function (n, cb) { cb(clonar(ler(n))); return function () {}; },
+      salvar: function (n, id, d) { ler(n)[id] = d; gravar(n); return Promise.resolve(); },
+      apagar: function (n, id) { delete ler(n)[id]; gravar(n); return Promise.resolve(); }
+    };
+  }
+  function adaptadorArtefato(db) {
+    return {
+      tipo: "db",
+      ouvir: function (n, cb, erro) {
+        return db.collection(n).orderBy("atualizado", "desc").onSnapshot(function (snap) {
+          var m = {}; snap.docs.forEach(function (d) { if (d.exists) m[d.id] = d.data(); }); cb(m);
+        }, erro);
+      },
+      salvar: function (n, id, d) { return db.collection(n).doc(id).set(d); },
+      apagar: function (n, id) { return db.collection(n).doc(id).delete(); }
+    };
+  }
+  function adaptadorFirebase(fs, uid) {
+    var base = fs.collection("usuarios").doc(uid);
+    return {
+      tipo: "firebase",
+      ouvir: function (n, cb, erro) {
+        return base.collection(n).orderBy("atualizado", "desc").onSnapshot(function (snap) {
+          var m = {}; snap.forEach(function (d) { m[d.id] = d.data(); }); cb(m);
+        }, erro);
+      },
+      salvar: function (n, id, d) { return base.collection(n).doc(id).set(d); },
+      apagar: function (n, id) { return base.collection(n).doc(id).delete(); }
+    };
+  }
+
+  function desconectar() {
+    salvarPendente();
+    salvarIdeiasPendentes();
+    desligar.forEach(function (f) { try { f(); } catch (e) {} });
+    desligar = [];
+    arm = null; acervo = {}; ideias = {}; atual = null;
+    carregou = false; carregouIdeias = false;
+  }
+
+  function conectar(adaptador, mensagem) {
+    arm = adaptador;
+    carregou = false; carregouIdeias = false; acervo = {}; ideias = {}; atual = null;
+    mostrarEstado(arm.tipo === "local" ? "neutro" : "salvo", mensagem || "Tudo salvo");
+    var erroEscuta = function () {
+      if (!arm) return;
+      if (arm.tipo === "firebase") {
+        mostrarEstado("erro", "O Firebase recusou a leitura. Confira as regras do Firestore.");
+        return;
+      }
+      if (arm.tipo !== "db") return;
+      desconectar();
+      conectar(adaptadorLocal(), "Sem conexão com o armazenamento. Salvando só neste navegador.");
+      aplicarAba();
+    };
+    desligar.push(arm.ouvir("roteiros", function (m) {
+      if (atual && !atual._novo) m[atual.id] = atual; // o roteiro aberto manda
+      acervo = m;
+      if (!carregou) {
+        carregou = true;
+        if (abaAtual !== "ideias") abrirMaisRecente();
+      }
+      renderLista();
+    }, erroEscuta));
+    desligar.push(arm.ouvir("ideias", function (m) {
+      var antes = Object.keys(ideias).sort().join(",");
+      var novo = {};
+      Object.keys(m).forEach(function (id) { novo[id] = ideias[id] || clonar(m[id]); });
+      Object.keys(ideias).forEach(function (id) { if (ideias[id]._nova || timersIdeia[id]) novo[id] = ideias[id]; });
+      ideias = novo;
+      var mudou = antes !== Object.keys(ideias).sort().join(",");
+      var focoNasIdeias = document.activeElement && document.activeElement.closest && document.activeElement.closest("#ideias");
+      if (!carregouIdeias) { carregouIdeias = true; if (abaAtual === "ideias") renderIdeias(); }
+      else if (abaAtual === "ideias" && mudou && !focoNasIdeias) renderIdeias();
+    }, erroEscuta));
+  }
+
+  function iniciar() {
+    var cfg = window.FIREBASE_CONFIG;
+    var versaoGithub = typeof cfg !== "undefined";
+    if (versaoGithub && cfg && cfg.apiKey && cfg.projectId && window.firebase) { iniciarFirebase(cfg); return; }
+    if (versaoGithub) {
+      conectar(adaptadorLocal(), "Firebase ainda não configurado. Salvando só neste navegador.");
+      aplicarAba();
+      return;
+    }
+    var temClaude = window.claude && typeof window.claude.use === "function";
+    var promessa = temClaude ? window.claude.use("db").catch(function () { return null; }) : Promise.resolve(null);
+    promessa.then(function (db) {
+      if (db) conectar(adaptadorArtefato(db));
+      else conectar(adaptadorLocal(), "Salvando só neste navegador");
+      aplicarAba();
+    });
+  }
+
+  function iniciarFirebase(cfg) {
+    firebase.initializeApp(cfg);
+    var auth = firebase.auth();
+    var fs = firebase.firestore();
+    try { fs.enablePersistence({ synchronizeTabs: true }).catch(function () {}); } catch (e) {}
+    mostrarEstado("neutro", "Conectando");
+    auth.onAuthStateChanged(function (u) {
+      desconectar();
+      if (u) {
+        $("login").hidden = true; $("sair").hidden = false;
+        conectar(adaptadorFirebase(fs, u.uid));
+        aplicarAba();
+      } else {
+        $("sair").hidden = true; $("login").hidden = false;
+        $("editor").innerHTML = "";
+        renderLista();
+        mostrarEstado("neutro", "Entre para ver os seus roteiros");
+        setTimeout(function () { $("login-email").focus(); }, 50);
+      }
+    });
+    var msg = function (t, s) { var el = $("login-msg"); el.textContent = t; el.dataset.s = s || ""; };
+    $("form-login").addEventListener("submit", function (e) {
+      e.preventDefault();
+      msg("Entrando");
+      auth.signInWithEmailAndPassword($("login-email").value.trim(), $("login-senha").value).then(function () {
+        msg(""); $("login-senha").value = "";
+      }).catch(function (err) {
+        var c = (err && err.code) || "";
+        if (/invalid-credential|wrong-password|user-not-found|invalid-email|invalid-login/.test(c)) msg("E-mail ou senha não conferem.", "erro");
+        else if (/too-many-requests/.test(c)) msg("Muitas tentativas seguidas. Espere alguns minutos e tente de novo.", "erro");
+        else if (/network-request-failed/.test(c)) msg("Sem conexão com a internet. Confira a rede e tente de novo.", "erro");
+        else if (/unauthorized-domain|operation-not-allowed/.test(c)) msg("O Firebase ainda não liberou este endereço ou o login por e-mail. Confira a configuração do projeto.", "erro");
+        else msg("Não foi possível entrar (" + c + ").", "erro");
+      });
+    });
+    $("esqueci").addEventListener("click", function () {
+      var email = $("login-email").value.trim();
+      if (!email) { msg("Escreva o seu e-mail acima e clique de novo em Esqueci a senha.", "erro"); return; }
+      auth.sendPasswordResetEmail(email).then(function () {
+        msg("Enviamos um link para criar uma senha nova. Confira a sua caixa de entrada.");
+      }).catch(function () { msg("Não foi possível enviar o link. Confira o e-mail escrito.", "erro"); });
+    });
+    $("sair").addEventListener("click", function () { auth.signOut(); });
+  }
+
+  /* ---------- Roteiros ---------- */
+  function telaVazia() { return { id: novoId(), texto: "", design: "" }; }
+  function blocoVazio(tipo) { return { id: novoId(), tipo: tipo, texto: "" }; }
+  function novoRoteiro(tipo) {
+    var r = {
+      id: novoId(), tipo: tipo, titulo: "", formato: "", modalidade: "", objetivo: "",
+      textoTela: "", legenda: "", blocos: [], telas: [],
+      criado: new Date().toISOString(), atualizado: new Date().toISOString()
+    };
+    if (TIPOS[tipo].video) r.blocos = PADRAO_BLOCOS.map(blocoVazio);
+    else for (var i = 0; i < TIPOS[tipo].telas; i++) r.telas.push(telaVazia());
+    r._novo = true;
+    return r;
+  }
+  // Roteiros salvos antes da estrutura em blocos: o texto antigo vira um bloco livre no topo.
+  function normalizar(r) {
+    if (TIPOS[r.tipo] && TIPOS[r.tipo].video && !Array.isArray(r.blocos)) {
+      r.blocos = PADRAO_BLOCOS.map(blocoVazio);
+      if (r.corpo) r.blocos.unshift({ id: novoId(), tipo: "livre", texto: r.corpo });
+    }
+    if (!Array.isArray(r.telas)) r.telas = [];
+    if (!Array.isArray(r.blocos)) r.blocos = [];
+    delete r.corpo;
+    return r;
+  }
+  function palavrasVideo(r) {
+    if (Array.isArray(r.blocos)) return r.blocos.reduce(function (s, b) { return s + contar(b.texto); }, 0);
+    return contar(r.corpo);
+  }
+  function limpo(r) { var c = clonar(r); delete c._novo; delete c._nova; return c; }
+  function estaEmBranco(r) {
+    if (r.titulo || r.formato || r.modalidade || r.objetivo || r.textoTela || r.legenda) return false;
+    if ((r.blocos || []).some(function (b) { return b.texto; })) return false;
+    return !(r.telas || []).some(function (t) { return t.texto || t.design; });
+  }
+
+  function agendarSalvar() {
+    if (!atual) return;
+    atual.atualizado = new Date().toISOString();
+    if (atual._novo && estaEmBranco(atual)) return;
+    delete atual._novo;
+    acervo[atual.id] = atual;
+    mostrarEstado("salvando", "Salvando");
+    pendente = atual;
+    clearTimeout(timerSalvar);
+    timerSalvar = setTimeout(salvarPendente, 700);
+    renderListaDepois();
+  }
+  function salvarPendente() {
+    clearTimeout(timerSalvar);
+    if (!pendente || !arm) { pendente = null; return; }
+    var r = pendente; pendente = null;
+    salvarRoteiro(r, false);
+  }
+  function salvarRoteiro(r, tentativa) {
+    var a = arm;
+    a.salvar("roteiros", r.id, limpo(r)).then(avisarSalvo).catch(function (e) {
+      if (e && e.code === "quota_exceeded") mostrarEstado("erro", "Espaço cheio. Exclua roteiros antigos para salvar novos.");
+      else if (!tentativa && a === arm) {
+        mostrarEstado("erro", "Não salvou. Tentando de novo.");
+        setTimeout(function () { if (a === arm) salvarRoteiro(r, true); }, 1500 + Math.random() * 1000);
+      } else mostrarEstado("erro", "Não foi possível salvar. Confira a conexão e continue escrevendo.");
+    });
+  }
+  var timerLista = null;
+  function renderListaDepois() { clearTimeout(timerLista); timerLista = setTimeout(renderLista, 300); }
+
+  function excluirRoteiro(r) {
+    if (pendente === r) { pendente = null; clearTimeout(timerSalvar); }
+    delete acervo[r.id];
+    arm.apagar("roteiros", r.id).then(function () { mostrarEstado("salvo", "Roteiro excluído"); })
+      .catch(function () { mostrarEstado("erro", "Não foi possível excluir. Tente de novo."); });
+    atual = null;
+    abrirMaisRecente();
+    renderLista();
+  }
+
+  /* ---------- Abas e lista ---------- */
+  function renderAbas() {
+    $("abas").innerHTML = ORDEM_TIPOS.map(function (t) {
+      var c = TIPOS[t];
+      return '<button class="aba" role="tab" id="aba-' + t + '" data-tipo="' + t + '" aria-selected="' + (t === abaAtual) + '">' +
+        "<b>" + c.nome + "</b><span>" + c.sub + "</span></button>";
+    }).join("");
+  }
+  function aplicarAba() {
+    renderAbas();
+    var ehIdeias = abaAtual === "ideias";
+    document.querySelector(".corpo").classList.toggle("sem-gaveta", ehIdeias);
+    if (!arm) return;
+    if (ehIdeias) { atual = null; renderIdeias(); }
+    else if (carregou) abrirMaisRecente();
+    else $("editor").innerHTML = '<p class="carregando">Abrindo o caderno.</p>';
+    renderLista();
+  }
+  function doTipo(tipo) {
+    return Object.keys(acervo).map(function (k) { return acervo[k]; })
+      .filter(function (r) { return r.tipo === tipo; })
+      .sort(function (a, b) { return (b.atualizado || "").localeCompare(a.atualizado || ""); });
+  }
+  function abrirMaisRecente() {
+    var lista = doTipo(abaAtual);
+    abrir(lista.length ? lista[0] : novoRoteiro(abaAtual));
+  }
+  function metaItem(r) {
+    var partes = [];
+    if (TIPOS[r.tipo].video) { var n = palavrasVideo(r); partes.push(n + " " + plural(n, "palavra", "palavras")); }
+    else { var q = (r.telas || []).length; partes.push(q + " " + plural(q, "tela", "telas")); }
+    if (r.modalidade) partes.push(r.modalidade);
+    if (r.objetivo) partes.push(r.objetivo);
+    partes.push(dataCurta(r.atualizado));
+    return partes.join(" · ");
+  }
+  function renderLista() {
+    if (abaAtual === "ideias") return;
+    var lista = doTipo(abaAtual), total = lista.length;
+    if (busca) {
+      var b = busca.toLowerCase();
+      lista = lista.filter(function (r) { return (r.titulo || "").toLowerCase().indexOf(b) !== -1; });
+    }
+    $("gaveta-titulo").textContent = TIPOS[abaAtual].nome + " (" + total + ")";
+    var el = $("lista");
+    if (!carregou) { el.innerHTML = '<li class="vazio-lista">' + (arm ? "Carregando." : "") + "</li>"; return; }
+    if (!lista.length) {
+      el.innerHTML = '<li class="vazio-lista">' + (busca ? "Nenhum título com esse trecho."
+        : "Ainda não há roteiros de " + TIPOS[abaAtual].nome + ". O que você escrever aqui fica salvo sozinho.") + "</li>";
+      return;
+    }
+    el.innerHTML = lista.map(function (r) {
+      return '<li><button class="item" data-id="' + r.id + '" aria-current="' + (atual && atual.id === r.id) + '">' +
+        '<span class="item-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
+        '<span class="item-meta">' + esc(metaItem(r)) + "</span></button></li>";
+    }).join("");
+  }
+
+  /* ---------- Editor de roteiro ---------- */
+  function seletorHtml(nome, campo, opcoes) {
+    var v = atual[campo] || "";
+    return '<div class="seletor"><label for="s-' + campo + '">' + nome + "</label>" +
+      '<select class="caixa' + (v ? "" : " vazia") + '" id="s-' + campo + '" data-campo="' + campo + '">' +
+      '<option value="">Escolha ' + (campo === "formato" ? "o formato" : campo === "modalidade" ? "a modalidade" : "o objetivo") + "</option>" +
+      opcoes.map(function (o) {
+        return '<option value="' + esc(o) + '"' + (v === o ? " selected" : "") + ">" + esc(o) + "</option>";
+      }).join("") + "</select></div>";
+  }
+  function seletorGanchoHtml(b) {
+    var v = b.gancho || "";
+    return '<div class="gancho-tipo"><label for="sg-' + b.id + '">Tipo de gancho</label>' +
+      '<select class="caixa' + (v ? "" : " vazia") + '" id="sg-' + b.id + '" data-gancho="' + b.id + '">' +
+      '<option value="">Escolha a família e o tipo</option>' +
+      GANCHOS.map(function (g) {
+        return '<optgroup label="' + esc(g.familia) + '">' + g.tipos.map(function (t) {
+          var val = g.familia + "|" + t;
+          return '<option value="' + esc(val) + '"' + (b.familia === g.familia && v === t ? " selected" : "") + ">" + esc(t) + "</option>";
+        }).join("") + "</optgroup>";
+      }).join("") + "</select>" +
+      '<span class="gancho-familia" id="gf-' + b.id + '">' + (b.familia ? "Família: <b>" + esc(b.familia) + "</b>" : "") + "</span></div>";
+  }
+
+  function abrir(r) {
+    salvarPendente();
+    // os documentos que chegam do armazenamento vêm congelados: edita-se sempre uma cópia
+    atual = r._novo ? r : normalizar(clonar(r));
+    if (!r._novo) acervo[atual.id] = atual;
+    renderEditor();
+    renderLista();
+  }
+
+  function renderEditor() {
+    var r = atual, c = TIPOS[r.tipo];
+    var h = '<input class="titulo" id="titulo" type="text" placeholder="Título do roteiro" value="' + esc(r.titulo) + '" aria-label="Título do roteiro">';
+    h += '<section class="seletores">';
+    if (c.video) h += seletorHtml("Formato", "formato", FORMATOS);
+    h += seletorHtml("Modalidade", "modalidade", MODALIDADES);
+    h += seletorHtml("Objetivo", "objetivo", OBJETIVOS);
+    h += "</section>";
+
+    if (c.video) {
+      h += '<section class="medidor" aria-live="polite"><div class="cards">' +
+          '<div class="card card-principal"><span class="card-rotulo">Palavras</span><span class="card-valor" id="m-palavras">0</span><span class="pilula" id="m-pilula" data-s="vazio"></span></div>' +
+          '<div class="card estatico"><span class="card-rotulo">Faixa</span><span class="card-valor">' + c.min + "<small>a</small>" + c.max + '</span><span class="card-nota">palavras somando os blocos</span></div>' +
+          '<div class="card"><span class="card-rotulo">Duração estimada</span><span class="card-valor" id="m-duracao">0<small>s</small></span><span class="card-nota">174 palavras por minuto</span></div>' +
+          '<div class="card estatico"><span class="card-rotulo">Duração do vídeo</span><span class="card-valor menor">' + c.duracao + '</span><span class="card-nota">no vídeo editado</span></div>' +
+        "</div>" +
+        '<div class="regua" id="regua" data-s="vazio" aria-hidden="true"><div class="regua-trilho"><div class="regua-faixa" id="r-faixa"></div><div class="regua-cheio" id="r-cheio"></div></div>' +
+          '<span class="regua-marca ini" style="left:0">0</span><span class="regua-marca" id="r-min"></span><span class="regua-marca" id="r-max"></span></div>' +
+      "</section>";
+
+      h += '<div class="campo"><div class="campo-topo"><label for="textoTela">Texto na tela</label><span class="contador" id="c-textoTela"></span></div>' +
+        '<input class="entrada" id="textoTela" type="text" placeholder="A afirmação que aparece escrita junto com o gancho" value="' + esc(r.textoTela) + '"></div>';
+      h += '<section class="blocos" id="blocos" aria-label="Blocos do roteiro"></section>';
+      h += '<div class="acrescentar"><label for="novo-bloco">Acrescentar bloco</label>' +
+        '<select class="caixa" id="novo-bloco">' + BLOCOS.map(function (b) { return '<option value="' + b.tipo + '">' + b.nome + "</option>"; }).join("") + "</select>" +
+        '<button class="btn" id="add-bloco" type="button">Acrescentar</button></div>';
+      h += '<div class="campo"><div class="campo-topo"><label for="legenda">Legenda</label><span class="contador" id="c-legenda"></span></div>' +
+        '<textarea class="area" id="legenda" placeholder="Texto da legenda seguido das hashtags">' + esc(r.legenda) + "</textarea></div>";
+    } else {
+      h += '<section class="resumo"><span class="aviso" id="t-resumo"></span><button class="btn" id="add-tela" type="button">Adicionar tela</button></section>';
+      h += '<section class="telas" id="telas"></section>';
+    }
+
+    h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
+      '<button class="btn btn-perigo" id="excluir" type="button">Excluir roteiro</button></div>';
+
+    $("editor").innerHTML = h;
+    if (c.video) renderBlocos(); else renderTelas();
+    atualizarMedidas();
+    var leg = $("legenda"); if (leg) crescer(leg);
+  }
+
+  function renderBlocos() {
+    var r = atual, total = r.blocos.length;
+    var el = $("blocos");
+    if (!total) { el.innerHTML = '<p class="aviso">Nenhum bloco no roteiro. Acrescente um bloco abaixo.</p>'; return; }
+    el.innerHTML = r.blocos.map(function (b, i) {
+      var def = BLOCO[b.tipo] || BLOCO.livre;
+      return '<article class="bloco">' +
+        '<div class="bloco-topo"><h3 class="bloco-nome" id="bn-' + b.id + '">' + def.nome + "</h3>" +
+        '<span class="bloco-pos">' + (i + 1) + " de " + total + "</span>" +
+        '<span class="contador" id="c-bloco-' + i + '"></span>' +
+        '<button type="button" class="apagar" data-apagar="' + i + '" aria-label="Apagar o bloco ' + def.nome + '">Apagar</button></div>' +
+        '<p class="bloco-dica">' + def.dica + "</p>" +
+        (b.tipo === "gancho" ? seletorGanchoHtml(b) : "") +
+        '<textarea class="area" id="bx-' + b.id + '" data-bloco="' + i + '" aria-labelledby="bn-' + b.id + '" placeholder="Escreva aqui"></textarea>' +
+        "</article>";
+    }).join("");
+    r.blocos.forEach(function (b) { var t = $("bx-" + b.id); t.value = b.texto || ""; crescer(t); });
+  }
+
+  function nomeTela(tipo, i, total) {
+    if (tipo === "carrossel") {
+      if (i === 0) return "Headline";
+      if (i === total - 1) return "CTA";
+      return "Tela " + (i + 1);
+    }
+    return "Story " + (i + 1);
+  }
+  function telaFixa(tipo, i, total) { return tipo === "carrossel" && (i === 0 || i === total - 1); }
+
+  function renderTelas() {
+    var r = atual, total = r.telas.length;
+    $("telas").innerHTML = r.telas.map(function (t, i) {
+      var fixa = telaFixa(r.tipo, i, total);
+      var podeExcluir = r.tipo === "carrossel" ? !fixa : total > 1;
+      return '<article class="tela' + (fixa ? " fixa" : "") + '">' +
+        '<div class="tela-topo"><span class="tela-nome">' + nomeTela(r.tipo, i, total) + "</span>" +
+        '<span class="tela-pos">' + (i + 1) + " de " + total + "</span>" +
+        '<span class="contador" id="c-tela-' + i + '"></span>' +
+        (podeExcluir ? '<button type="button" class="apagar" data-excluir="' + i + '" aria-label="Excluir ' + nomeTela(r.tipo, i, total) + '">Excluir</button>' : (fixa ? '<span class="tela-fixa-tag">fixa</span>' : "")) +
+        "</div>" +
+        '<label class="sub" for="tx-' + t.id + '">Texto</label>' +
+        '<textarea class="area" id="tx-' + t.id + '" data-tela="' + i + '" data-parte="texto" placeholder="' + (fixa && i === 0 ? "A frase que para o dedo" : fixa ? "O que você quer que ela faça agora" : "Até 25 palavras") + '"></textarea>' +
+        '<label class="sub" for="ds-' + t.id + '">Design</label>' +
+        '<textarea class="area area-design" id="ds-' + t.id + '" data-tela="' + i + '" data-parte="design" placeholder="Fundo, foto, cor, destaque, posição do texto"></textarea>' +
+        "</article>";
+    }).join("");
+    r.telas.forEach(function (t) {
+      var a = $("tx-" + t.id), d = $("ds-" + t.id);
+      a.value = t.texto || ""; d.value = t.design || ""; crescer(a); crescer(d);
+    });
+    var add = $("add-tela");
+    add.hidden = total >= TIPOS[r.tipo].telas;
+    add.textContent = r.tipo === "stories" ? "Adicionar story" : "Adicionar tela";
+  }
+
+  function crescer(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; }
+
+  function marcarContador(el, n, limite) {
+    if (!el) return;
+    el.textContent = n + " de " + limite;
+    el.dataset.s = n > limite ? "acima" : "ok";
+  }
+
+  function atualizarMedidas() {
+    var r = atual, c = TIPOS[r.tipo];
+    if (c.video) {
+      r.blocos.forEach(function (b, i) {
+        var k = contar(b.texto), el = $("c-bloco-" + i);
+        if (el) el.textContent = k + " " + plural(k, "palavra", "palavras");
+      });
+      var n = palavrasVideo(r);
+      $("m-palavras").textContent = n;
+      var d = duracao(n);
+      $("m-duracao").innerHTML = d.valor + "<small>" + d.unidade + "</small>";
+      var s, txt;
+      if (n === 0) { s = "vazio"; txt = "Roteiro vazio"; }
+      else if (n < c.min) { s = "abaixo"; txt = "Faltam " + (c.min - n) + " para o mínimo"; }
+      else if (n > c.max) { s = "acima"; txt = (n - c.max) + " acima do máximo"; }
+      else { s = "dentro"; txt = "Dentro da faixa"; }
+      var p = $("m-pilula"); p.dataset.s = s; p.textContent = txt;
+      var escala = Math.ceil(c.max * 1.18 / 50) * 50;
+      var pct = function (v) { return Math.min(v, escala) / escala * 100; };
+      $("regua").dataset.s = s;
+      $("r-faixa").style.left = pct(c.min) + "%";
+      $("r-faixa").style.width = (pct(c.max) - pct(c.min)) + "%";
+      $("r-cheio").style.width = pct(n) + "%";
+      $("r-min").style.left = pct(c.min) + "%"; $("r-min").textContent = c.min;
+      $("r-max").style.left = pct(c.max) + "%"; $("r-max").textContent = c.max;
+      marcarContador($("c-textoTela"), contar(r.textoTela), LIMITE_TEXTO_TELA);
+      marcarContador($("c-legenda"), contar(r.legenda), LIMITE_LEGENDA);
+    } else {
+      var total = 0, acima = 0;
+      r.telas.forEach(function (t, i) {
+        var k = contar(t.texto); total += k;
+        if (k > c.porTela) acima++;
+        marcarContador($("c-tela-" + i), k, c.porTela);
+      });
+      var q = r.telas.length;
+      $("t-resumo").textContent = q + " " + plural(q, "tela", "telas") + " de " + c.telas + " · " + total + " " + plural(total, "palavra", "palavras") + " no total" +
+        (acima ? " · " + acima + " " + plural(acima, "tela passou", "telas passaram") + " de " + c.porTela + " palavras" : "");
+    }
+  }
+
+  function acrescentarBloco(tipo) {
+    var novo = blocoVazio(tipo), ordem = BLOCO[tipo].ordem, pos = atual.blocos.length;
+    if (tipo !== "livre") {
+      // entra no lugar dele na estrutura: antes do primeiro bloco que vem depois na ordem
+      for (var i = 0; i < atual.blocos.length; i++) {
+        var o = (BLOCO[atual.blocos[i].tipo] || BLOCO.livre).ordem;
+        if (atual.blocos[i].tipo !== "livre" && o > ordem) { pos = i; break; }
+      }
+    }
+    atual.blocos.splice(pos, 0, novo);
+    renderBlocos(); atualizarMedidas(); agendarSalvar();
+    var t = $("bx-" + novo.id);
+    if (t) { t.focus(); t.scrollIntoView({ block: "center", behavior: "smooth" }); }
+  }
+
+  function textoParaCopiar() {
+    var r = atual, c = TIPOS[r.tipo], L = [];
+    L.push(r.titulo || "Sem título");
+    var meta = [];
+    if (c.video && r.formato) meta.push("Formato: " + r.formato);
+    if (r.modalidade) meta.push("Modalidade: " + r.modalidade);
+    if (r.objetivo) meta.push("Objetivo: " + r.objetivo);
+    if (meta.length) L.push(meta.join(" | "));
+    L.push("");
+    if (c.video) {
+      if (r.textoTela) { L.push("Texto na tela"); L.push(r.textoTela.trim()); L.push(""); }
+      r.blocos.forEach(function (b) {
+        if (!(b.texto || "").trim()) return;
+        var nomeB = (BLOCO[b.tipo] || BLOCO.livre).nome;
+        if (b.tipo === "gancho" && b.gancho) nomeB += " (" + b.familia + ": " + b.gancho + ")";
+        L.push(nomeB); L.push(b.texto.trim()); L.push("");
+      });
+      if (r.legenda) { L.push("Legenda"); L.push(r.legenda.trim()); }
+    } else {
+      r.telas.forEach(function (t, i) {
+        L.push(nomeTela(r.tipo, i, r.telas.length));
+        L.push("Texto: " + (t.texto || "").trim());
+        L.push("Design: " + (t.design || "").trim());
+        L.push("");
+      });
+    }
+    return L.join("\n").trim() + "\n";
+  }
+  function copiar() {
+    var txt = textoParaCopiar();
+    var ok = function () { mostrarEstado("salvo", "Roteiro copiado"); };
+    var reserva = function () {
+      var ta = document.createElement("textarea");
+      ta.value = txt; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); ok(); } catch (e) { mostrarEstado("erro", "Não foi possível copiar"); }
+      document.body.removeChild(ta);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, reserva);
+    else reserva();
+  }
+
+  /* ---------- Ideias ---------- */
+  function listaIdeias() {
+    return Object.keys(ideias).map(function (k) { return ideias[k]; })
+      .sort(function (a, b) { return (b.criado || "").localeCompare(a.criado || ""); });
+  }
+  function resumoIdeias() {
+    var n = listaIdeias().filter(function (i) { return !i._nova || (i.texto || "").trim(); }).length;
+    return n + " " + plural(n, "ideia guardada", "ideias guardadas") + " · até " + LIMITE_IDEIA + " palavras cada";
+  }
+  function renderIdeias() {
+    var h = '<div class="ideias-wrap"><div class="ideias-topo"><div><h2>Ideias</h2><span class="aviso" id="i-resumo"></span></div>' +
+      '<button class="btn btn-laranja" id="nova-ideia" type="button">Nova ideia</button></div>';
+    if (!carregouIdeias) h += '<p class="carregando">Carregando as ideias.</p>';
+    else {
+      var lista = listaIdeias();
+      h += '<section class="ideias" id="ideias" aria-label="Ideias">';
+      if (!lista.length) h += '<p class="aviso">Nenhuma ideia guardada ainda. Clique em Nova ideia e escreva em poucas palavras o tema, o ângulo ou a frase que apareceu na sua cabeça.</p>';
+      h += lista.map(function (i) {
+        return '<article class="ideia"><div class="ideia-topo"><span class="ideia-data">Ideia de ' + dataCurta(i.criado) + "</span>" +
+          '<span class="contador" id="ci-' + i.id + '"></span>' +
+          '<button type="button" class="apagar" data-apagar-ideia="' + i.id + '" aria-label="Apagar a ideia de ' + dataCurta(i.criado) + '">Apagar</button></div>' +
+          '<textarea class="area" id="ix-' + i.id + '" data-ideia="' + i.id + '" aria-label="Ideia de ' + dataCurta(i.criado) + '" placeholder="Escreva a ideia"></textarea></article>';
+      }).join("");
+      h += "</section>";
+    }
+    h += "</div>";
+    $("editor").innerHTML = h;
+    listaIdeias().forEach(function (i) {
+      var t = $("ix-" + i.id); if (!t) return;
+      t.value = i.texto || ""; crescer(t);
+      marcarContador($("ci-" + i.id), contar(i.texto), LIMITE_IDEIA);
+    });
+    var r = $("i-resumo"); if (r) r.textContent = resumoIdeias();
+  }
+  function salvarIdeia(i) {
+    delete timersIdeia[i.id];
+    if (!arm) return;
+    arm.salvar("ideias", i.id, limpo(i)).then(avisarSalvo)
+      .catch(function () { mostrarEstado("erro", "Não foi possível salvar a ideia. Confira a conexão."); });
+  }
+  function agendarIdeia(i) {
+    i.atualizado = new Date().toISOString();
+    if (i._nova && !(i.texto || "").trim()) return;
+    delete i._nova;
+    mostrarEstado("salvando", "Salvando");
+    clearTimeout(timersIdeia[i.id]);
+    timersIdeia[i.id] = setTimeout(function () { salvarIdeia(i); }, 700);
+  }
+  function salvarIdeiasPendentes() {
+    Object.keys(timersIdeia).forEach(function (id) {
+      clearTimeout(timersIdeia[id]);
+      if (ideias[id]) salvarIdeia(ideias[id]);
+    });
+  }
+
+  /* ---------- Eventos ---------- */
+  $("abas").addEventListener("click", function (e) {
+    var b = e.target.closest(".aba"); if (!b) return;
+    salvarPendente(); salvarIdeiasPendentes();
+    abaAtual = b.dataset.tipo;
+    gravarLocal(CHAVE_ABA, abaAtual);
+    busca = ""; $("busca").value = "";
+    aplicarAba();
+  });
+  $("novo").addEventListener("click", function () {
+    if (!carregou) return;
+    abrir(novoRoteiro(abaAtual));
+    var t = $("titulo"); if (t) t.focus();
+  });
+  $("busca").addEventListener("input", function (e) { busca = e.target.value.trim(); renderLista(); });
+  $("lista").addEventListener("click", function (e) {
+    var b = e.target.closest(".item"); if (!b) return;
+    var r = acervo[b.dataset.id]; if (!r) return;
+    abrir(r);
+    if (window.matchMedia("(max-width: 900px)").matches) alternarGaveta(false);
+  });
+  function alternarGaveta(abrirG) {
+    var g = $("gaveta");
+    var aberta = typeof abrirG === "boolean" ? abrirG : !g.classList.contains("aberta");
+    g.classList.toggle("aberta", aberta);
+    $("abrir-gaveta").setAttribute("aria-expanded", String(aberta));
+    $("abrir-gaveta").textContent = aberta ? "Fechar lista" : "Ver lista";
+  }
+  $("abrir-gaveta").addEventListener("click", function () { alternarGaveta(); });
+
+  function confirmarDuasVezes(botao, textoConfirmar, textoOriginal) {
+    if (botao.dataset.confirmar === "1") return true;
+    botao.dataset.confirmar = "1"; botao.textContent = textoConfirmar;
+    botao.style.borderColor = "var(--vermelho)"; botao.style.color = "var(--vermelho)";
+    setTimeout(function () {
+      if (botao.isConnected) { botao.dataset.confirmar = ""; botao.textContent = textoOriginal; botao.style.borderColor = ""; botao.style.color = ""; }
+    }, 4000);
+    return false;
+  }
+
+  var ed = $("editor");
+  ed.addEventListener("input", function (e) {
+    var el = e.target;
+    if (el.dataset.ideia != null) {
+      var i = ideias[el.dataset.ideia]; if (!i) return;
+      i.texto = el.value; crescer(el);
+      marcarContador($("ci-" + i.id), contar(i.texto), LIMITE_IDEIA);
+      agendarIdeia(i);
+      var r = $("i-resumo"); if (r) r.textContent = resumoIdeias();
+      return;
+    }
+    if (!atual) return;
+    if (el.id === "titulo") atual.titulo = el.value;
+    else if (el.id === "textoTela") atual.textoTela = el.value;
+    else if (el.id === "legenda") { atual.legenda = el.value; crescer(el); }
+    else if (el.dataset.bloco != null) { atual.blocos[+el.dataset.bloco].texto = el.value; crescer(el); }
+    else if (el.dataset.tela != null) { atual.telas[+el.dataset.tela][el.dataset.parte] = el.value; crescer(el); }
+    else return;
+    atualizarMedidas();
+    agendarSalvar();
+  });
+  ed.addEventListener("change", function (e) {
+    var el = e.target;
+    if (!atual || el.tagName !== "SELECT") return;
+    if (el.dataset.campo) {
+      atual[el.dataset.campo] = el.value;
+    } else if (el.dataset.gancho) {
+      var bl = atual.blocos.filter(function (x) { return x.id === el.dataset.gancho; })[0];
+      if (!bl) return;
+      var partes = el.value ? el.value.split("|") : ["", ""];
+      bl.familia = partes[0]; bl.gancho = partes[1];
+      var gf = $("gf-" + bl.id); if (gf) gf.innerHTML = bl.familia ? "Família: <b>" + esc(bl.familia) + "</b>" : "";
+    } else return;
+    el.classList.toggle("vazia", !el.value);
+    agendarSalvar();
+  });
+  ed.addEventListener("click", function (e) {
+    if (e.target.id === "nova-ideia") {
+      if (!carregouIdeias) return;
+      var agora = new Date().toISOString();
+      var nova = { id: novoId(), texto: "", criado: agora, atualizado: agora, _nova: true };
+      ideias[nova.id] = nova;
+      renderIdeias();
+      var t = $("ix-" + nova.id); if (t) t.focus();
+      return;
+    }
+    var ai = e.target.closest("[data-apagar-ideia]");
+    if (ai) {
+      var ideia = ideias[ai.dataset.apagarIdeia]; if (!ideia) return;
+      if ((ideia.texto || "").trim() && !confirmarDuasVezes(ai, "Apagar com o texto?", "Apagar")) return;
+      clearTimeout(timersIdeia[ideia.id]); delete timersIdeia[ideia.id];
+      delete ideias[ideia.id];
+      if (!ideia._nova && arm) arm.apagar("ideias", ideia.id).then(function () { mostrarEstado("salvo", "Ideia apagada"); })
+        .catch(function () { mostrarEstado("erro", "Não foi possível apagar. Tente de novo."); });
+      renderIdeias();
+      return;
+    }
+    if (!atual) return;
+    var ap = e.target.closest("[data-apagar]");
+    if (ap) {
+      var idx = +ap.dataset.apagar;
+      if ((atual.blocos[idx].texto || "").trim() && !confirmarDuasVezes(ap, "Apagar com o texto?", "Apagar")) return;
+      atual.blocos.splice(idx, 1);
+      renderBlocos(); atualizarMedidas(); agendarSalvar();
+      return;
+    }
+    if (e.target.id === "add-bloco") { acrescentarBloco($("novo-bloco").value); return; }
+    var ex = e.target.closest("[data-excluir]");
+    if (ex) {
+      atual.telas.splice(+ex.dataset.excluir, 1);
+      renderTelas(); atualizarMedidas(); agendarSalvar();
+      return;
+    }
+    if (e.target.id === "add-tela") {
+      if (atual.telas.length >= TIPOS[atual.tipo].telas) return;
+      if (atual.tipo === "carrossel" && atual.telas.length >= 2) atual.telas.splice(atual.telas.length - 1, 0, telaVazia());
+      else atual.telas.push(telaVazia());
+      renderTelas(); atualizarMedidas(); agendarSalvar();
+      return;
+    }
+    if (e.target.id === "copiar") { copiar(); return; }
+    if (e.target.id === "excluir") {
+      var b = e.target;
+      if (b.dataset.confirmar === "1") {
+        clearTimeout(b._t);
+        if (atual._novo) { abrir(novoRoteiro(abaAtual)); return; }
+        excluirRoteiro(atual);
+      } else {
+        b.dataset.confirmar = "1"; b.textContent = "Clique de novo para excluir";
+        b._t = setTimeout(function () { b.dataset.confirmar = ""; b.textContent = "Excluir roteiro"; }, 4000);
+      }
+    }
+  });
+  window.addEventListener("resize", function () { document.querySelectorAll("#editor textarea.area").forEach(crescer); });
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "hidden") { salvarPendente(); salvarIdeiasPendentes(); }
+  });
+
+  /* ---------- Início ---------- */
+  aplicarAba();
+  renderLista();
+  iniciar();
+})();
+</script>
+</body>
+</html>
