@@ -294,6 +294,17 @@
   .ideia-topo .contador { margin-left: auto; }
   .ideia .area { min-height: 72px; border-color: var(--linha); background: #ffffff; }
 
+  .ideias-botoes { display: flex; gap: 10px; flex-wrap: wrap; }
+  .importar {
+    background: var(--papel); border: 1px dashed var(--linha-forte); border-radius: 12px;
+    padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .importar-area { font-family: var(--ui); font-size: 15px; min-height: 150px; overflow: auto; resize: vertical; }
+  .linha-opcao { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--navy-suave); }
+  .linha-opcao input { width: 16px; height: 16px; accent-color: var(--navy); }
+  .importar-acoes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .importar-acoes .aviso { margin-right: auto; }
+
   /* Entrada (versão do GitHub) */
   .login { position: fixed; inset: 0; z-index: 50; background: var(--fundo); display: grid; place-items: center; padding: 24px 16px; overflow-y: auto; }
   .login-card { width: 100%; max-width: 380px; background: var(--papel); border: 1px solid var(--linha); border-top: 3px solid var(--navy); border-radius: 12px; padding: 28px 26px; display: flex; flex-direction: column; gap: 10px; }
@@ -442,6 +453,7 @@
   var LIMITE_TEXTO_TELA = 9;
   var LIMITE_LEGENDA = 50;
   var LIMITE_IDEIA = 50;
+  var LIMITE_IMPORTACAO = 300;
   var CHAVE_ABA = "caderno-roteiros-aba";
 
   /* ---------- Estado ---------- */
@@ -456,6 +468,7 @@
   var timerSalvar = null, pendente = null;
   var timersIdeia = {};
   var busca = "";
+  var importando = false;
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -1047,7 +1060,17 @@
   }
   function renderIdeias() {
     var h = '<div class="ideias-wrap"><div class="ideias-topo"><div><h2>Ideias</h2><span class="aviso" id="i-resumo"></span></div>' +
-      '<button class="btn btn-laranja" id="nova-ideia" type="button">Nova ideia</button></div>';
+      '<div class="ideias-botoes"><button class="btn" id="abrir-importar" type="button">Importar em lote</button>' +
+      '<button class="btn btn-laranja" id="nova-ideia" type="button">Nova ideia</button></div></div>';
+    if (importando) {
+      h += '<section class="importar" id="painel-importar">' +
+        '<label class="rotulo" for="importar-texto">Cole a lista, uma ideia por linha</label>' +
+        '<textarea class="area importar-area" id="importar-texto" placeholder="Um título por linha. Linhas em branco são ignoradas."></textarea>' +
+        '<label class="linha-opcao"><input type="checkbox" id="limpar-numeracao" checked> Tirar a numeração e os marcadores do começo de cada linha</label>' +
+        '<div class="importar-acoes"><span class="aviso" id="importar-conta">Nenhuma linha ainda</span>' +
+        '<button class="btn" id="cancelar-importar" type="button">Cancelar</button>' +
+        '<button class="btn btn-laranja" id="confirmar-importar" type="button">Importar</button></div></section>';
+    }
     if (!carregouIdeias) h += '<p class="carregando">Carregando as ideias.</p>';
     else {
       var lista = listaIdeias();
@@ -1070,6 +1093,64 @@
     });
     var r = $("i-resumo"); if (r) r.textContent = resumoIdeias();
     atualizarContagens();
+    var imp = $("importar-texto");
+    if (imp) { imp.focus(); contarLinhas(); }
+  }
+
+  /* Importação em lote das ideias */
+  function linhasDaImportacao() {
+    var txt = ($("importar-texto") || {}).value || "";
+    var limpar = $("limpar-numeracao") && $("limpar-numeracao").checked;
+    return txt.split(/\r?\n/).map(function (l) {
+      var t = l.trim();
+      if (limpar) t = t.replace(/^(?:\d+\s*[.)\]:\-]\s*|[-•*·>]\s*)+/, "").trim();
+      return t;
+    }).filter(function (t) { return t.length > 0; });
+  }
+  function contarLinhas() {
+    var el = $("importar-conta"); if (!el) return;
+    var n = linhasDaImportacao().length;
+    el.textContent = n === 0 ? "Nenhuma linha ainda"
+      : n + " " + plural(n, "ideia encontrada", "ideias encontradas") + (n > LIMITE_IMPORTACAO ? " (o limite por vez é " + LIMITE_IMPORTACAO + ")" : "");
+  }
+  function importarIdeias() {
+    var lista = linhasDaImportacao();
+    if (!lista.length || !arm) return;
+    if (lista.length > LIMITE_IMPORTACAO) {
+      mostrarEstado("erro", "São " + lista.length + " linhas. Importe no máximo " + LIMITE_IMPORTACAO + " por vez.");
+      return;
+    }
+    var jaTem = {};
+    Object.keys(ideias).forEach(function (k) { jaTem[(ideias[k].texto || "").trim().toLowerCase()] = true; });
+    var novas = [], repetidas = 0, agora = Date.now();
+    lista.forEach(function (t, i) {
+      var chave = t.toLowerCase();
+      if (jaTem[chave]) { repetidas++; return; }
+      jaTem[chave] = true;
+      var quando = new Date(agora - i * 1000).toISOString();
+      novas.push({ id: novoId(), texto: t, criado: quando, atualizado: quando });
+    });
+    if (!novas.length) {
+      mostrarEstado("neutro", "Todas essas ideias já estavam na lista.");
+      return;
+    }
+    novas.forEach(function (o) { ideias[o.id] = o; });
+    importando = false;
+    renderIdeias();
+    var a = arm, feitas = 0, erros = 0;
+    mostrarEstado("salvando", "Importando 0 de " + novas.length);
+    novas.reduce(function (p, o) {
+      return p.then(function () {
+        if (a !== arm) return;
+        return a.salvar("ideias", o.id, limpo(o)).then(function () {
+          feitas++; mostrarEstado("salvando", "Importando " + feitas + " de " + novas.length);
+        }, function () { erros++; });
+      });
+    }, Promise.resolve()).then(function () {
+      if (erros) mostrarEstado("erro", erros + " " + plural(erros, "ideia não foi salva", "ideias não foram salvas") + ". Confira a conexão.");
+      else mostrarEstado("salvo", feitas + " " + plural(feitas, "ideia importada", "ideias importadas") + (repetidas ? ", " + repetidas + " " + plural(repetidas, "já estava na lista", "já estavam na lista") : ""));
+      renderIdeias();
+    });
   }
   function salvarIdeia(i) {
     delete timersIdeia[i.id];
@@ -1135,6 +1216,7 @@
   var ed = $("editor");
   ed.addEventListener("input", function (e) {
     var el = e.target;
+    if (el.id === "importar-texto") { contarLinhas(); crescer(el); return; }
     if (el.dataset.ideia != null) {
       var i = ideias[el.dataset.ideia]; if (!i) return;
       i.texto = el.value; crescer(el);
@@ -1156,6 +1238,7 @@
   });
   ed.addEventListener("change", function (e) {
     var el = e.target;
+    if (el.id === "limpar-numeracao") { contarLinhas(); return; }
     if (!atual || el.tagName !== "SELECT") return;
     if (el.dataset.campo) {
       atual[el.dataset.campo] = el.value;
@@ -1170,6 +1253,9 @@
     agendarSalvar();
   });
   ed.addEventListener("click", function (e) {
+    if (e.target.id === "abrir-importar") { importando = true; renderIdeias(); return; }
+    if (e.target.id === "cancelar-importar") { importando = false; renderIdeias(); return; }
+    if (e.target.id === "confirmar-importar") { importarIdeias(); return; }
     if (e.target.id === "nova-ideia") {
       if (!carregouIdeias) return;
       var agora = new Date().toISOString();
