@@ -319,6 +319,42 @@
   .destino, .destino-cancelar { padding: 5px 12px; font-size: 13px; }
   .destino-cancelar { border-color: var(--linha-forte); color: var(--navy-suave); }
 
+  /* Lista geral e etiqueta de revisão */
+  .btn-todos { padding: 5px 12px; font-size: 13px; }
+  .btn-todos[aria-pressed="true"] { background: var(--navy); color: var(--papel); }
+  .btn-revisar[aria-pressed="true"] { background: var(--laranja); border-color: var(--laranja); color: #ffffff; }
+  .btn-revisar[aria-pressed="true"]:hover { background: var(--laranja-hover); border-color: var(--laranja-hover); color: #ffffff; }
+  .lista-wrap { max-width: 900px; }
+  .busca-todos { max-width: 280px; }
+  .filtros { display: flex; gap: 8px; flex-wrap: wrap; }
+  .filtro {
+    border-radius: 999px; border: 1px solid var(--linha-forte); background: var(--papel);
+    color: var(--navy-suave); padding: 5px 13px; font-size: 13.5px; font-weight: 500;
+  }
+  .filtro:hover { border-color: var(--navy); color: var(--navy); }
+  .filtro[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: var(--creme); font-weight: 600; }
+  .tabela { display: flex; flex-direction: column; gap: 2px; }
+  .linha {
+    display: grid; grid-template-columns: minmax(0, 1fr) 96px 86px 150px; align-items: center; gap: 12px;
+    background: var(--papel); border: 1px solid var(--linha); border-radius: 8px;
+    padding: 11px 14px; text-align: left; color: var(--navy);
+  }
+  .linha:hover { border-color: var(--navy); }
+  .linha-titulo { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
+  .linha-titulo.vazio { color: var(--navy-fraco); font-style: italic; font-weight: 500; }
+  .linha-tipo { font-size: 12.5px; color: var(--navy-suave); }
+  .linha-meta { font-size: 12.5px; color: var(--navy-fraco); font-variant-numeric: tabular-nums; text-align: right; }
+  .tag-revisar {
+    justify-self: start; background: var(--laranja); color: #ffffff; border-radius: 999px;
+    padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  }
+  @media (max-width: 700px) {
+    .linha { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+    .linha-meta { grid-column: 2; text-align: right; }
+    .linha-tipo { grid-column: 1; }
+    .busca-todos { max-width: none; }
+  }
+
   /* Entrada (versão do GitHub) */
   .login { position: fixed; inset: 0; z-index: 50; background: var(--fundo); display: grid; place-items: center; padding: 24px 16px; overflow-y: auto; }
   .login-card { width: 100%; max-width: 380px; background: var(--papel); border: 1px solid var(--linha); border-top: 3px solid var(--navy); border-radius: 12px; padding: 28px 26px; display: flex; flex-direction: column; gap: 10px; }
@@ -383,6 +419,7 @@
       <small>Isabella Fortunato</small>
     </div>
     <div class="topo-dir">
+      <button class="btn btn-todos" id="ver-todos" type="button" aria-pressed="false">Todos os roteiros</button>
       <span class="estado" id="estado" data-s="neutro">Abrindo seus roteiros</span>
       <button class="btn btn-sair" id="sair" type="button" hidden>Sair</button>
     </div>
@@ -434,11 +471,12 @@
     tiktok:    { nome: "TikTok", sub: "Vídeo longo · 350 a 435 palavras", video: true, min: 350, max: 435, duracao: "2:00<small>a</small>2:30<small>min</small>" },
     carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, porTela: 25 },
     stories:   { nome: "Stories", sub: "Até 10 telas · 25 palavras por tela", video: false, telas: 10, porTela: 25 },
-    ideias:    { nome: "Ideias", sub: "Até 50 palavras por ideia", ideias: true }
+    ideias:    { nome: "Ideias", sub: "Até 50 palavras por ideia", ideias: true },
+    todos:     { nome: "Todos os roteiros", sub: "Lista por título", lista: true }
   };
   var QUADRANTE = ["instagram", "tiktok", "carrossel", "stories"];
   var FORMATOS = ["Tela dividida", "Fundo verde", "Falando para a câmera"];
-  var MODALIDADES = ["Sonho", "Transformação", "Fofocas", "Objeções", "Lista", "Storytelling", "Posicionamento"];
+  var MODALIDADES = ["Sonho", "Transformação", "Fofocas", "Objeções", "Lista", "Storytelling", "Posicionamento", "Educativo"];
   var OBJETIVOS = ["Compartilhável", "Salvável", "Likes", "Interação"];
   var BLOCOS = [
     { tipo: "gancho", nome: "Gancho", dica: "A headline falada, com o texto na tela entrando junto. Deixa o assunto cristalino sem entregar a lição já mastigada." },
@@ -484,6 +522,7 @@
   var busca = "";
   var importando = false;
   var virandoId = null;   // ideia que está escolhendo o destino
+  var buscaTodos = "", filtroTodos = "";
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -752,6 +791,51 @@
   }
 
   /* ---------- Abas e lista ---------- */
+  function todosOsRoteiros() {
+    return Object.keys(acervo).map(function (k) { return acervo[k]; })
+      .sort(function (a, b) {
+        var ta = (a.titulo || "").trim().toLowerCase(), tb = (b.titulo || "").trim().toLowerCase();
+        if (!ta && tb) return 1;
+        if (ta && !tb) return -1;
+        return ta.localeCompare(tb, "pt-BR");
+      });
+  }
+  function renderTodos() {
+    var lista = todosOsRoteiros(), total = lista.length;
+    if (filtroTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
+    else if (filtroTodos) lista = lista.filter(function (r) { return r.tipo === filtroTodos; });
+    if (buscaTodos) {
+      var b = buscaTodos.toLowerCase();
+      lista = lista.filter(function (r) { return (r.titulo || "").toLowerCase().indexOf(b) !== -1; });
+    }
+    var revisar = todosOsRoteiros().filter(function (r) { return r.revisar; }).length;
+    var filtros = [["", "Todos"]].concat(QUADRANTE.map(function (t) { return [t, TIPOS[t].nome]; }));
+    filtros.push(["revisar", "A revisar (" + revisar + ")"]);
+    var h = '<div class="ideias-wrap lista-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
+      '<span class="aviso">' + total + " " + plural(total, "roteiro guardado", "roteiros guardados") + " · em ordem de título</span></div>" +
+      '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '"></div>' +
+      '<div class="filtros" role="group" aria-label="Filtrar">' + filtros.map(function (f) {
+        return '<button type="button" class="filtro" data-filtro="' + f[0] + '" aria-pressed="' + (filtroTodos === f[0]) + '">' + f[1] + "</button>";
+      }).join("") + "</div>";
+    if (!carregou) h += '<p class="carregando">Abrindo o caderno.</p>';
+    else if (!lista.length) h += '<p class="aviso">Nenhum roteiro com esse filtro.</p>';
+    else {
+      h += '<div class="tabela">' + lista.map(function (r) {
+        var medida = TIPOS[r.tipo].video
+          ? palavrasVideo(r) + " " + plural(palavrasVideo(r), "palavra", "palavras")
+          : (r.telas || []).length + " " + plural((r.telas || []).length, "tela", "telas");
+        return '<button type="button" class="linha" data-abrir="' + r.id + '">' +
+          '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
+          '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
+          (r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
+          '<span class="linha-meta">' + medida + " · " + dataCurta(r.atualizado) + "</span></button>";
+      }).join("") + "</div>";
+    }
+    h += "</div>";
+    $("editor").innerHTML = h;
+    atualizarContagens();
+  }
+
   function renderAbas() {
     var h = '<button class="nav-ideias" role="tab" id="aba-ideias" data-tipo="ideias" aria-selected="' + (abaAtual === "ideias") + '">' +
       '<span class="nav-ideias-nome"><b>Ideias<i>.</i></b><span class="sub">Até 50 palavras por ideia</span></span>' +
@@ -780,10 +864,12 @@
   }
   function aplicarAba() {
     renderAbas();
-    var ehIdeias = abaAtual === "ideias";
-    document.querySelector(".corpo").classList.toggle("sem-gaveta", ehIdeias);
+    var ehIdeias = abaAtual === "ideias", ehLista = abaAtual === "todos";
+    document.querySelector(".corpo").classList.toggle("sem-gaveta", ehIdeias || ehLista);
+    var bt = $("ver-todos"); if (bt) bt.setAttribute("aria-pressed", String(ehLista));
     if (!arm) return;
     if (ehIdeias) { atual = null; renderIdeias(); }
+    else if (ehLista) { atual = null; renderTodos(); }
     else if (carregou) abrirMaisRecente();
     else $("editor").innerHTML = '<p class="carregando">Abrindo o caderno.</p>';
     renderLista();
@@ -804,11 +890,11 @@
     if (r.modalidade) partes.push(r.modalidade);
     if (r.objetivo) partes.push(r.objetivo);
     partes.push(dataCurta(r.atualizado));
-    return partes.join(" · ");
+    return (r.revisar ? "A revisar · " : "") + partes.join(" · ");
   }
   function renderLista() {
     atualizarContagens();
-    if (abaAtual === "ideias") return;
+    if (abaAtual === "ideias" || abaAtual === "todos") return;
     var lista = doTipo(abaAtual), total = lista.length;
     if (busca) {
       var b = busca.toLowerCase();
@@ -896,6 +982,7 @@
     }
 
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
+      '<button class="btn btn-revisar" id="marcar-revisar" type="button" aria-pressed="' + (r.revisar ? "true" : "false") + '">A revisar</button>' +
       '<button class="btn btn-perigo" id="excluir" type="button">Excluir roteiro</button></div>';
 
     $("editor").innerHTML = h;
@@ -1247,6 +1334,13 @@
     $("abrir-gaveta").textContent = aberta ? "Fechar lista" : "Ver lista";
   }
   $("abrir-gaveta").addEventListener("click", function () { alternarGaveta(); });
+  $("ver-todos").addEventListener("click", function () {
+    salvarPendente(); salvarIdeiasPendentes();
+    abaAtual = abaAtual === "todos" ? "instagram" : "todos";
+    gravarLocal(CHAVE_ABA, abaAtual);
+    busca = ""; $("busca").value = "";
+    aplicarAba();
+  });
 
   function confirmarDuasVezes(botao, textoConfirmar, textoOriginal) {
     if (botao.dataset.confirmar === "1") return true;
@@ -1262,6 +1356,14 @@
   ed.addEventListener("input", function (e) {
     var el = e.target;
     if (el.id === "importar-texto") { contarLinhas(); crescer(el); return; }
+    if (el.id === "busca-todos") {
+      buscaTodos = el.value.trim();
+      var pos = el.selectionStart;
+      renderTodos();
+      var novo = $("busca-todos");
+      if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch (err) {} }
+      return;
+    }
     if (el.dataset.ideia != null) {
       var i = ideias[el.dataset.ideia]; if (!i) return;
       i.texto = el.value; crescer(el);
@@ -1298,6 +1400,21 @@
     agendarSalvar();
   });
   ed.addEventListener("click", function (e) {
+    var ab = e.target.closest("[data-abrir]");
+    if (ab) {
+      var alvo = acervo[ab.dataset.abrir];
+      if (!alvo) return;
+      abaAtual = alvo.tipo;
+      gravarLocal(CHAVE_ABA, abaAtual);
+      renderAbas();
+      document.querySelector(".corpo").classList.remove("sem-gaveta");
+      var btn = $("ver-todos"); if (btn) btn.setAttribute("aria-pressed", "false");
+      abrir(alvo);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+    var bf = e.target.closest("[data-filtro]");
+    if (bf) { filtroTodos = bf.dataset.filtro; renderTodos(); return; }
     var bv = e.target.closest("[data-virar]");
     if (bv) { virandoId = virandoId === bv.dataset.virar ? null : bv.dataset.virar; renderIdeias(); return; }
     if (e.target.classList.contains("destino-cancelar")) { virandoId = null; renderIdeias(); return; }
@@ -1351,6 +1468,13 @@
       if (atual.tipo === "carrossel" && atual.telas.length >= 2) atual.telas.splice(atual.telas.length - 1, 0, telaVazia());
       else atual.telas.push(telaVazia());
       renderTelas(); atualizarMedidas(); agendarSalvar();
+      return;
+    }
+    if (e.target.id === "marcar-revisar") {
+      atual.revisar = !atual.revisar;
+      e.target.setAttribute("aria-pressed", String(!!atual.revisar));
+      mostrarEstado("salvando", atual.revisar ? "Marcado como a revisar" : "Marca de revisão tirada");
+      agendarSalvar();
       return;
     }
     if (e.target.id === "copiar") { copiar(); return; }
