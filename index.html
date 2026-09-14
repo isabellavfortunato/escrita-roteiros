@@ -305,6 +305,20 @@
   .importar-acoes { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .importar-acoes .aviso { margin-right: auto; }
 
+  .virar {
+    background: transparent; border: 1px solid var(--navy); border-radius: 6px;
+    color: var(--navy); font-size: 12.5px; font-weight: 600; padding: 3px 10px;
+  }
+  .virar:hover { background: var(--navy); color: var(--papel); }
+  .tag-virou {
+    font-size: 11.5px; color: var(--navy-suave); border: 1px dashed var(--linha-forte);
+    border-radius: 6px; padding: 2px 8px;
+  }
+  .destinos { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .destinos .aviso { font-weight: 600; }
+  .destino, .destino-cancelar { padding: 5px 12px; font-size: 13px; }
+  .destino-cancelar { border-color: var(--linha-forte); color: var(--navy-suave); }
+
   /* Entrada (versão do GitHub) */
   .login { position: fixed; inset: 0; z-index: 50; background: var(--fundo); display: grid; place-items: center; padding: 24px 16px; overflow-y: auto; }
   .login-card { width: 100%; max-width: 380px; background: var(--papel); border: 1px solid var(--linha); border-top: 3px solid var(--navy); border-radius: 12px; padding: 28px 26px; display: flex; flex-direction: column; gap: 10px; }
@@ -469,6 +483,7 @@
   var timersIdeia = {};
   var busca = "";
   var importando = false;
+  var virandoId = null;   // ideia que está escolhendo o destino
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -1077,9 +1092,17 @@
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
       if (!lista.length) h += '<p class="aviso">Nenhuma ideia guardada ainda. Clique em Nova ideia e escreva em poucas palavras o tema, o ângulo ou a frase que apareceu na sua cabeça.</p>';
       h += lista.map(function (i) {
-        return '<article class="ideia"><div class="ideia-topo"><span class="ideia-data">Ideia de ' + dataCurta(i.criado) + "</span>" +
+        var escolhendo = virandoId === i.id;
+        var tag = i.virou ? '<span class="tag-virou">virou roteiro de ' + esc(TIPOS[i.virou] ? TIPOS[i.virou].nome : i.virou) + "</span>" : "";
+        return '<article class="ideia"><div class="ideia-topo"><span class="ideia-data">Ideia de ' + dataCurta(i.criado) + "</span>" + tag +
           '<span class="contador" id="ci-' + i.id + '"></span>' +
+          '<button type="button" class="virar" data-virar="' + i.id + '">Virar roteiro</button>' +
           '<button type="button" class="apagar" data-apagar-ideia="' + i.id + '" aria-label="Apagar a ideia de ' + dataCurta(i.criado) + '">Apagar</button></div>' +
+          (escolhendo ? '<div class="destinos"><span class="aviso">Virar roteiro de</span>' +
+            QUADRANTE.map(function (t) {
+              return '<button type="button" class="btn destino" data-destino="' + t + '" data-ideia-origem="' + i.id + '">' + TIPOS[t].nome + "</button>";
+            }).join("") +
+            '<button type="button" class="btn destino-cancelar">Cancelar</button></div>' : "") +
           '<textarea class="area" id="ix-' + i.id + '" data-ideia="' + i.id + '" aria-label="Ideia de ' + dataCurta(i.criado) + '" placeholder="Escreva a ideia"></textarea></article>';
       }).join("");
       h += "</section>";
@@ -1152,6 +1175,28 @@
       renderIdeias();
     });
   }
+  function virarRoteiro(ideia, tipo) {
+    var texto = (ideia.texto || "").trim();
+    if (!texto) { mostrarEstado("erro", "Escreva a ideia antes de virar roteiro."); return; }
+    var r = novoRoteiro(tipo);
+    r.titulo = texto;
+    delete r._novo;
+    acervo[r.id] = r;
+    if (arm) arm.salvar("roteiros", r.id, limpo(r)).then(avisarSalvo)
+      .catch(function () { mostrarEstado("erro", "Não foi possível criar o roteiro. Confira a conexão."); });
+    ideia.virou = tipo;
+    ideia.atualizado = new Date().toISOString();
+    if (arm) arm.salvar("ideias", ideia.id, limpo(ideia));
+    virandoId = null;
+    abaAtual = tipo;
+    gravarLocal(CHAVE_ABA, abaAtual);
+    renderAbas();
+    document.querySelector(".corpo").classList.remove("sem-gaveta");
+    abrir(r);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    mostrarEstado("salvo", "Roteiro criado em " + TIPOS[tipo].nome);
+  }
+
   function salvarIdeia(i) {
     delete timersIdeia[i.id];
     if (!arm) return;
@@ -1253,6 +1298,15 @@
     agendarSalvar();
   });
   ed.addEventListener("click", function (e) {
+    var bv = e.target.closest("[data-virar]");
+    if (bv) { virandoId = virandoId === bv.dataset.virar ? null : bv.dataset.virar; renderIdeias(); return; }
+    if (e.target.classList.contains("destino-cancelar")) { virandoId = null; renderIdeias(); return; }
+    var bd = e.target.closest("[data-destino]");
+    if (bd) {
+      var origem = ideias[bd.dataset.ideiaOrigem];
+      if (origem) virarRoteiro(origem, bd.dataset.destino);
+      return;
+    }
     if (e.target.id === "abrir-importar") { importando = true; renderIdeias(); return; }
     if (e.target.id === "cancelar-importar") { importando = false; renderIdeias(); return; }
     if (e.target.id === "confirmar-importar") { importarIdeias(); return; }
