@@ -342,12 +342,27 @@
   .filtro:hover { border-color: var(--navy); color: var(--navy); }
   .filtro[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: var(--creme); font-weight: 600; }
   .tabela { display: flex; flex-direction: column; gap: 2px; }
+  .barra-escolha {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px;
+  }
+  .barra-escolha .aviso { margin-right: auto; }
+  .barra-escolha .btn[disabled] { opacity: .45; cursor: default; }
+  .barra-escolha .btn[disabled]:hover { background: var(--papel); color: var(--navy); }
+  .barra-escolha .btn-laranja[disabled]:hover { background: var(--laranja); color: #ffffff; }
   .linha {
-    display: grid; grid-template-columns: minmax(0, 1fr) 96px 86px 150px; align-items: center; gap: 12px;
-    background: var(--papel); border: 1px solid var(--linha); border-radius: 8px;
-    padding: 11px 14px; text-align: left; color: var(--navy);
+    display: flex; align-items: stretch; gap: 0;
+    background: var(--papel); border: 1px solid var(--linha); border-radius: 8px; overflow: hidden;
   }
   .linha:hover { border-color: var(--navy); }
+  .linha.marcada { border-color: var(--navy); box-shadow: inset 3px 0 0 var(--laranja); }
+  .marcar { display: flex; align-items: center; padding: 0 4px 0 14px; }
+  .marcar input { width: 17px; height: 17px; accent-color: var(--navy); cursor: pointer; }
+  .linha-abrir {
+    flex: 1 1 auto; min-width: 0; background: transparent; border: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr) 96px 86px 150px; align-items: center; gap: 12px;
+    padding: 11px 14px; text-align: left; color: var(--navy);
+  }
   .linha-titulo { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
   .linha-titulo.vazio { color: var(--navy-fraco); font-style: italic; font-weight: 500; }
   .linha-tipo { font-size: 12.5px; color: var(--navy-suave); }
@@ -357,7 +372,7 @@
     padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
   }
   @media (max-width: 700px) {
-    .linha { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+    .linha-abrir { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
     .linha-meta { grid-column: 2; text-align: right; }
     .linha-tipo { grid-column: 1; }
     .busca-todos { max-width: none; }
@@ -377,6 +392,14 @@
   .link:hover { color: var(--navy); }
   .login-msg { min-height: 1.4em; font-size: 13.5px; color: var(--navy-suave); }
   .login-msg[data-s="erro"] { color: var(--vermelho); }
+
+  .painel-aviso {
+    background: var(--papel); border: 1px solid var(--linha); border-left: 3px solid var(--vermelho);
+    border-radius: 4px 12px 12px 4px; padding: 20px 24px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .painel-aviso h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 32px; letter-spacing: 0.04em; line-height: 1; }
+  .painel-aviso p { margin: 0; font-size: 14.5px; line-height: 1.6; color: var(--navy-suave); max-width: 72ch; }
+  .painel-aviso b { color: var(--navy); }
 
   .carregando { color: var(--navy-fraco); padding: 40px 0; }
 
@@ -533,6 +556,7 @@
   var importando = false;
   var virandoId = null;   // ideia que está escolhendo o destino
   var buscaTodos = "", filtroTodos = "";
+  var marcados = {};
 
   var $ = function (id) { return document.getElementById(id); };
 
@@ -622,6 +646,11 @@
     carregou = false; carregouIdeias = false;
   }
 
+  var timerDemora = null;
+  function painelAviso(titulo, linhas) {
+    $("editor").innerHTML = '<div class="ideias-wrap"><div class="painel-aviso"><h2>' + esc(titulo) + "</h2>" +
+      linhas.map(function (l) { return "<p>" + l + "</p>"; }).join("") + "</div></div>";
+  }
   function conectar(adaptador, mensagem) {
     arm = adaptador;
     carregou = false; carregouIdeias = false; acervo = {}; ideias = {}; atual = null;
@@ -629,7 +658,14 @@
     var erroEscuta = function () {
       if (!arm) return;
       if (arm.tipo === "firebase") {
-        mostrarEstado("erro", "O Firebase recusou a leitura. Confira as regras do Firestore.");
+        clearTimeout(timerDemora);
+        mostrarEstado("erro", "O Firebase recusou a leitura");
+        painelAviso("O Firebase recusou a leitura", [
+          "A entrada funcionou, mas o banco de dados não respondeu. Quase sempre é uma destas 3 coisas:",
+          "<b>1.</b> O Firestore ainda não foi criado no projeto. No console do Firebase, abra Firestore Database e clique em Criar banco de dados.",
+          "<b>2.</b> As regras do Firestore ainda não foram publicadas. Elas precisam liberar o caminho <b>usuarios/{uid}</b> para quem está logado.",
+          "<b>3.</b> A internet caiu no meio do caminho. Nesse caso, recarregue a página."
+        ]);
         return;
       }
       if (arm.tipo !== "db") return;
@@ -637,11 +673,21 @@
       conectar(adaptadorLocal(), "Sem conexão com o armazenamento. Salvando só neste navegador.");
       aplicarAba();
     };
+    clearTimeout(timerDemora);
+    timerDemora = setTimeout(function () {
+      if (carregou || !arm) return;
+      mostrarEstado("erro", "Está demorando para carregar");
+      painelAviso("Está demorando para carregar", [
+        "O caderno pediu os dados e ainda não recebeu resposta.",
+        "Confira a sua conexão e recarregue a página. Se continuar assim, me avise o que aparece nesta tela."
+      ]);
+    }, 15000);
     desligar.push(arm.ouvir("roteiros", function (m) {
       if (atual && !atual._novo) m[atual.id] = atual; // o roteiro aberto manda
       acervo = m;
       if (!carregou) {
         carregou = true;
+        clearTimeout(timerDemora);
         if (abaAtual !== "ideias") abrirMaisRecente();
       }
       renderLista();
@@ -663,7 +709,17 @@
   function iniciar() {
     var cfg = window.FIREBASE_CONFIG;
     var versaoGithub = typeof cfg !== "undefined";
-    if (versaoGithub && cfg && cfg.apiKey && cfg.projectId && window.firebase) { iniciarFirebase(cfg); return; }
+    if (versaoGithub && cfg && cfg.apiKey && cfg.projectId) {
+      if (window.firebase && window.firebase.auth && window.firebase.firestore) { iniciarFirebase(cfg); return; }
+      conectar(adaptadorLocal(), "Não consegui carregar o Firebase. Salvando só neste navegador.");
+      aplicarAba();
+      painelAviso("Não consegui carregar o Firebase", [
+        "Os arquivos do Firebase não chegaram ao navegador, então o caderno está guardando tudo só neste aparelho.",
+        "Quase sempre é internet instável ou algum bloqueador de conteúdo. Recarregue a página com Cmd+Shift+R.",
+        "O que você escrever agora fica salvo neste navegador e não sobe para o Firebase."
+      ]);
+      return;
+    }
     if (versaoGithub) {
       conectar(adaptadorLocal(), "Firebase ainda não configurado. Salvando só neste navegador.");
       aplicarAba();
@@ -810,14 +866,18 @@
         return ta.localeCompare(tb, "pt-BR");
       });
   }
-  function renderTodos() {
-    var lista = todosOsRoteiros(), total = lista.length;
+  function visiveisDaLista() {
+    var lista = todosOsRoteiros();
     if (filtroTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
     else if (filtroTodos) lista = lista.filter(function (r) { return r.tipo === filtroTodos; });
     if (buscaTodos) {
       var b = buscaTodos.toLowerCase();
       lista = lista.filter(function (r) { return (r.titulo || "").toLowerCase().indexOf(b) !== -1; });
     }
+    return lista;
+  }
+  function renderTodos() {
+    var total = todosOsRoteiros().length, lista = visiveisDaLista();
     var revisar = todosOsRoteiros().filter(function (r) { return r.revisar; }).length;
     var filtros = [["", "Todos"]].concat(QUADRANTE.map(function (t) { return [t, TIPOS[t].nome]; }));
     filtros.push(["revisar", "A revisar (" + revisar + ")"]);
@@ -827,6 +887,12 @@
       '<div class="filtros" role="group" aria-label="Filtrar">' + filtros.map(function (f) {
         return '<button type="button" class="filtro" data-filtro="' + f[0] + '" aria-pressed="' + (filtroTodos === f[0]) + '">' + f[1] + "</button>";
       }).join("") + "</div>";
+    var escolhidos = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; }).length;
+    h += '<div class="barra-escolha"><span class="aviso">' +
+      (escolhidos ? escolhidos + " " + plural(escolhidos, "roteiro escolhido", "roteiros escolhidos") : "Marque os roteiros que você quer no documento") + "</span>" +
+      '<button type="button" class="btn" id="marcar-todos">Marcar os da lista</button>' +
+      '<button type="button" class="btn" id="limpar-marcas"' + (escolhidos ? "" : " disabled") + ">Limpar</button>" +
+      '<button type="button" class="btn btn-laranja" id="baixar-escolhidos"' + (escolhidos ? "" : " disabled") + ">Baixar em docx</button></div>";
     if (!carregou) h += '<p class="carregando">Abrindo o caderno.</p>';
     else if (!lista.length) h += '<p class="aviso">Nenhum roteiro com esse filtro.</p>';
     else {
@@ -834,11 +900,13 @@
         var medida = TIPOS[r.tipo].video
           ? palavrasVideo(r) + " " + plural(palavrasVideo(r), "palavra", "palavras")
           : (r.telas || []).length + " " + plural((r.telas || []).length, "tela", "telas");
-        return '<button type="button" class="linha" data-abrir="' + r.id + '">' +
+        return '<div class="linha' + (marcados[r.id] ? " marcada" : "") + '">' +
+          '<label class="marcar"><input type="checkbox" data-marcar="' + r.id + '"' + (marcados[r.id] ? " checked" : "") + ' aria-label="Escolher ' + esc(r.titulo || "Sem título") + '"></label>' +
+          '<button type="button" class="linha-abrir" data-abrir="' + r.id + '">' +
           '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
           '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
           (r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
-          '<span class="linha-meta">' + medida + " · " + dataCurta(r.atualizado) + "</span></button>";
+          '<span class="linha-meta">' + medida + " · " + dataCurta(r.atualizado) + "</span></button></div>";
       }).join("") + "</div>";
     }
     h += "</div>";
@@ -1013,6 +1081,7 @@
     }
 
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
+      '<button class="btn" id="baixar-docx" type="button">Baixar em docx</button>' +
       '<button class="btn btn-revisar" id="marcar-revisar" type="button" aria-pressed="' + (r.revisar ? "true" : "false") + '">A revisar</button>' +
       '<button class="btn btn-perigo" id="excluir" type="button">Excluir roteiro</button></div>';
 
@@ -1180,6 +1249,167 @@
     };
     if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(ok, reserva);
     else reserva();
+  }
+
+
+  /* ---------- Documento do Word ----------
+     Monta um .docx de verdade: um zip com os 4 arquivos que o Word espera,
+     em Cambria 12, entrelinha 1,5, com os títulos em Cambria negrito 14. */
+  var tabelaCrc = null;
+  function crc32(bytes) {
+    if (!tabelaCrc) {
+      tabelaCrc = new Int32Array(256);
+      for (var n = 0; n < 256; n++) {
+        var c = n;
+        for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        tabelaCrc[n] = c;
+      }
+    }
+    var crc = -1;
+    for (var i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ tabelaCrc[(crc ^ bytes[i]) & 0xff];
+    return (crc ^ -1) >>> 0;
+  }
+  function zipar(arquivos) {
+    var cod = new TextEncoder();
+    var d = new Date();
+    var horaDos = (d.getHours() << 11) | (d.getMinutes() << 5) | (Math.floor(d.getSeconds() / 2));
+    var dataDos = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    var locais = [], centrais = [], desloc = 0;
+    arquivos.forEach(function (a) {
+      var nome = cod.encode(a.nome), dados = cod.encode(a.texto), crc = crc32(dados);
+      var cab = new Uint8Array(30 + nome.length), v = new DataView(cab.buffer);
+      v.setUint32(0, 0x04034b50, true); v.setUint16(4, 20, true); v.setUint16(6, 0x0800, true);
+      v.setUint16(8, 0, true); v.setUint16(10, horaDos, true); v.setUint16(12, dataDos, true);
+      v.setUint32(14, crc, true); v.setUint32(18, dados.length, true); v.setUint32(22, dados.length, true);
+      v.setUint16(26, nome.length, true); v.setUint16(28, 0, true);
+      cab.set(nome, 30);
+      locais.push(cab, dados);
+      var cen = new Uint8Array(46 + nome.length), w = new DataView(cen.buffer);
+      w.setUint32(0, 0x02014b50, true); w.setUint16(4, 20, true); w.setUint16(6, 20, true);
+      w.setUint16(8, 0x0800, true); w.setUint16(10, 0, true); w.setUint16(12, horaDos, true);
+      w.setUint16(14, dataDos, true); w.setUint32(16, crc, true);
+      w.setUint32(20, dados.length, true); w.setUint32(24, dados.length, true);
+      w.setUint16(28, nome.length, true); w.setUint32(42, desloc, true);
+      cen.set(nome, 46);
+      centrais.push(cen);
+      desloc += cab.length + dados.length;
+    });
+    var tamCentral = centrais.reduce(function (s, c) { return s + c.length; }, 0);
+    var fim = new Uint8Array(22), f = new DataView(fim.buffer);
+    f.setUint32(0, 0x06054b50, true);
+    f.setUint16(8, arquivos.length, true); f.setUint16(10, arquivos.length, true);
+    f.setUint32(12, tamCentral, true); f.setUint32(16, desloc, true);
+    return new Blob(locais.concat(centrais, [fim]), { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+  }
+  function xml(t) {
+    return String(t == null ? "" : t).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" }[c];
+    });
+  }
+  function paragrafo(texto, op) {
+    op = op || {};
+    var tam = op.titulo ? 28 : 24;
+    var props = '<w:pPr><w:spacing w:line="360" w:lineRule="auto" w:before="' + (op.titulo ? 240 : 0) + '" w:after="160"/></w:pPr>';
+    var fonte = '<w:rPr><w:rFonts w:ascii="Cambria" w:hAnsi="Cambria"/><w:sz w:val="' + tam + '"/>' +
+      (op.negrito || op.titulo ? "<w:b/>" : "") + "</w:rPr>";
+    return "<w:p>" + props + "<w:r>" + fonte + '<w:t xml:space="preserve">' + xml(texto) + "</w:t></w:r></w:p>";
+  }
+  function quebraDePagina() {
+    return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+  }
+  function corpoDoRoteiro(r) {
+    var c = TIPOS[r.tipo], partes = [paragrafo(r.titulo || "Sem título", { titulo: true })];
+    var meta = [c.nome];
+    if (r.formato) meta.push(r.formato);
+    if (r.modalidade) meta.push(r.modalidade);
+    if (r.objetivo) meta.push(r.objetivo);
+    if (r.revisar) meta.push("A revisar");
+    partes.push(paragrafo(meta.join(" · ")));
+    if (c.video) {
+      if (r.textoTela) { partes.push(paragrafo("Texto na tela", { negrito: true })); partes.push(paragrafo(r.textoTela.trim())); }
+      r.blocos.forEach(function (b) {
+        if (!(b.texto || "").trim()) return;
+        var nome = (BLOCO[b.tipo] || BLOCO.livre).nome;
+        if (b.tipo === "gancho" && b.gancho) nome += " (" + b.familia + ": " + b.gancho + (b.modelo ? " · " + b.modelo : "") + ")";
+        partes.push(paragrafo(nome, { negrito: true }));
+        b.texto.trim().split(/\n+/).forEach(function (l) { if (l.trim()) partes.push(paragrafo(l.trim())); });
+      });
+      if (r.legenda) { partes.push(paragrafo("Legenda", { negrito: true })); partes.push(paragrafo(r.legenda.trim())); }
+    } else {
+      r.telas.forEach(function (t, i) {
+        if (!(t.texto || "").trim() && !(t.design || "").trim()) return;
+        partes.push(paragrafo(nomeTela(r.tipo, i, r.telas.length), { negrito: true }));
+        if ((t.texto || "").trim()) partes.push(paragrafo(t.texto.trim()));
+        if ((t.design || "").trim()) partes.push(paragrafo("Design: " + t.design.trim()));
+      });
+    }
+    return partes.join("");
+  }
+  function montarDocx(roteiros) {
+    var corpo = roteiros.map(corpoDoRoteiro).join(quebraDePagina());
+    var documento = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+      corpo + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418"/></w:sectPr>' +
+      "</w:body></w:document>";
+    var tipos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+      '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>';
+    var rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+    var relsDoc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>';
+    var estilos = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr>' +
+      '<w:rFonts w:ascii="Cambria" w:hAnsi="Cambria"/><w:sz w:val="24"/></w:rPr></w:rPrDefault>' +
+      '<w:pPrDefault><w:pPr><w:spacing w:line="360" w:lineRule="auto" w:after="160"/></w:pPr></w:pPrDefault></w:docDefaults>' +
+      '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>';
+    return zipar([
+      { nome: "[Content_Types].xml", texto: tipos },
+      { nome: "_rels/.rels", texto: rels },
+      { nome: "word/_rels/document.xml.rels", texto: relsDoc },
+      { nome: "word/document.xml", texto: documento },
+      { nome: "word/styles.xml", texto: estilos }
+    ]);
+  }
+  function nomeDeArquivo(roteiros) {
+    if (roteiros.length === 1) {
+      var t = (roteiros[0].titulo || "sem título").trim().replace(/[\\/:*?"<>|]/g, " ").slice(0, 60);
+      return "Roteiro " + t.charAt(0).toUpperCase() + t.slice(1) + ".docx";
+    }
+    var d = new Date();
+    return "Roteiros " + roteiros.length + " de " + String(d.getDate()).padStart(2, "0") + "-" + String(d.getMonth() + 1).padStart(2, "0") + ".docx";
+  }
+  function baixarDocx(roteiros) {
+    if (!roteiros.length) return;
+    var blob, nome = nomeDeArquivo(roteiros);
+    try { blob = montarDocx(roteiros); }
+    catch (e) { mostrarEstado("erro", "Não foi possível montar o documento"); return; }
+    mostrarEstado("salvando", "Preparando o documento");
+    var pronto = function () {
+      mostrarEstado("salvo", roteiros.length === 1 ? "Documento pronto" : roteiros.length + " roteiros no documento");
+    };
+    var pelaPagina = function () {
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = nome;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+      pronto();
+    };
+    if (window.claude && typeof window.claude.use === "function") {
+      window.claude.use("downloads").then(function (d) {
+        if (!d) { pelaPagina(); return; }
+        d.save({ filename: nome, data: blob }).then(pronto, function (err) {
+          if (err && err.code === "declined") mostrarEstado("neutro", "Download cancelado");
+          else mostrarEstado("erro", "Não foi possível baixar o documento");
+        });
+      }, pelaPagina);
+    } else pelaPagina();
   }
 
   /* ---------- Ideias ---------- */
@@ -1416,6 +1646,11 @@
   });
   ed.addEventListener("change", function (e) {
     var el = e.target;
+    if (el.dataset && el.dataset.marcar) {
+      marcados[el.dataset.marcar] = el.checked;
+      renderTodos();
+      return;
+    }
     if (el.id === "limpar-numeracao") { contarLinhas(); return; }
     if (!atual || el.tagName !== "SELECT") return;
     if (el.dataset.campo) {
@@ -1452,6 +1687,17 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+    if (e.target.id === "baixar-escolhidos") {
+      var lista = todosOsRoteiros().filter(function (r) { return marcados[r.id]; });
+      baixarDocx(lista);
+      return;
+    }
+    if (e.target.id === "marcar-todos") {
+      visiveisDaLista().forEach(function (r) { marcados[r.id] = true; });
+      renderTodos();
+      return;
+    }
+    if (e.target.id === "limpar-marcas") { marcados = {}; renderTodos(); return; }
     var bf = e.target.closest("[data-filtro]");
     if (bf) { filtroTodos = bf.dataset.filtro; renderTodos(); return; }
     var bv = e.target.closest("[data-virar]");
@@ -1516,6 +1762,7 @@
       agendarSalvar();
       return;
     }
+    if (e.target.id === "baixar-docx") { baixarDocx([atual]); return; }
     if (e.target.id === "copiar") { copiar(); return; }
     if (e.target.id === "excluir") {
       var b = e.target;
