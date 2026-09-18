@@ -323,6 +323,23 @@
   .ideia-topo .contador { margin-left: auto; }
   .ideia .area { min-height: 72px; border-color: var(--linha); background: #ffffff; margin-left: 30px; width: calc(100% - 30px); }
 
+  .etiqueta {
+    background: var(--cor); color: #ffffff; border-radius: 999px; padding: 2px 9px;
+    font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  }
+  .etiquetas-linha { display: inline-flex; gap: 5px; flex-wrap: nowrap; overflow: hidden; }
+  .escolher-etiquetas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: 30px; }
+  .escolher-etiquetas .rotulo { margin-right: 2px; }
+  .etiqueta-botao {
+    border: 1px solid var(--cor); background: transparent; color: var(--cor);
+    border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600;
+  }
+  .etiqueta-botao:hover { background: color-mix(in srgb, var(--cor) 12%, transparent); }
+  .etiqueta-botao.marcada { background: var(--cor); color: #ffffff; }
+  .filtro-etiqueta { border-color: var(--cor); color: var(--cor); }
+  .filtro-etiqueta[aria-pressed="true"] { background: var(--cor); border-color: var(--cor); color: #ffffff; }
+  .pega.sem-arrasto { opacity: .3; cursor: default; }
+
   .ideias-botoes { display: flex; gap: 10px; flex-wrap: wrap; }
   .importar {
     background: var(--papel); border: 1px dashed var(--linha-forte); border-radius: 12px;
@@ -588,6 +605,15 @@
   var PADRAO_BLOCOS = BLOCOS.slice(0, 9).map(function (b) { return b.tipo; });
   var LIMITE_TEXTO_TELA = 9;
   var LIMITE_LEGENDA = 50;
+  var ETIQUETAS = [
+    { nome: "POV", cor: "#7a3b8f" },
+    { nome: "TDAH", cor: "#1f7a6b" },
+    { nome: "Claude", cor: "#c14b21" },
+    { nome: "Empresa", cor: "#1c3f8f" },
+    { nome: "Mentalidade", cor: "#b0343f" },
+    { nome: "Produtividade", cor: "#2f7d32" },
+    { nome: "Posicionamento", cor: "#8a6114" }
+  ];
   var LIMITE_IDEIA = 50;
   var LIMITE_IMPORTACAO = 300;
   var CHAVE_ABA = "caderno-roteiros-aba";
@@ -608,7 +634,7 @@
   var virandoId = null;   // ideia que está escolhendo o destino
   var buscaTodos = "", filtroTodos = "";
   var familiaAberta = null, categoriaAberta = null;
-  var ideiaAberta = null;
+  var ideiaAberta = null, filtroEtiqueta = "";
   var marcados = {};
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1611,6 +1637,18 @@
       mostrarEstado("erro", "Não foi possível salvar a nova ordem");
     });
   }
+  function corEtiqueta(nome) {
+    for (var i = 0; i < ETIQUETAS.length; i++) if (ETIQUETAS[i].nome === nome) return ETIQUETAS[i].cor;
+    return "#6a7284";
+  }
+  function temEtiqueta(ideia, nome) {
+    return (ideia.etiquetas || []).indexOf(nome) !== -1;
+  }
+  function ideiasFiltradas() {
+    var lista = listaIdeias();
+    if (!filtroEtiqueta) return lista;
+    return lista.filter(function (i) { return temEtiqueta(i, filtroEtiqueta); });
+  }
   function resumoIdeias() {
     var n = listaIdeias().filter(function (i) { return !i._nova || (i.texto || "").trim(); }).length;
     return n + " " + plural(n, "ideia guardada", "ideias guardadas") + " · até " + LIMITE_IDEIA + " palavras cada";
@@ -1630,19 +1668,34 @@
     }
     if (!carregouIdeias) h += '<p class="carregando">Carregando as ideias.</p>';
     else {
-      var lista = listaIdeias();
+      var lista = ideiasFiltradas();
+      var todas = listaIdeias();
+      h += '<div class="filtros" role="group" aria-label="Filtrar por etiqueta">' +
+        '<button type="button" class="filtro" data-etiqueta="" aria-pressed="' + (filtroEtiqueta === "") + '">Todas (' + todas.length + ")</button>" +
+        ETIQUETAS.map(function (e) {
+          var n = todas.filter(function (i) { return temEtiqueta(i, e.nome); }).length;
+          return '<button type="button" class="filtro filtro-etiqueta" data-etiqueta="' + esc(e.nome) + '" aria-pressed="' + (filtroEtiqueta === e.nome) + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + " (" + n + ")</button>";
+        }).join("") + "</div>";
+      if (filtroEtiqueta) h += '<p class="aviso">Mostrando só as ideias com a etiqueta ' + esc(filtroEtiqueta) + ". Para mudar a ordem arrastando, volte para Todas.</p>";
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
-      if (!lista.length) h += '<p class="aviso">Nenhuma ideia guardada ainda. Clique em Nova ideia e escreva em poucas palavras o tema, o ângulo ou a frase que apareceu na sua cabeça.</p>';
+      if (!lista.length) h += '<p class="aviso">' + (filtroEtiqueta
+        ? "Nenhuma ideia com essa etiqueta."
+        : "Nenhuma ideia guardada ainda. Clique em Nova ideia e escreva em poucas palavras o tema, o ângulo ou a frase que apareceu na sua cabeça.") + "</p>";
       h += lista.map(function (i) {
         var aberta = ideiaAberta === i.id;
         var escolhendo = virandoId === i.id;
         var tag = i.virou ? '<span class="tag-virou">virou roteiro de ' + esc(TIPOS[i.virou] ? TIPOS[i.virou].nome : i.virou) + "</span>" : "";
         var resumo = (i.texto || "").trim().replace(/\s+/g, " ");
+        var pilulas = (i.etiquetas || []).map(function (nome) {
+          return '<span class="etiqueta" style="--cor: ' + corEtiqueta(nome) + '">' + esc(nome) + "</span>";
+        }).join("");
         return '<article class="ideia' + (aberta ? " aberta" : "") + '" data-id="' + i.id + '">' +
           '<div class="ideia-topo">' +
-          '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">⠿</span>' +
+          (filtroEtiqueta ? '<span class="pega sem-arrasto" aria-hidden="true">⠿</span>'
+            : '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">⠿</span>') +
           '<button type="button" class="ideia-linha" data-abrir-ideia="' + i.id + '" aria-expanded="' + aberta + '">' +
           '<span class="ideia-resumo' + (resumo ? "" : " vazia") + '">' + (resumo ? esc(resumo) : "Ideia em branco") + "</span></button>" +
+          (pilulas ? '<span class="etiquetas-linha">' + pilulas + "</span>" : "") +
           tag +
           '<span class="ideia-data">' + dataCurta(i.criado) + "</span>" +
           '<span class="contador" id="ci-' + i.id + '"></span>' +
@@ -1655,6 +1708,11 @@
               return '<button type="button" class="btn destino" data-destino="' + t + '" data-ideia-origem="' + i.id + '">' + TIPOS[t].nome + "</button>";
             }).join("") +
             '<button type="button" class="btn destino-cancelar">Cancelar</button></div>' : "") +
+          (aberta ? '<div class="escolher-etiquetas"><span class="rotulo">Etiquetas</span>' +
+            ETIQUETAS.map(function (e) {
+              var marcada = temEtiqueta(i, e.nome);
+              return '<button type="button" class="etiqueta-botao' + (marcada ? " marcada" : "") + '" data-etiquetar="' + i.id + '" data-nome="' + esc(e.nome) + '" aria-pressed="' + marcada + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + "</button>";
+            }).join("") + "</div>" : "") +
           (aberta ? '<textarea class="area" id="ix-' + i.id + '" data-ideia="' + i.id + '" aria-label="Ideia de ' + dataCurta(i.criado) + '" placeholder="Escreva a ideia"></textarea>' : "") +
           "</article>";
       }).join("");
@@ -1931,6 +1989,25 @@
     if (e.target.id === "limpar-marcas") { marcados = {}; renderTodos(); return; }
     var bf = e.target.closest("[data-filtro]");
     if (bf) { filtroTodos = bf.dataset.filtro; renderTodos(); return; }
+    var be = e.target.closest("[data-etiquetar]");
+    if (be) {
+      var alvoIdeia = ideias[be.dataset.etiquetar];
+      if (!alvoIdeia) return;
+      var nome = be.dataset.nome;
+      var atuais = alvoIdeia.etiquetas || [];
+      alvoIdeia.etiquetas = temEtiqueta(alvoIdeia, nome)
+        ? atuais.filter(function (x) { return x !== nome; })
+        : atuais.concat([nome]);
+      agendarIdeia(alvoIdeia);
+      renderIdeias();
+      return;
+    }
+    var bet = e.target.closest("[data-etiqueta]");
+    if (bet && abaAtual === "ideias") {
+      filtroEtiqueta = bet.dataset.etiqueta === filtroEtiqueta ? "" : bet.dataset.etiqueta;
+      renderIdeias();
+      return;
+    }
     var ba = e.target.closest("[data-abrir-ideia]");
     if (ba) {
       salvarIdeiasPendentes();
