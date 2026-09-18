@@ -244,10 +244,13 @@
   .blocos { display: flex; flex-direction: column; gap: 12px; }
   .bloco {
     background: var(--papel); border: 1px solid var(--linha); border-left: 3px solid var(--navy);
-    border-radius: 4px 12px 12px 4px; padding: 14px 18px 16px;
+    border-radius: 4px 12px 12px 4px; padding: 14px 18px 16px 10px;
     display: flex; flex-direction: column; gap: 8px;
   }
-  .bloco-topo { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .bloco.arrastando { opacity: .85; box-shadow: 0 6px 18px rgba(11, 18, 31, .18); }
+  .bloco-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .bloco-dica, .bloco .area, .bloco .gancho-tipo, .bloco .gancho-modelo, .bloco .gancho-exemplo, .bloco .gancho-tela { margin-left: 30px; }
+  .bloco .area { width: calc(100% - 30px); }
   .bloco-nome { font-family: var(--display); font-size: 25px; letter-spacing: 0.05em; line-height: 1; color: var(--navy); margin: 0; font-weight: 400; }
   .bloco-pos { font-size: 12px; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
   .bloco-topo .contador { margin-left: auto; }
@@ -293,14 +296,32 @@
   .ideias-topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 2px solid var(--navy); }
   .ideias-topo h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: 0.04em; line-height: 1; }
   .ideias { display: flex; flex-direction: column; gap: 12px; }
+  .ideias { gap: 6px; }
   .ideia {
     background: var(--papel); border: 1px solid var(--linha); border-left: 3px solid var(--navy);
-    border-radius: 4px 12px 12px 4px; padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 8px;
+    border-radius: 4px 12px 12px 4px; padding: 6px 14px 6px 8px; display: flex; flex-direction: column; gap: 8px;
   }
-  .ideia-topo { display: flex; align-items: center; gap: 12px; }
+  .ideia.aberta { padding: 10px 16px 14px 8px; border-left-color: var(--laranja); }
+  .ideia.arrastando { opacity: .85; box-shadow: 0 6px 18px rgba(11, 18, 31, .18); }
+  .ideia-topo { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .ideia-linha {
+    flex: 1 1 auto; min-width: 0; background: transparent; border: 0; text-align: left;
+    padding: 6px 2px; color: var(--navy); font-size: 15px;
+  }
+  .ideia-resumo { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ideia-resumo.vazia { color: var(--navy-fraco); font-style: italic; }
+  .ideia.aberta .ideia-resumo { font-weight: 600; }
+  .pega {
+    display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 26px;
+    color: var(--linha-forte); font-size: 15px; cursor: grab; touch-action: none; user-select: none; border-radius: 6px;
+  }
+  .pega:hover { color: var(--navy); background: var(--fundo); }
+  .pega:focus-visible { outline: 2px solid var(--laranja); outline-offset: 1px; }
+  body.arrastando-algo { user-select: none; cursor: grabbing; }
+  body.arrastando-algo .pega { cursor: grabbing; }
   .ideia-data { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
   .ideia-topo .contador { margin-left: auto; }
-  .ideia .area { min-height: 72px; border-color: var(--linha); background: #ffffff; }
+  .ideia .area { min-height: 72px; border-color: var(--linha); background: #ffffff; margin-left: 30px; width: calc(100% - 30px); }
 
   .ideias-botoes { display: flex; gap: 10px; flex-wrap: wrap; }
   .importar {
@@ -587,6 +608,7 @@
   var virandoId = null;   // ideia que está escolhendo o destino
   var buscaTodos = "", filtroTodos = "";
   var familiaAberta = null, categoriaAberta = null;
+  var ideiaAberta = null;
   var marcados = {};
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1167,12 +1189,13 @@
     if (!total) { el.innerHTML = '<p class="aviso">Nenhum bloco no roteiro. Acrescente um bloco abaixo.</p>'; return; }
     el.innerHTML = r.blocos.map(function (b, i) {
       var def = BLOCO[b.tipo] || BLOCO.livre;
-      return '<article class="bloco">' +
-        '<div class="bloco-topo"><h3 class="bloco-nome" id="bn-' + b.id + '">' + def.nome + "</h3>" +
+      return '<article class="bloco" data-id="' + b.id + '">' +
+        '<div class="bloco-topo">' +
+        '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar o bloco ' + def.nome + '" title="Arraste para mudar a ordem">⠿</span>' +
+        '<h3 class="bloco-nome" id="bn-' + b.id + '">' + def.nome + "</h3>" +
         '<span class="bloco-pos">' + (i + 1) + " de " + total + "</span>" +
         '<span class="contador" id="c-bloco-' + i + '"></span>' +
-        '<span class="mover"><button type="button" class="mini" data-mover="' + i + '" data-direcao="-1"' + (i === 0 ? " disabled" : "") + ' aria-label="Subir o bloco ' + def.nome + '">↑</button>' +
-        '<button type="button" class="mini" data-mover="' + i + '" data-direcao="1"' + (i === total - 1 ? " disabled" : "") + ' aria-label="Descer o bloco ' + def.nome + '">↓</button></span>' +
+
         '<button type="button" class="apagar" data-apagar="' + i + '" aria-label="Apagar o bloco ' + def.nome + '">Apagar</button></div>' +
         '<p class="bloco-dica">' + def.dica + "</p>" +
         (b.tipo === "gancho" ? seletorGanchoHtml(b) : "") +
@@ -1180,6 +1203,14 @@
         "</article>";
     }).join("");
     r.blocos.forEach(function (b) { var t = $("bx-" + b.id); t.value = b.texto || ""; crescer(t); });
+    ligarArrasto(el, ".bloco", function (ids) {
+      var antes = r.blocos.map(function (b) { return b.id; }).join(",");
+      if (antes === ids.join(",")) return;
+      r.blocos = ids.map(function (id) {
+        return r.blocos.filter(function (b) { return b.id === id; })[0];
+      }).filter(Boolean);
+      renderBlocos(); atualizarMedidas(); agendarSalvar();
+    });
   }
 
   function nomeTela(tipo, i, total) {
@@ -1216,6 +1247,61 @@
     var add = $("add-tela");
     add.hidden = total >= TIPOS[r.tipo].telas;
     add.textContent = r.tipo === "stories" ? "Adicionar story" : "Adicionar tela";
+  }
+
+  /* Arrastar para mudar a ordem, com mouse ou com o dedo. As setas do teclado
+     fazem o mesmo quando a alça está em foco. */
+  function ligarArrasto(caixa, seletor, aoSoltar) {
+    if (!caixa || caixa._arrasto) return;
+    caixa._arrasto = true;
+    var alvo = null;
+    function itens() { return Array.prototype.slice.call(caixa.querySelectorAll(seletor)); }
+    function avisar() { aoSoltar(itens().map(function (el) { return el.dataset.id; })); }
+    caixa.addEventListener("pointerdown", function (e) {
+      var pega = e.target.closest("[data-pega]");
+      if (!pega || e.button > 0) return;
+      alvo = pega.closest(seletor);
+      if (!alvo) return;
+      e.preventDefault();
+      alvo.classList.add("arrastando");
+      document.body.classList.add("arrastando-algo");
+      var mover = function (ev) {
+        if (!alvo) return;
+        var y = ev.clientY;
+        itens().forEach(function (outro) {
+          if (outro === alvo) return;
+          var r = outro.getBoundingClientRect(), meio = r.top + r.height / 2;
+          var posicao = alvo.compareDocumentPosition(outro);
+          if (posicao & Node.DOCUMENT_POSITION_FOLLOWING && y > meio) outro.after(alvo);
+          else if (posicao & Node.DOCUMENT_POSITION_PRECEDING && y < meio) outro.before(alvo);
+        });
+      };
+      var soltar = function () {
+        document.removeEventListener("pointermove", mover);
+        document.removeEventListener("pointerup", soltar);
+        document.removeEventListener("pointercancel", soltar);
+        if (alvo) alvo.classList.remove("arrastando");
+        document.body.classList.remove("arrastando-algo");
+        alvo = null;
+        avisar();
+      };
+      document.addEventListener("pointermove", mover);
+      document.addEventListener("pointerup", soltar);
+      document.addEventListener("pointercancel", soltar);
+    });
+    caixa.addEventListener("keydown", function (e) {
+      var pega = e.target.closest("[data-pega]");
+      if (!pega || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+      var item = pega.closest(seletor);
+      if (!item) return;
+      e.preventDefault();
+      var vizinho = e.key === "ArrowUp" ? item.previousElementSibling : item.nextElementSibling;
+      if (!vizinho || !vizinho.matches(seletor)) return;
+      if (e.key === "ArrowUp") vizinho.before(item); else vizinho.after(item);
+      avisar();
+      var nova = item.querySelector("[data-pega]");
+      if (nova) nova.focus();
+    });
   }
 
   function crescer(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; }
@@ -1486,8 +1572,44 @@
 
   /* ---------- Ideias ---------- */
   function listaIdeias() {
-    return Object.keys(ideias).map(function (k) { return ideias[k]; })
-      .sort(function (a, b) { return (b.criado || "").localeCompare(a.criado || ""); });
+    var lista = Object.keys(ideias).map(function (k) { return ideias[k]; });
+    var temOrdem = lista.some(function (i) { return typeof i.ordem === "number"; });
+    return lista.sort(function (a, b) {
+      if (temOrdem) {
+        var oa = typeof a.ordem === "number" ? a.ordem : Infinity;
+        var ob = typeof b.ordem === "number" ? b.ordem : Infinity;
+        if (oa !== ob) return oa - ob;
+      }
+      return (b.criado || "").localeCompare(a.criado || "");
+    });
+  }
+  function menorOrdem() {
+    var m = null;
+    Object.keys(ideias).forEach(function (k) {
+      if (typeof ideias[k].ordem === "number" && (m === null || ideias[k].ordem < m)) m = ideias[k].ordem;
+    });
+    return m;
+  }
+  // A primeira vez que você arrasta, todas as ideias ganham um número de ordem.
+  function guardarOrdemDasIdeias(idsNaTela) {
+    var novos = [];
+    idsNaTela.forEach(function (id, i) {
+      var ideia = ideias[id];
+      if (!ideia) return;
+      if (ideia.ordem !== i * 1000) {
+        ideia.ordem = i * 1000;
+        ideia.atualizado = new Date().toISOString();
+        novos.push(ideia);
+      }
+    });
+    if (!novos.length || !arm) return;
+    mostrarEstado("salvando", "Salvando a ordem");
+    var a = arm;
+    novos.reduce(function (p, o) {
+      return p.then(function () { return a === arm ? a.salvar("ideias", o.id, limpo(o)) : null; });
+    }, Promise.resolve()).then(avisarSalvo, function () {
+      mostrarEstado("erro", "Não foi possível salvar a nova ordem");
+    });
   }
   function resumoIdeias() {
     var n = listaIdeias().filter(function (i) { return !i._nova || (i.texto || "").trim(); }).length;
@@ -1512,28 +1634,41 @@
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
       if (!lista.length) h += '<p class="aviso">Nenhuma ideia guardada ainda. Clique em Nova ideia e escreva em poucas palavras o tema, o ângulo ou a frase que apareceu na sua cabeça.</p>';
       h += lista.map(function (i) {
+        var aberta = ideiaAberta === i.id;
         var escolhendo = virandoId === i.id;
         var tag = i.virou ? '<span class="tag-virou">virou roteiro de ' + esc(TIPOS[i.virou] ? TIPOS[i.virou].nome : i.virou) + "</span>" : "";
-        return '<article class="ideia"><div class="ideia-topo"><span class="ideia-data">Ideia de ' + dataCurta(i.criado) + "</span>" + tag +
+        var resumo = (i.texto || "").trim().replace(/\s+/g, " ");
+        return '<article class="ideia' + (aberta ? " aberta" : "") + '" data-id="' + i.id + '">' +
+          '<div class="ideia-topo">' +
+          '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">⠿</span>' +
+          '<button type="button" class="ideia-linha" data-abrir-ideia="' + i.id + '" aria-expanded="' + aberta + '">' +
+          '<span class="ideia-resumo' + (resumo ? "" : " vazia") + '">' + (resumo ? esc(resumo) : "Ideia em branco") + "</span></button>" +
+          tag +
+          '<span class="ideia-data">' + dataCurta(i.criado) + "</span>" +
           '<span class="contador" id="ci-' + i.id + '"></span>' +
-          '<button type="button" class="virar" data-virar="' + i.id + '">Virar roteiro</button>' +
-          '<button type="button" class="apagar" data-apagar-ideia="' + i.id + '" aria-label="Apagar a ideia de ' + dataCurta(i.criado) + '">Apagar</button></div>' +
-          (escolhendo ? '<div class="destinos"><span class="aviso">Virar roteiro de</span>' +
+          (aberta
+            ? '<button type="button" class="virar" data-virar="' + i.id + '">Virar roteiro</button>' +
+              '<button type="button" class="apagar" data-apagar-ideia="' + i.id + '" aria-label="Apagar a ideia">Apagar</button>'
+            : "") + "</div>" +
+          (aberta && escolhendo ? '<div class="destinos"><span class="aviso">Virar roteiro de</span>' +
             QUADRANTE.map(function (t) {
               return '<button type="button" class="btn destino" data-destino="' + t + '" data-ideia-origem="' + i.id + '">' + TIPOS[t].nome + "</button>";
             }).join("") +
             '<button type="button" class="btn destino-cancelar">Cancelar</button></div>' : "") +
-          '<textarea class="area" id="ix-' + i.id + '" data-ideia="' + i.id + '" aria-label="Ideia de ' + dataCurta(i.criado) + '" placeholder="Escreva a ideia"></textarea></article>';
+          (aberta ? '<textarea class="area" id="ix-' + i.id + '" data-ideia="' + i.id + '" aria-label="Ideia de ' + dataCurta(i.criado) + '" placeholder="Escreva a ideia"></textarea>' : "") +
+          "</article>";
       }).join("");
       h += "</section>";
     }
     h += "</div>";
     $("editor").innerHTML = h;
     listaIdeias().forEach(function (i) {
+      marcarContador($("ci-" + i.id), contar(i.texto), LIMITE_IDEIA);
       var t = $("ix-" + i.id); if (!t) return;
       t.value = i.texto || ""; crescer(t);
-      marcarContador($("ci-" + i.id), contar(i.texto), LIMITE_IDEIA);
     });
+    ligarArrasto($("ideias"), ".ideia", function (ids) { guardarOrdemDasIdeias(ids); });
+    if (ideiaAberta) { var aberta = $("ix-" + ideiaAberta); if (aberta) aberta.focus(); }
     var r = $("i-resumo"); if (r) r.textContent = resumoIdeias();
     atualizarContagens();
     var imp = $("importar-texto");
@@ -1571,7 +1706,10 @@
       if (jaTem[chave]) { repetidas++; return; }
       jaTem[chave] = true;
       var quando = new Date(agora - i * 1000).toISOString();
-      novas.push({ id: novoId(), texto: t, criado: quando, atualizado: quando });
+      var item = { id: novoId(), texto: t, criado: quando, atualizado: quando };
+      var base = menorOrdem();
+      if (base !== null) item.ordem = base - (lista.length - i) * 1000;
+      novas.push(item);
     });
     if (!novas.length) {
       mostrarEstado("neutro", "Todas essas ideias já estavam na lista.");
@@ -1793,6 +1931,14 @@
     if (e.target.id === "limpar-marcas") { marcados = {}; renderTodos(); return; }
     var bf = e.target.closest("[data-filtro]");
     if (bf) { filtroTodos = bf.dataset.filtro; renderTodos(); return; }
+    var ba = e.target.closest("[data-abrir-ideia]");
+    if (ba) {
+      salvarIdeiasPendentes();
+      ideiaAberta = ideiaAberta === ba.dataset.abrirIdeia ? null : ba.dataset.abrirIdeia;
+      virandoId = null;
+      renderIdeias();
+      return;
+    }
     var bv = e.target.closest("[data-virar]");
     if (bv) { virandoId = virandoId === bv.dataset.virar ? null : bv.dataset.virar; renderIdeias(); return; }
     if (e.target.classList.contains("destino-cancelar")) { virandoId = null; renderIdeias(); return; }
@@ -1809,9 +1955,11 @@
       if (!carregouIdeias) return;
       var agora = new Date().toISOString();
       var nova = { id: novoId(), texto: "", criado: agora, atualizado: agora, _nova: true };
+      var topo = menorOrdem();
+      if (topo !== null) nova.ordem = topo - 1000;
       ideias[nova.id] = nova;
+      ideiaAberta = nova.id;
       renderIdeias();
-      var t = $("ix-" + nova.id); if (t) t.focus();
       return;
     }
     var ai = e.target.closest("[data-apagar-ideia]");
@@ -1826,18 +1974,6 @@
       return;
     }
     if (!atual) return;
-    var mv = e.target.closest("[data-mover]");
-    if (mv) {
-      var de = +mv.dataset.mover, para = de + (+mv.dataset.direcao);
-      if (para < 0 || para >= atual.blocos.length) return;
-      var guardado = atual.blocos[de];
-      atual.blocos[de] = atual.blocos[para];
-      atual.blocos[para] = guardado;
-      renderBlocos(); atualizarMedidas(); agendarSalvar();
-      var foco = document.querySelector('[data-mover="' + para + '"][data-direcao="' + mv.dataset.direcao + '"]');
-      if (foco && !foco.disabled) foco.focus();
-      return;
-    }
     var ap = e.target.closest("[data-apagar]");
     if (ap) {
       var idx = +ap.dataset.apagar;
