@@ -448,6 +448,8 @@
   .rotulo-linha { color: var(--navy-fraco); margin-right: 2px; white-space: nowrap; }
   .linha-filtro { padding-bottom: 4px; border-bottom: 1px solid var(--linha); }
   .filtros .filtro-etiqueta { border-color: var(--cor); color: var(--cor); }
+  .filtro-arquivadas { margin-left: auto; border-style: dashed; }
+  .filtro-arquivadas[aria-pressed="true"] { background: var(--navy-suave); border-color: var(--navy-suave); border-style: solid; color: var(--creme); font-weight: 600; }
   .linha-filtro .estado-fora {
     border-style: dashed; background: var(--creme); color: var(--navy-fraco);
     text-decoration: line-through; text-decoration-thickness: 1px; font-weight: 500;
@@ -702,6 +704,7 @@
   var familiaAberta = null, categoriaAberta = null;
   var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
   var filtroSituacao = "";
+  var verArquivadas = false;
   var ideiasMarcadas = {};
   var marcados = {};
 
@@ -1205,7 +1208,9 @@
     var ni = $("n-ideias"), nr = $("n-ideias-rotulo");
     if (!ni) return;
     if (!carregouIdeias) { ni.textContent = ""; nr.textContent = ""; return; }
-    var q = Object.keys(ideias).filter(function (k) { return !ideias[k]._nova || (ideias[k].texto || "").trim(); }).length;
+    var q = Object.keys(ideias).filter(function (k) {
+      return !ideias[k].arquivada && (!ideias[k]._nova || (ideias[k].texto || "").trim());
+    }).length;
     ni.textContent = q; nr.textContent = plural(q, "ideia guardada", "ideias guardadas");
   }
   function aplicarAba() {
@@ -1846,7 +1851,9 @@
   }
   function haFiltroDeIdeias() { return !!filtroSem || Object.keys(filtroEtiqueta).length > 0; }
   function ideiasFiltradas() {
-    var lista = listaIdeias();
+    var lista = listaIdeias().filter(function (i) {
+      return verArquivadas ? !!i.arquivada : !i.arquivada;
+    });
     if (!haFiltroDeIdeias()) return lista;
     var so = etiquetasDoFiltro("so"), fora = etiquetasDoFiltro("fora");
     return lista.filter(function (i) {
@@ -1871,8 +1878,11 @@
     return "";
   }
   function resumoIdeias() {
-    var n = listaIdeias().filter(function (i) { return !i._nova || (i.texto || "").trim(); }).length;
-    return n + " " + plural(n, "ideia guardada", "ideias guardadas") + " · até " + LIMITE_IDEIA + " palavras cada";
+    var vivas = listaIdeias().filter(function (i) { return !i.arquivada && (!i._nova || (i.texto || "").trim()); }).length;
+    var noArquivo = listaIdeias().filter(function (i) { return i.arquivada; }).length;
+    return vivas + " " + plural(vivas, "ideia guardada", "ideias guardadas") +
+      (noArquivo ? " · " + noArquivo + " " + plural(noArquivo, "no arquivo", "no arquivo") : "") +
+      " · até " + LIMITE_IDEIA + " palavras cada";
   }
   function renderIdeias() {
     var rolagem = window.pageYOffset || document.documentElement.scrollTop || 0;
@@ -1893,7 +1903,10 @@
     if (!carregouIdeias) h += '<p class="carregando">Carregando as ideias.</p>';
     else {
       var lista = ideiasFiltradas();
-      var todas = listaIdeias();
+      var todas = listaIdeias().filter(function (i) {
+        return verArquivadas ? !!i.arquivada : !i.arquivada;
+      });
+      var guardadas = listaIdeias().filter(function (i) { return i.arquivada; }).length;
       var semEtiqueta = todas.filter(function (i) { return !(i.etiquetas || []).length; }).length;
       h += '<div class="filtros linha-filtro" role="group" aria-label="Filtrar por etiqueta">' +
         '<span class="rotulo rotulo-linha">Filtrar</span>' +
@@ -1902,8 +1915,11 @@
           var n = todas.filter(function (i) { return temEtiqueta(i, e.nome); }).length;
           return botaoDeFiltro(e.nome, esc(e.nome) + " (" + n + ")", filtroEtiqueta[e.nome] || "", ' style="--cor: ' + e.cor + '"', "filtro-etiqueta");
         }).join("") +
-        botaoDeFiltro("sem", "Sem etiqueta (" + semEtiqueta + ")", filtroSem, "", "") + "</div>";
-      h += '<p class="aviso">' + (haFiltroDeIdeias()
+        botaoDeFiltro("sem", "Sem etiqueta (" + semEtiqueta + ")", filtroSem, "", "") +
+        '<button type="button" class="filtro filtro-arquivadas" id="ver-arquivadas" aria-pressed="' + verArquivadas + '">Arquivadas (' + guardadas + ")</button></div>";
+      h += '<p class="aviso">' + (verArquivadas
+        ? "Estas ideias estão no arquivo. Elas saem da lista principal e voltam com o botão Desarquivar."
+        : haFiltroDeIdeias()
         ? esc(textoDoFiltro()) + " Para mudar a ordem arrastando, volte para Todas."
         : "Clique numa etiqueta para ver só as ideias dela. Clique de novo para tirá-la da vista.") + "</p>";
       var escolhidas = lista.filter(function (i) { return ideiasMarcadas[i.id]; });
@@ -1912,14 +1928,18 @@
         (escolhidas.length ? escolhidas.length + " " + plural(escolhidas.length, "ideia escolhida", "ideias escolhidas") + ". Clique numa etiqueta para pôr ou tirar em todas."
           : "Marque as caixinhas para etiquetar várias ideias de uma vez.") + "</span>" +
         '<button type="button" class="btn" id="marcar-todas-ideias">Marcar as da lista</button>' +
-        '<button type="button" class="btn" id="limpar-ideias-marcadas"' + (escolhidas.length ? "" : " disabled") + ">Limpar</button></div>" +
+        '<button type="button" class="btn" id="limpar-ideias-marcadas"' + (escolhidas.length ? "" : " disabled") + ">Limpar</button>" +
+        '<button type="button" class="btn" id="arquivar-escolhidas"' + (escolhidas.length ? "" : " disabled") + ">" +
+        (verArquivadas ? "Desarquivar as escolhidas" : "Arquivar as escolhidas") + "</button></div>" +
         '<div class="filtros etiquetas-lote"><span class="rotulo rotulo-linha">Etiquetar as escolhidas</span>' + ETIQUETAS.map(function (e) {
           var todasTem = escolhidas.length > 0 && escolhidas.every(function (i) { return temEtiqueta(i, e.nome); });
           return '<button type="button" class="filtro filtro-etiqueta" data-lote="' + esc(e.nome) + '"' + (escolhidas.length ? "" : " disabled") +
             ' aria-pressed="' + todasTem + '" style="--cor: ' + e.cor + '">' + (todasTem ? "Tirar " : "") + esc(e.nome) + "</button>";
         }).join("") + "</div></div>";
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
-      if (!lista.length) h += '<p class="aviso">' + (haFiltroDeIdeias()
+      if (!lista.length) h += '<p class="aviso">' + (verArquivadas
+        ? "Nenhuma ideia no arquivo ainda."
+        : haFiltroDeIdeias()
         ? "Nenhuma ideia sobra com esse filtro."
         : "Nenhuma ideia guardada ainda. Clique em Nova ideia e escreva em poucas palavras o tema, o ângulo ou a frase que apareceu na sua cabeça.") + "</p>";
       h += lista.map(function (i) {
@@ -1945,6 +1965,7 @@
           '<span class="contador" id="ci-' + i.id + '"></span>' +
           (aberta
             ? '<button type="button" class="virar" data-virar="' + i.id + '">Virar roteiro</button>' +
+              '<button type="button" class="apagar" data-arquivar="' + i.id + '">' + (i.arquivada ? "Desarquivar" : "Arquivar") + "</button>" +
               '<button type="button" class="apagar" data-apagar-ideia="' + i.id + '" aria-label="Apagar a ideia">Apagar</button>'
             : "") + "</div>" +
           (aberta && escolhendo ? '<div class="destinos"><span class="aviso">Virar roteiro de</span>' +
@@ -2050,6 +2071,7 @@
     if (arm) arm.salvar("roteiros", r.id, limpo(r)).then(avisarSalvo)
       .catch(function () { mostrarEstado("erro", "Não foi possível criar o roteiro. Confira a conexão."); });
     ideia.virou = tipo;
+    ideia.arquivada = true;
     ideia.atualizado = new Date().toISOString();
     if (arm) arm.salvar("ideias", ideia.id, limpo(ideia));
     virandoId = null;
@@ -2059,7 +2081,32 @@
     document.querySelector(".corpo").classList.remove("sem-gaveta");
     abrir(r);
     window.scrollTo({ top: 0, behavior: "smooth" });
-    mostrarEstado("salvo", "Roteiro criado em " + TIPOS[tipo].nome);
+    mostrarEstado("salvo", "Roteiro criado em " + TIPOS[tipo].nome + ". A ideia foi para o arquivo.");
+  }
+
+  function arquivarEmLote() {
+    var escolhidas = ideiasFiltradas().filter(function (i) { return ideiasMarcadas[i.id]; });
+    if (!escolhidas.length || !arm) return;
+    var guardar = !verArquivadas;
+    escolhidas.forEach(function (i) {
+      if (guardar) i.arquivada = true; else delete i.arquivada;
+      i.atualizado = new Date().toISOString();
+      delete i._nova;
+    });
+    ideiasMarcadas = {};
+    renderIdeias();
+    var a = arm, feitas = 0;
+    mostrarEstado("salvando", (guardar ? "Arquivando " : "Tirando do arquivo ") + escolhidas.length);
+    escolhidas.reduce(function (p, i) {
+      return p.then(function () {
+        if (a !== arm) return;
+        return a.salvar("ideias", i.id, limpo(i)).then(function () { feitas++; });
+      });
+    }, Promise.resolve()).then(function () {
+      mostrarEstado("salvo", feitas + " " + plural(feitas, "ideia", "ideias") + (guardar ? " no arquivo" : " de volta na lista"));
+    }, function () {
+      mostrarEstado("erro", "Não foi possível guardar todas as ideias");
+    });
   }
 
   function etiquetarEmLote(nome) {
@@ -2285,6 +2332,25 @@
       return;
     }
     if (e.target.id === "limpar-ideias-marcadas") { ideiasMarcadas = {}; renderIdeias(); return; }
+    if (e.target.id === "arquivar-escolhidas") { arquivarEmLote(); return; }
+    if (e.target.id === "ver-arquivadas") {
+      verArquivadas = !verArquivadas;
+      ideiasMarcadas = {};
+      ideiaAberta = null;
+      renderIdeias();
+      return;
+    }
+    var barq = e.target.closest("[data-arquivar]");
+    if (barq) {
+      var alvoArq = ideias[barq.dataset.arquivar];
+      if (!alvoArq) return;
+      if (alvoArq.arquivada) delete alvoArq.arquivada; else alvoArq.arquivada = true;
+      if (alvoArq.arquivada) ideiaAberta = null;
+      agendarIdeia(alvoArq);
+      mostrarEstado("salvando", alvoArq.arquivada ? "Ideia arquivada" : "Ideia de volta na lista");
+      renderIdeias();
+      return;
+    }
     var bl = e.target.closest("[data-lote]");
     if (bl) { etiquetarEmLote(bl.dataset.lote); return; }
     var be = e.target.closest("[data-etiquetar]");
