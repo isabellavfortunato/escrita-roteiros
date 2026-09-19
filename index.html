@@ -323,6 +323,12 @@
   .ideia-topo .contador { margin-left: auto; }
   .ideia .area { min-height: 72px; border-color: var(--linha); background: #ffffff; margin-left: 30px; width: calc(100% - 30px); }
 
+  .barra-etiquetar { margin-bottom: -4px; }
+  .etiquetas-lote { margin-bottom: 4px; }
+  .etiquetas-lote .filtro-etiqueta[aria-pressed="true"], .filtros .filtro-etiqueta[aria-pressed="true"] { background: var(--cor); border-color: var(--cor); color: #ffffff; }
+  .etiquetas-lote .filtro[disabled] { opacity: .4; cursor: default; }
+  .ideia .marcar { padding: 0 2px 0 4px; }
+
   .etiqueta {
     background: var(--cor); color: #ffffff; border-radius: 999px; padding: 2px 9px;
     font-size: 11.5px; font-weight: 600; white-space: nowrap;
@@ -635,6 +641,7 @@
   var buscaTodos = "", filtroTodos = "";
   var familiaAberta = null, categoriaAberta = null;
   var ideiaAberta = null, filtroEtiqueta = "";
+  var ideiasMarcadas = {};
   var marcados = {};
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1677,6 +1684,17 @@
           return '<button type="button" class="filtro filtro-etiqueta" data-etiqueta="' + esc(e.nome) + '" aria-pressed="' + (filtroEtiqueta === e.nome) + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + " (" + n + ")</button>";
         }).join("") + "</div>";
       if (filtroEtiqueta) h += '<p class="aviso">Mostrando só as ideias com a etiqueta ' + esc(filtroEtiqueta) + ". Para mudar a ordem arrastando, volte para Todas.</p>";
+      var escolhidas = lista.filter(function (i) { return ideiasMarcadas[i.id]; });
+      h += '<div class="barra-escolha barra-etiquetar"><span class="aviso">' +
+        (escolhidas.length ? escolhidas.length + " " + plural(escolhidas.length, "ideia escolhida", "ideias escolhidas") + ". Clique numa etiqueta para pôr ou tirar em todas."
+          : "Marque as caixinhas para etiquetar várias ideias de uma vez.") + "</span>" +
+        '<button type="button" class="btn" id="marcar-todas-ideias">Marcar as da lista</button>' +
+        '<button type="button" class="btn" id="limpar-ideias-marcadas"' + (escolhidas.length ? "" : " disabled") + ">Limpar</button></div>" +
+        '<div class="filtros etiquetas-lote">' + ETIQUETAS.map(function (e) {
+          var todasTem = escolhidas.length > 0 && escolhidas.every(function (i) { return temEtiqueta(i, e.nome); });
+          return '<button type="button" class="filtro filtro-etiqueta" data-lote="' + esc(e.nome) + '"' + (escolhidas.length ? "" : " disabled") +
+            ' aria-pressed="' + todasTem + '" style="--cor: ' + e.cor + '">' + (todasTem ? "Tirar " : "") + esc(e.nome) + "</button>";
+        }).join("") + "</div>";
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
       if (!lista.length) h += '<p class="aviso">' + (filtroEtiqueta
         ? "Nenhuma ideia com essa etiqueta."
@@ -1691,6 +1709,7 @@
         }).join("");
         return '<article class="ideia' + (aberta ? " aberta" : "") + '" data-id="' + i.id + '">' +
           '<div class="ideia-topo">' +
+          '<label class="marcar"><input type="checkbox" data-marcar-ideia="' + i.id + '"' + (ideiasMarcadas[i.id] ? " checked" : "") + ' aria-label="Escolher esta ideia"></label>' +
           (filtroEtiqueta ? '<span class="pega sem-arrasto" aria-hidden="true">⠿</span>'
             : '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">⠿</span>') +
           '<button type="button" class="ideia-linha" data-abrir-ideia="' + i.id + '" aria-expanded="' + aberta + '">' +
@@ -1813,6 +1832,32 @@
     mostrarEstado("salvo", "Roteiro criado em " + TIPOS[tipo].nome);
   }
 
+  function etiquetarEmLote(nome) {
+    var escolhidas = ideiasFiltradas().filter(function (i) { return ideiasMarcadas[i.id]; });
+    if (!escolhidas.length || !arm) return;
+    var tirar = escolhidas.every(function (i) { return temEtiqueta(i, nome); });
+    escolhidas.forEach(function (i) {
+      var atuais = i.etiquetas || [];
+      if (tirar) i.etiquetas = atuais.filter(function (x) { return x !== nome; });
+      else if (!temEtiqueta(i, nome)) i.etiquetas = atuais.concat([nome]);
+      i.atualizado = new Date().toISOString();
+      delete i._nova;
+    });
+    renderIdeias();
+    var a = arm, feitas = 0;
+    mostrarEstado("salvando", (tirar ? "Tirando " : "Pondo ") + nome + " em " + escolhidas.length);
+    escolhidas.reduce(function (p, i) {
+      return p.then(function () {
+        if (a !== arm) return;
+        return a.salvar("ideias", i.id, limpo(i)).then(function () { feitas++; });
+      });
+    }, Promise.resolve()).then(function () {
+      mostrarEstado("salvo", (tirar ? "Etiqueta tirada de " : "Etiqueta posta em ") + feitas + " " + plural(feitas, "ideia", "ideias"));
+    }, function () {
+      mostrarEstado("erro", "Não foi possível salvar todas as etiquetas");
+    });
+  }
+
   function salvarIdeia(i) {
     delete timersIdeia[i.id];
     if (!arm) return;
@@ -1921,6 +1966,11 @@
   });
   ed.addEventListener("change", function (e) {
     var el = e.target;
+    if (el.dataset && el.dataset.marcarIdeia) {
+      ideiasMarcadas[el.dataset.marcarIdeia] = el.checked;
+      renderIdeias();
+      return;
+    }
     if (el.dataset && el.dataset.marcar) {
       marcados[el.dataset.marcar] = el.checked;
       renderTodos();
@@ -1989,6 +2039,14 @@
     if (e.target.id === "limpar-marcas") { marcados = {}; renderTodos(); return; }
     var bf = e.target.closest("[data-filtro]");
     if (bf) { filtroTodos = bf.dataset.filtro; renderTodos(); return; }
+    if (e.target.id === "marcar-todas-ideias") {
+      ideiasFiltradas().forEach(function (i) { ideiasMarcadas[i.id] = true; });
+      renderIdeias();
+      return;
+    }
+    if (e.target.id === "limpar-ideias-marcadas") { ideiasMarcadas = {}; renderIdeias(); return; }
+    var bl = e.target.closest("[data-lote]");
+    if (bl) { etiquetarEmLote(bl.dataset.lote); return; }
     var be = e.target.closest("[data-etiquetar]");
     if (be) {
       var alvoIdeia = ideias[be.dataset.etiquetar];
