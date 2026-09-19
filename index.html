@@ -410,7 +410,7 @@
   .marcar input { width: 17px; height: 17px; accent-color: var(--navy); cursor: pointer; }
   .linha-abrir {
     flex: 1 1 auto; min-width: 0; background: transparent; border: 0;
-    display: grid; grid-template-columns: minmax(0, 1fr) 96px 86px 150px; align-items: center; gap: 12px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 96px 86px minmax(0, auto) 150px; align-items: center; gap: 12px;
     padding: 11px 14px; text-align: left; color: var(--navy);
   }
   .linha-titulo { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
@@ -421,8 +421,14 @@
     justify-self: start; background: var(--laranja); color: #ffffff; border-radius: 999px;
     padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
   }
+  .linha-abrir .etiquetas-linha { justify-self: start; max-width: 260px; }
+  .etiquetas-roteiro { margin-left: 0; padding: 12px 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; }
+  .item .etiquetas-linha { margin-top: 2px; max-width: 100%; flex-wrap: wrap; overflow: visible; }
+  .filtros .filtro-etiqueta { border-color: var(--cor); color: var(--cor); }
+  .filtros .filtro-etiqueta:hover { background: color-mix(in srgb, var(--cor) 10%, transparent); color: var(--cor); }
   @media (max-width: 700px) {
     .linha-abrir { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+    .linha-abrir .etiquetas-linha { grid-column: 1 / -1; max-width: 100%; }
     .linha-meta { grid-column: 2; text-align: right; }
     .linha-tipo { grid-column: 1; }
     .busca-todos { max-width: none; }
@@ -625,6 +631,18 @@
     { nome: "Mentalidade", cor: "#b0343f" },
     { nome: "Produtividade", cor: "#2f7d32" },
     { nome: "Posicionamento", cor: "#8a6114" }
+  ];
+  var ETIQUETAS_ROTEIRO = [
+    { nome: "Financeiro", cor: "#1c3f8f" },
+    { nome: "Cliente & Vendas", cor: "#0f7a8c" },
+    { nome: "Precificação", cor: "#2f7d32" },
+    { nome: "Marketing", cor: "#7a3b8f" },
+    { nome: "Cobrança & Inadimplência", cor: "#b0343f" },
+    { nome: "RH", cor: "#6b7a1f" },
+    { nome: "Produtividade", cor: "#8a6114" },
+    { nome: "Posicionamento", cor: "#c14b21" },
+    { nome: "Minha história", cor: "#9c3773" },
+    { nome: "Mentalidade", cor: "#4b5563" }
   ];
   var LIMITE_IDEIA = 50;
   var LIMITE_IMPORTACAO = 300;
@@ -903,6 +921,7 @@
   function limpo(r) { var c = clonar(r); delete c._novo; delete c._nova; return c; }
   function estaEmBranco(r) {
     if (r.titulo || r.formato || r.modalidade || r.objetivo || r.textoTela || r.legenda) return false;
+    if ((r.etiquetas || []).length) return false;
     if ((r.blocos || []).some(function (b) { return b.texto; })) return false;
     return !(r.telas || []).some(function (t) { return t.texto || t.design; });
   }
@@ -961,6 +980,10 @@
   function visiveisDaLista() {
     var lista = todosOsRoteiros();
     if (filtroTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
+    else if (filtroTodos.indexOf("et:") === 0) {
+      var etiqueta = filtroTodos.slice(3);
+      lista = lista.filter(function (r) { return temEtiqueta(r, etiqueta); });
+    }
     else if (filtroTodos) lista = lista.filter(function (r) { return r.tipo === filtroTodos; });
     if (buscaTodos) {
       var b = buscaTodos.toLowerCase();
@@ -978,6 +1001,11 @@
       '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '"></div>' +
       '<div class="filtros" role="group" aria-label="Filtrar">' + filtros.map(function (f) {
         return '<button type="button" class="filtro" data-filtro="' + f[0] + '" aria-pressed="' + (filtroTodos === f[0]) + '">' + f[1] + "</button>";
+      }).join("") + "</div>" +
+      '<div class="filtros" role="group" aria-label="Filtrar por etiqueta">' + ETIQUETAS_ROTEIRO.map(function (et) {
+        var quantos = todosOsRoteiros().filter(function (r) { return temEtiqueta(r, et.nome); }).length;
+        return '<button type="button" class="filtro filtro-etiqueta" data-filtro="et:' + esc(et.nome) + '" aria-pressed="' +
+          (filtroTodos === "et:" + et.nome) + '" style="--cor: ' + et.cor + '">' + esc(et.nome) + " (" + quantos + ")</button>";
       }).join("") + "</div>";
     var escolhidos = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; }).length;
     h += '<div class="barra-escolha"><span class="aviso">' +
@@ -998,6 +1026,7 @@
           '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
           '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
           (r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
+          pilulasDoRoteiro(r) +
           '<span class="linha-meta">' + medida + " · " + dataCurta(r.atualizado) + "</span></button></div>";
       }).join("") + "</div>";
     }
@@ -1120,6 +1149,7 @@
     el.innerHTML = lista.map(function (r) {
       return '<li><button class="item" data-id="' + r.id + '" aria-current="' + (atual && atual.id === r.id) + '">' +
         '<span class="item-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
+        pilulasDoRoteiro(r) +
         '<span class="item-meta">' + esc(metaItem(r)) + "</span></button></li>";
     }).join("");
   }
@@ -1186,6 +1216,12 @@
     h += seletorHtml("Modalidade", "modalidade", MODALIDADES);
     h += seletorHtml("Objetivo", "objetivo", OBJETIVOS);
     h += "</section>";
+    h += '<div class="escolher-etiquetas etiquetas-roteiro"><span class="rotulo">Etiquetas</span>' +
+      ETIQUETAS_ROTEIRO.map(function (e) {
+        var marcada = temEtiqueta(r, e.nome);
+        return '<button type="button" class="etiqueta-botao' + (marcada ? " marcada" : "") +
+          '" data-etiquetar-roteiro="' + esc(e.nome) + '" aria-pressed="' + marcada + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + "</button>";
+      }).join("") + "</div>";
 
     if (c.video) {
       h += '<section class="medidor" aria-live="polite"><div class="cards">' +
@@ -1649,6 +1685,19 @@
     }, Promise.resolve()).then(avisarSalvo, function () {
       mostrarEstado("erro", "Não foi possível salvar a nova ordem");
     });
+  }
+  function corEtiquetaRoteiro(nome) {
+    for (var i = 0; i < ETIQUETAS_ROTEIRO.length; i++) if (ETIQUETAS_ROTEIRO[i].nome === nome) return ETIQUETAS_ROTEIRO[i].cor;
+    return "#6a7284";
+  }
+  function pilulasDoRoteiro(r) {
+    var lista = (r.etiquetas || []).filter(function (n) {
+      return ETIQUETAS_ROTEIRO.some(function (e) { return e.nome === n; });
+    });
+    if (!lista.length) return "";
+    return '<span class="etiquetas-linha">' + lista.map(function (n) {
+      return '<span class="etiqueta" style="--cor: ' + corEtiquetaRoteiro(n) + '">' + esc(n) + "</span>";
+    }).join("") + "</span>";
   }
   function corEtiqueta(nome) {
     for (var i = 0; i < ETIQUETAS.length; i++) if (ETIQUETAS[i].nome === nome) return ETIQUETAS[i].cor;
@@ -2148,6 +2197,20 @@
       if (atual.tipo === "carrossel" && atual.telas.length >= 2) atual.telas.splice(atual.telas.length - 1, 0, telaVazia());
       else atual.telas.push(telaVazia());
       renderTelas(); atualizarMedidas(); agendarSalvar();
+      return;
+    }
+    var ber = e.target.closest("[data-etiquetar-roteiro]");
+    if (ber && atual) {
+      var nomeEt = ber.dataset.etiquetarRoteiro;
+      var agora = atual.etiquetas || [];
+      atual.etiquetas = temEtiqueta(atual, nomeEt)
+        ? agora.filter(function (x) { return x !== nomeEt; })
+        : agora.concat([nomeEt]);
+      var pos = temEtiqueta(atual, nomeEt);
+      ber.classList.toggle("marcada", pos);
+      ber.setAttribute("aria-pressed", String(pos));
+      agendarSalvar();
+      renderListaDepois();
       return;
     }
     if (e.target.id === "marcar-revisar") {
