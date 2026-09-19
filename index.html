@@ -324,6 +324,12 @@
   .ideia .area { min-height: 72px; border-color: var(--linha); background: #ffffff; margin-left: 30px; width: calc(100% - 30px); }
 
   .barra-etiquetar { margin-bottom: -4px; }
+  .etiquetar-bloco { display: flex; flex-direction: column; gap: 10px; }
+  .etiquetar-bloco.grudado {
+    position: sticky; top: 8px; z-index: 6;
+    background: var(--fundo); padding: 8px; margin: -8px; border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(11, 18, 31, .12);
+  }
   .etiquetas-lote { margin-bottom: 4px; }
   .etiquetas-lote .filtro-etiqueta[aria-pressed="true"], .filtros .filtro-etiqueta[aria-pressed="true"] { background: var(--cor); border-color: var(--cor); color: #ffffff; }
   .etiquetas-lote .filtro[disabled] { opacity: .4; cursor: default; }
@@ -1661,6 +1667,9 @@
     return n + " " + plural(n, "ideia guardada", "ideias guardadas") + " · até " + LIMITE_IDEIA + " palavras cada";
   }
   function renderIdeias() {
+    var rolagem = window.pageYOffset || document.documentElement.scrollTop || 0;
+    var focadoAntes = document.activeElement;
+    var focoMarca = focadoAntes && focadoAntes.dataset ? focadoAntes.dataset.marcarIdeia : null;
     var h = '<div class="ideias-wrap"><div class="ideias-topo"><div><h2>Ideias</h2><span class="aviso" id="i-resumo"></span></div>' +
       '<div class="ideias-botoes"><button class="btn" id="abrir-importar" type="button">Importar em lote</button>' +
       '<button class="btn btn-laranja" id="nova-ideia" type="button">Nova ideia</button></div></div>';
@@ -1685,7 +1694,8 @@
         }).join("") + "</div>";
       if (filtroEtiqueta) h += '<p class="aviso">Mostrando só as ideias com a etiqueta ' + esc(filtroEtiqueta) + ". Para mudar a ordem arrastando, volte para Todas.</p>";
       var escolhidas = lista.filter(function (i) { return ideiasMarcadas[i.id]; });
-      h += '<div class="barra-escolha barra-etiquetar"><span class="aviso">' +
+      h += '<div class="etiquetar-bloco' + (escolhidas.length ? " grudado" : "") + '">' +
+        '<div class="barra-escolha barra-etiquetar"><span class="aviso">' +
         (escolhidas.length ? escolhidas.length + " " + plural(escolhidas.length, "ideia escolhida", "ideias escolhidas") + ". Clique numa etiqueta para pôr ou tirar em todas."
           : "Marque as caixinhas para etiquetar várias ideias de uma vez.") + "</span>" +
         '<button type="button" class="btn" id="marcar-todas-ideias">Marcar as da lista</button>' +
@@ -1694,7 +1704,7 @@
           var todasTem = escolhidas.length > 0 && escolhidas.every(function (i) { return temEtiqueta(i, e.nome); });
           return '<button type="button" class="filtro filtro-etiqueta" data-lote="' + esc(e.nome) + '"' + (escolhidas.length ? "" : " disabled") +
             ' aria-pressed="' + todasTem + '" style="--cor: ' + e.cor + '">' + (todasTem ? "Tirar " : "") + esc(e.nome) + "</button>";
-        }).join("") + "</div>";
+        }).join("") + "</div></div>";
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
       if (!lista.length) h += '<p class="aviso">' + (filtroEtiqueta
         ? "Nenhuma ideia com essa etiqueta."
@@ -1750,6 +1760,11 @@
     atualizarContagens();
     var imp = $("importar-texto");
     if (imp) { imp.focus(); contarLinhas(); }
+    if (focoMarca) {
+      var volta = document.querySelector('[data-marcar-ideia="' + focoMarca + '"]');
+      if (volta && volta.focus) { try { volta.focus({ preventScroll: true }); } catch (erro) { volta.focus(); } }
+    }
+    window.scrollTo(0, rolagem);
   }
 
   /* Importação em lote das ideias */
@@ -1843,6 +1858,7 @@
       i.atualizado = new Date().toISOString();
       delete i._nova;
     });
+    ideiasMarcadas = {};
     renderIdeias();
     var a = arm, feitas = 0;
     mostrarEstado("salvando", (tirar ? "Tirando " : "Pondo ") + nome + " em " + escolhidas.length);
@@ -1887,6 +1903,7 @@
     gravarLocal(CHAVE_ABA, abaAtual);
     busca = ""; $("busca").value = "";
     aplicarAba();
+    window.scrollTo(0, 0);
   });
   $("novo").addEventListener("click", function () {
     if (!carregou) return;
@@ -1914,6 +1931,7 @@
     gravarLocal(CHAVE_ABA, abaAtual);
     busca = ""; $("busca").value = "";
     aplicarAba();
+    window.scrollTo(0, 0);
   });
   $("ver-todos").addEventListener("click", function () {
     salvarPendente(); salvarIdeiasPendentes();
@@ -1921,6 +1939,7 @@
     gravarLocal(CHAVE_ABA, abaAtual);
     busca = ""; $("busca").value = "";
     aplicarAba();
+    window.scrollTo(0, 0);
   });
 
   function confirmarDuasVezes(botao, textoConfirmar, textoOriginal) {
