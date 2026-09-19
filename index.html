@@ -29,6 +29,8 @@
     --laranja: #c14b21;
     --laranja-hover: #a93f1a;
     --vermelho: #b92e4b;
+    --verde: #1f6b3a;
+    --verde-hover: #185830;
     --display: "Bebas Neue", "Oswald", "Arial Narrow", Impact, sans-serif;
     --ui: "Archivo", "Helvetica Neue", Arial, sans-serif;
     --texto: "Literata", Georgia, "Times New Roman", serif;
@@ -380,6 +382,17 @@
   /* Lista geral e etiqueta de revisão */
   .btn-todos { padding: 5px 12px; font-size: 13px; }
   .btn-todos[aria-pressed="true"] { background: var(--navy); color: var(--papel); }
+  .btn-pronto[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); color: #ffffff; }
+  .btn-pronto[aria-pressed="true"]:hover { background: var(--verde-hover); border-color: var(--verde-hover); color: #ffffff; }
+  .tag-pronto {
+    justify-self: start; background: var(--verde); color: #ffffff; border-radius: 999px;
+    padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  }
+  .item .tag-pronto { align-self: flex-start; margin-top: 2px; }
+  .filtros-gaveta { gap: 6px; }
+  .filtro-mini { padding: 3px 10px; font-size: 12.5px; }
+  .filtro-pronto { border-color: var(--verde); color: var(--verde); }
+  .filtro-pronto[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); color: #ffffff; }
   .btn-revisar[aria-pressed="true"] { background: var(--laranja); border-color: var(--laranja); color: #ffffff; }
   .btn-revisar[aria-pressed="true"]:hover { background: var(--laranja-hover); border-color: var(--laranja-hover); color: #ffffff; }
   .lista-wrap { max-width: 900px; }
@@ -566,6 +579,7 @@
       </div>
       <div class="gaveta-conteudo" id="gaveta-conteudo">
         <input class="busca" id="busca" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título">
+        <div class="filtros filtros-gaveta" id="filtros-gaveta" role="group" aria-label="Filtrar por situação"></div>
         <ul class="lista" id="lista"></ul>
       </div>
     </aside>
@@ -601,7 +615,7 @@
     tiktok:    { nome: "TikTok", sub: "Vídeo longo · 350 a 435 palavras", video: true, min: 350, max: 435, duracao: "2:00<small>a</small>2:30<small>min</small>" },
     carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, porTela: 25 },
     stories:   { nome: "Stories", sub: "Até 10 telas · 25 palavras por tela", video: false, telas: 10, porTela: 25 },
-    ideias:    { nome: "Ideias", sub: "Até 50 palavras por ideia", ideias: true },
+    ideias:    { nome: "Ideias", sub: "Até 100 palavras por ideia", ideias: true },
     todos:     { nome: "Todos os roteiros", sub: "Lista por título", lista: true },
     familias:  { nome: "Famílias de gancho", sub: "Consulta", consulta: true }
   };
@@ -653,7 +667,7 @@
     { nome: "Mentalidade", cor: "#4b5563" },
     { nome: "Claude", cor: "#c14b21" }
   ];
-  var LIMITE_IDEIA = 50;
+  var LIMITE_IDEIA = 100;
   var LIMITE_IMPORTACAO = 300;
   var CHAVE_ABA = "caderno-roteiros-aba";
 
@@ -674,6 +688,7 @@
   var buscaTodos = "", filtroTodos = "";
   var familiaAberta = null, categoriaAberta = null;
   var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
+  var filtroSituacao = "";
   var ideiasMarcadas = {};
   var marcados = {};
 
@@ -930,7 +945,7 @@
   function limpo(r) { var c = clonar(r); delete c._novo; delete c._nova; return c; }
   function estaEmBranco(r) {
     if (r.titulo || r.formato || r.modalidade || r.objetivo || r.textoTela || r.legenda) return false;
-    if ((r.etiquetas || []).length) return false;
+    if ((r.etiquetas || []).length || r.pronto) return false;
     if ((r.blocos || []).some(function (b) { return b.texto; })) return false;
     return !(r.telas || []).some(function (t) { return t.texto || t.design; });
   }
@@ -989,6 +1004,8 @@
   function visiveisDaLista() {
     var lista = todosOsRoteiros();
     if (filtroTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
+    else if (filtroTodos === "pronto") lista = lista.filter(function (r) { return r.pronto; });
+    else if (filtroTodos === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
     else if (filtroTodos.indexOf("et:") === 0) {
       var etiqueta = filtroTodos.slice(3);
       lista = lista.filter(function (r) { return temEtiqueta(r, etiqueta); });
@@ -1004,6 +1021,9 @@
     var total = todosOsRoteiros().length, lista = visiveisDaLista();
     var revisar = todosOsRoteiros().filter(function (r) { return r.revisar; }).length;
     var filtros = [["", "Todos"]].concat(QUADRANTE.map(function (t) { return [t, TIPOS[t].nome]; }));
+    var prontosTodos = todosOsRoteiros().filter(function (r) { return r.pronto; }).length;
+    filtros.push(["pronto", "Pronto (" + prontosTodos + ")"]);
+    filtros.push(["rascunho", "Rascunho (" + (total - prontosTodos) + ")"]);
     filtros.push(["revisar", "A revisar (" + revisar + ")"]);
     var h = '<div class="ideias-wrap lista-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
       '<span class="aviso">' + total + " " + plural(total, "roteiro guardado", "roteiros guardados") + " · em ordem de título</span></div>" +
@@ -1034,7 +1054,8 @@
           '<button type="button" class="linha-abrir" data-abrir="' + r.id + '">' +
           '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
           '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
-          (r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
+          (r.pronto ? '<span class="tag-pronto">Pronto</span>'
+            : r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
           pilulasDoRoteiro(r) +
           '<span class="linha-meta">' + medida + " · " + dataCurta(r.atualizado) + "</span></button></div>";
       }).join("") + "</div>";
@@ -1083,7 +1104,7 @@
 
   function renderAbas() {
     var h = '<button class="nav-ideias" role="tab" id="aba-ideias" data-tipo="ideias" aria-selected="' + (abaAtual === "ideias") + '">' +
-      '<span class="nav-ideias-nome"><b>Ideias<i>.</i></b><span class="sub">Até 50 palavras por ideia</span></span>' +
+      '<span class="nav-ideias-nome"><b>Ideias<i>.</i></b><span class="sub">Até ' + LIMITE_IDEIA + ' palavras por ideia</span></span>' +
       '<span class="nav-ideias-conta"><strong id="n-ideias"></strong><span id="n-ideias-rotulo"></span></span></button>';
     h += '<div class="quadrante">' + QUADRANTE.map(function (t) {
       var c = TIPOS[t];
@@ -1143,6 +1164,17 @@
     atualizarContagens();
     if (abaAtual === "ideias" || abaAtual === "todos" || abaAtual === "familias") return;
     var lista = doTipo(abaAtual), total = lista.length;
+    var prontos = lista.filter(function (r) { return r.pronto; }).length;
+    var fg = $("filtros-gaveta");
+    if (fg) {
+      fg.innerHTML = [["", "Todos (" + total + ")"], ["rascunho", "Rascunho (" + (total - prontos) + ")"], ["pronto", "Pronto (" + prontos + ")"]]
+        .map(function (f) {
+          return '<button type="button" class="filtro filtro-mini' + (f[0] === "pronto" ? " filtro-pronto" : "") +
+            '" data-situacao="' + f[0] + '" aria-pressed="' + (filtroSituacao === f[0]) + '">' + f[1] + "</button>";
+        }).join("");
+    }
+    if (filtroSituacao === "pronto") lista = lista.filter(function (r) { return r.pronto; });
+    else if (filtroSituacao === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
     if (busca) {
       var b = busca.toLowerCase();
       lista = lista.filter(function (r) { return (r.titulo || "").toLowerCase().indexOf(b) !== -1; });
@@ -1151,13 +1183,16 @@
     var el = $("lista");
     if (!carregou) { el.innerHTML = '<li class="vazio-lista">' + (arm ? "Carregando." : "") + "</li>"; return; }
     if (!lista.length) {
-      el.innerHTML = '<li class="vazio-lista">' + (busca ? "Nenhum título com esse trecho."
+      el.innerHTML = '<li class="vazio-lista">' + (filtroSituacao === "pronto" ? "Nenhum roteiro marcado como pronto para publicar."
+        : filtroSituacao === "rascunho" ? "Todos os roteiros daqui já estão prontos para publicar."
+        : busca ? "Nenhum título com esse trecho."
         : "Ainda não há roteiros de " + TIPOS[abaAtual].nome + ". O que você escrever aqui fica salvo sozinho.") + "</li>";
       return;
     }
     el.innerHTML = lista.map(function (r) {
       return '<li><button class="item" data-id="' + r.id + '" aria-current="' + (atual && atual.id === r.id) + '">' +
         '<span class="item-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
+        (r.pronto ? '<span class="tag-pronto">Pronto para publicar</span>' : "") +
         pilulasDoRoteiro(r) +
         '<span class="item-meta">' + esc(metaItem(r)) + "</span></button></li>";
     }).join("");
@@ -1258,6 +1293,7 @@
 
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
       '<button class="btn" id="baixar-docx" type="button">Baixar em docx</button>' +
+      '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.pronto ? "true" : "false") + '">' + (r.pronto ? "Pronto para publicar" : "Publicar") + "</button>" +
       '<button class="btn btn-revisar" id="marcar-revisar" type="button" aria-pressed="' + (r.revisar ? "true" : "false") + '">A revisar</button>' +
       '<button class="btn btn-perigo" id="excluir" type="button">Excluir roteiro</button></div>';
 
@@ -2006,6 +2042,12 @@
     var t = $("titulo"); if (t) t.focus();
   });
   $("busca").addEventListener("input", function (e) { busca = e.target.value.trim(); renderLista(); });
+  $("filtros-gaveta").addEventListener("click", function (e) {
+    var bs = e.target.closest("[data-situacao]");
+    if (!bs) return;
+    filtroSituacao = bs.dataset.situacao === filtroSituacao ? "" : bs.dataset.situacao;
+    renderLista();
+  });
   $("lista").addEventListener("click", function (e) {
     var b = e.target.closest(".item"); if (!b) return;
     var r = acervo[b.dataset.id]; if (!r) return;
@@ -2265,8 +2307,25 @@
       renderListaDepois();
       return;
     }
+    if (e.target.id === "marcar-pronto") {
+      atual.pronto = !atual.pronto;
+      if (atual.pronto) atual.revisar = false;
+      e.target.setAttribute("aria-pressed", String(!!atual.pronto));
+      e.target.textContent = atual.pronto ? "Pronto para publicar" : "Publicar";
+      var br = $("marcar-revisar");
+      if (br && atual.pronto) br.setAttribute("aria-pressed", "false");
+      mostrarEstado("salvando", atual.pronto ? "Marcado como pronto para publicar" : "Voltou para rascunho");
+      agendarSalvar();
+      renderListaDepois();
+      return;
+    }
     if (e.target.id === "marcar-revisar") {
       atual.revisar = !atual.revisar;
+      if (atual.revisar && atual.pronto) {
+        atual.pronto = false;
+        var bp = $("marcar-pronto");
+        if (bp) { bp.setAttribute("aria-pressed", "false"); bp.textContent = "Publicar"; }
+      }
       e.target.setAttribute("aria-pressed", String(!!atual.revisar));
       mostrarEstado("salvando", atual.revisar ? "Marcado como a revisar" : "Marca de revisão tirada");
       agendarSalvar();
