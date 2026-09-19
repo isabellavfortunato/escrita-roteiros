@@ -322,7 +322,13 @@
   body.arrastando-algo { user-select: none; cursor: grabbing; }
   body.arrastando-algo .pega { cursor: grabbing; }
   .ideia-data { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
-  .ideia-topo .contador { margin-left: auto; }
+  .ideia-data { flex: 0 0 46px; text-align: right; }
+  .ideia-topo .contador { flex: 0 0 78px; text-align: right; }
+  .ideia .etiquetas-linha { flex: 0 0 150px; justify-content: flex-start; margin-left: auto; }
+  .etiqueta-mais {
+    background: var(--creme); color: var(--navy-suave); border-radius: 999px;
+    padding: 2px 8px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  }
   .ideia .area { min-height: 72px; border-color: var(--linha); background: #ffffff; margin-left: 30px; width: calc(100% - 30px); }
 
   .barra-etiquetar { margin-bottom: -4px; }
@@ -1846,9 +1852,11 @@
         var escolhendo = virandoId === i.id;
         var tag = i.virou ? '<span class="tag-virou">virou roteiro de ' + esc(TIPOS[i.virou] ? TIPOS[i.virou].nome : i.virou) + "</span>" : "";
         var resumo = (i.texto || "").trim().replace(/\s+/g, " ");
-        var pilulas = (i.etiquetas || []).map(function (nome) {
+        var etiquetasDela = i.etiquetas || [];
+        var pilulas = etiquetasDela.slice(0, 2).map(function (nome) {
           return '<span class="etiqueta" style="--cor: ' + corEtiqueta(nome) + '">' + esc(nome) + "</span>";
         }).join("");
+        if (etiquetasDela.length > 2) pilulas += '<span class="etiqueta-mais" title="' + esc(etiquetasDela.join(", ")) + '">+' + (etiquetasDela.length - 2) + "</span>";
         return '<article class="ideia' + (aberta ? " aberta" : "") + '" data-id="' + i.id + '">' +
           '<div class="ideia-topo">' +
           '<label class="marcar"><input type="checkbox" data-marcar-ideia="' + i.id + '"' + (ideiasMarcadas[i.id] ? " checked" : "") + ' aria-label="Escolher esta ideia"></label>' +
