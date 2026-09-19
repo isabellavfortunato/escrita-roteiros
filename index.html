@@ -229,6 +229,7 @@
   /* Campos */
   .campo { display: flex; flex-direction: column; gap: 8px; }
   .campo-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .campo-topo #montar-legenda { margin-right: auto; }
   .campo label, .rotulo {
     font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-suave);
   }
@@ -651,6 +652,11 @@
   var PADRAO_BLOCOS = BLOCOS.slice(0, 9).map(function (b) { return b.tipo; });
   var LIMITE_TEXTO_TELA = 9;
   var LIMITE_LEGENDA = 50;
+  var PALAVRAS_DA_LEGENDA = 42; // sobra espaço para as hashtags dentro do teto
+  var HASHTAGS_FIXAS = ["#EmpreendedorismoFeminino", "#IAParaEmpresas", "#PequenosNegocios", "#MulherEmpreendedora"];
+  var HASHTAG_DINHEIRO = "#OrganizacaoFinanceira";
+  var ETIQUETAS_DE_DINHEIRO = ["Financeiro", "Precificação", "Cobrança & Inadimplência"];
+  var SINAIS_DE_DINHEIRO = ["dinheiro", "preço", "cobran", "lucro", "extrato", "pagar", "receber", "imposto", "custo", "desconto", "pró-labore", "orçamento", "inadimpl", "margem", "caixa", "conta ", "contas", "parcel", "boleto", "reais"];
   var ETIQUETAS = [
     { nome: "POV", cor: "#7a3b8f" },
     { nome: "TDAH", cor: "#1f7a6b" },
@@ -945,6 +951,73 @@
     delete r.corpo;
     return r;
   }
+  /* ---------- Legenda montada com as frases do roteiro ---------- */
+  function frasesDoTexto(txt) {
+    var limpo = String(txt || "").replace(/\s+/g, " ").trim();
+    if (!limpo) return [];
+    var achadas = limpo.match(/[^.!?]+[.!?]*/g) || [];
+    return achadas.map(function (f) { return f.trim(); }).filter(Boolean);
+  }
+  function primeiraFrase(txt) {
+    var f = frasesDoTexto(txt);
+    return f.length ? f[0] : "";
+  }
+  function textoDoBloco(r, tipo) {
+    var achado = (r.blocos || []).filter(function (b) { return b.tipo === tipo && (b.texto || "").trim(); })[0];
+    return achado ? achado.texto.trim() : "";
+  }
+  function temaDeDinheiro(r, texto) {
+    var marcada = (r.etiquetas || []).some(function (n) { return ETIQUETAS_DE_DINHEIRO.indexOf(n) !== -1; });
+    if (marcada) return true;
+    var tudo = (texto + " " + (r.titulo || "")).toLowerCase();
+    return SINAIS_DE_DINHEIRO.some(function (s) { return tudo.indexOf(s) !== -1; });
+  }
+  function cortarEmPalavras(frases, teto) {
+    var saida = [], soma = 0;
+    for (var i = 0; i < frases.length; i++) {
+      var n = contar(frases[i]);
+      if (saida.length && soma + n > teto) break;
+      saida.push(frases[i]);
+      soma += n;
+      if (soma >= teto) break;
+    }
+    return saida;
+  }
+  function frasesParaLegenda(r) {
+    var escolhidas = [];
+    if (TIPOS[r.tipo] && TIPOS[r.tipo].video) {
+      ["gancho", "crenca", "solucao", "detalhe", "prova"].forEach(function (tipo) {
+        var f = primeiraFrase(textoDoBloco(r, tipo));
+        if (f && escolhidas.indexOf(f) === -1) escolhidas.push(f);
+      });
+      var pergunta = frasesDoTexto(textoDoBloco(r, "fechamento")).filter(function (f) { return f.indexOf("?") !== -1; })[0];
+      if (!escolhidas.length) {
+        (r.blocos || []).forEach(function (b) {
+          var f = primeiraFrase(b.texto);
+          if (f && escolhidas.indexOf(f) === -1) escolhidas.push(f);
+        });
+      }
+      escolhidas = cortarEmPalavras(escolhidas, PALAVRAS_DA_LEGENDA - (pergunta ? contar(pergunta) : 0));
+      if (pergunta) escolhidas.push(pergunta);
+      return escolhidas;
+    }
+    var telas = (r.telas || []).filter(function (t) { return (t.texto || "").trim(); });
+    if (telas.length) escolhidas.push(primeiraFrase(telas[0].texto));
+    if (telas.length > 2) escolhidas.push(primeiraFrase(telas[Math.floor(telas.length / 2)].texto));
+    if (telas.length > 1) escolhidas.push(primeiraFrase(telas[telas.length - 1].texto));
+    return cortarEmPalavras(escolhidas.filter(Boolean), PALAVRAS_DA_LEGENDA);
+  }
+  function montarLegenda(r) {
+    var frases = frasesParaLegenda(r);
+    if (!frases.length) return "";
+    var texto = frases.map(function (f) {
+      return /[.!?]$/.test(f) ? f : f + ".";
+    }).join(" ");
+    var tags = HASHTAGS_FIXAS.slice();
+    if (temaDeDinheiro(r, texto)) tags.push(HASHTAG_DINHEIRO);
+    return texto + "\n\n" + tags.join(" ");
+  }
+
   function palavrasVideo(r) {
     if (Array.isArray(r.blocos)) return r.blocos.reduce(function (s, b) { return s + contar(b.texto); }, 0);
     return contar(r.corpo);
@@ -1291,7 +1364,9 @@
       h += '<div class="acrescentar"><label for="novo-bloco">Acrescentar bloco</label>' +
         '<select class="caixa" id="novo-bloco">' + BLOCOS.map(function (b) { return '<option value="' + b.tipo + '">' + b.nome + "</option>"; }).join("") + "</select>" +
         '<button class="btn" id="add-bloco" type="button">Acrescentar</button></div>';
-      h += '<div class="campo"><div class="campo-topo"><label for="legenda">Legenda</label><span class="contador" id="c-legenda"></span></div>' +
+      h += '<div class="campo"><div class="campo-topo"><label for="legenda">Legenda</label>' +
+        '<button type="button" class="btn btn-mini" id="montar-legenda" title="Monta a legenda com as frases do próprio roteiro e acrescenta as hashtags">Montar legenda</button>' +
+        '<span class="contador" id="c-legenda"></span></div>' +
         '<textarea class="area" id="legenda" placeholder="Texto da legenda seguido das hashtags">' + esc(r.legenda) + "</textarea></div>";
     } else {
       h += '<section class="resumo"><span class="aviso" id="t-resumo"></span><button class="btn" id="add-tela" type="button">Adicionar tela</button></section>';
@@ -2338,6 +2413,20 @@
       e.target.setAttribute("aria-pressed", String(!!atual.revisar));
       mostrarEstado("salvando", atual.revisar ? "Marcado como a revisar" : "Marca de revisão tirada");
       agendarSalvar();
+      return;
+    }
+    if (e.target.id === "montar-legenda") {
+      var campoLegenda = $("legenda");
+      var nova = montarLegenda(atual);
+      if (!nova) { mostrarEstado("erro", "Escreva os blocos antes de montar a legenda"); return; }
+      if ((atual.legenda || "").trim() && !confirmarDuasVezes(e.target, "Clique de novo para refazer", "Montar legenda")) return;
+      e.target.dataset.confirmar = ""; e.target.textContent = "Montar legenda";
+      e.target.style.borderColor = ""; e.target.style.color = "";
+      atual.legenda = nova;
+      if (campoLegenda) { campoLegenda.value = nova; crescer(campoLegenda); campoLegenda.focus(); }
+      atualizarMedidas();
+      agendarSalvar();
+      mostrarEstado("salvando", "Legenda montada com as frases do roteiro");
       return;
     }
     if (e.target.id === "baixar-docx") { baixarDocx([atual]); return; }
