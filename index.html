@@ -428,6 +428,11 @@
   .rotulo-linha { color: var(--navy-fraco); margin-right: 2px; white-space: nowrap; }
   .linha-filtro { padding-bottom: 4px; border-bottom: 1px solid var(--linha); }
   .filtros .filtro-etiqueta { border-color: var(--cor); color: var(--cor); }
+  .linha-filtro .estado-fora {
+    border-style: dashed; background: var(--creme); color: var(--navy-fraco);
+    text-decoration: line-through; text-decoration-thickness: 1px; font-weight: 500;
+  }
+  .linha-filtro .estado-fora:hover { background: var(--creme); color: var(--navy-suave); }
   .filtros .filtro-etiqueta:hover { background: color-mix(in srgb, var(--cor) 10%, transparent); color: var(--cor); }
   @media (max-width: 700px) {
     .linha-abrir { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
@@ -667,7 +672,7 @@
   var virandoId = null;   // ideia que está escolhendo o destino
   var buscaTodos = "", filtroTodos = "";
   var familiaAberta = null, categoriaAberta = null;
-  var ideiaAberta = null, filtroEtiqueta = "";
+  var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
   var ideiasMarcadas = {};
   var marcados = {};
 
@@ -1709,11 +1714,42 @@
   function temEtiqueta(ideia, nome) {
     return (ideia.etiquetas || []).indexOf(nome) !== -1;
   }
+  function proximoEstado(estado) { return estado === "so" ? "fora" : estado === "fora" ? "" : "so"; }
+  function botaoDeFiltro(valor, texto, estado, estilo, extra) {
+    var marca = estado === "fora" ? "− " : "";
+    return '<button type="button" class="filtro ' + extra + " estado-" + (estado || "livre") +
+      '" data-etiqueta="' + esc(valor) + '" aria-pressed="' + (estado === "so") + '"' + estilo +
+      ' title="' + (estado === "so" ? "Clique para tirar da vista" : estado === "fora" ? "Clique para voltar ao normal" : "Clique para ver só estas") + '">' +
+      marca + texto + "</button>";
+  }
+  function etiquetasDoFiltro(estado) {
+    return Object.keys(filtroEtiqueta).filter(function (n) { return filtroEtiqueta[n] === estado; });
+  }
+  function haFiltroDeIdeias() { return !!filtroSem || Object.keys(filtroEtiqueta).length > 0; }
   function ideiasFiltradas() {
     var lista = listaIdeias();
-    if (!filtroEtiqueta) return lista;
-    if (filtroEtiqueta === "sem") return lista.filter(function (i) { return !(i.etiquetas || []).length; });
-    return lista.filter(function (i) { return temEtiqueta(i, filtroEtiqueta); });
+    if (!haFiltroDeIdeias()) return lista;
+    var so = etiquetasDoFiltro("so"), fora = etiquetasDoFiltro("fora");
+    return lista.filter(function (i) {
+      if (filtroSem === "so" && (i.etiquetas || []).length) return false;
+      if (filtroSem === "fora" && !(i.etiquetas || []).length) return false;
+      if (so.length && !so.some(function (n) { return temEtiqueta(i, n); })) return false;
+      if (fora.some(function (n) { return temEtiqueta(i, n); })) return false;
+      return true;
+    });
+  }
+  function textoDoFiltro() {
+    var so = etiquetasDoFiltro("so"), fora = etiquetasDoFiltro("fora");
+    var mostrando = "";
+    if (filtroSem === "so") mostrando = "Mostrando só as ideias que ainda não têm etiqueta";
+    else if (so.length) mostrando = "Mostrando só as ideias com " + so.join(" ou ");
+    var tirando = fora.slice();
+    if (filtroSem === "fora") tirando.push("alguma etiqueta");
+    var fraseTirando = tirando.length ? "as que têm " + tirando.join(" e ") : "";
+    if (mostrando && fraseTirando) return mostrando + ", tirando da vista " + fraseTirando + ".";
+    if (mostrando) return mostrando + ".";
+    if (fraseTirando) return "Tirando da vista " + fraseTirando + ".";
+    return "";
   }
   function resumoIdeias() {
     var n = listaIdeias().filter(function (i) { return !i._nova || (i.texto || "").trim(); }).length;
@@ -1742,15 +1778,15 @@
       var semEtiqueta = todas.filter(function (i) { return !(i.etiquetas || []).length; }).length;
       h += '<div class="filtros linha-filtro" role="group" aria-label="Filtrar por etiqueta">' +
         '<span class="rotulo rotulo-linha">Filtrar</span>' +
-        '<button type="button" class="filtro" data-etiqueta="" aria-pressed="' + (filtroEtiqueta === "") + '">Todas (' + todas.length + ")</button>" +
+        '<button type="button" class="filtro" data-etiqueta="" aria-pressed="' + (!haFiltroDeIdeias()) + '">Todas (' + todas.length + ")</button>" +
         ETIQUETAS.map(function (e) {
           var n = todas.filter(function (i) { return temEtiqueta(i, e.nome); }).length;
-          return '<button type="button" class="filtro filtro-etiqueta" data-etiqueta="' + esc(e.nome) + '" aria-pressed="' + (filtroEtiqueta === e.nome) + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + " (" + n + ")</button>";
+          return botaoDeFiltro(e.nome, esc(e.nome) + " (" + n + ")", filtroEtiqueta[e.nome] || "", ' style="--cor: ' + e.cor + '"', "filtro-etiqueta");
         }).join("") +
-        '<button type="button" class="filtro" data-etiqueta="sem" aria-pressed="' + (filtroEtiqueta === "sem") + '">Sem etiqueta (' + semEtiqueta + ")</button></div>";
-      if (filtroEtiqueta) h += '<p class="aviso">' + (filtroEtiqueta === "sem"
-        ? "Mostrando só as ideias que ainda não têm etiqueta."
-        : "Mostrando só as ideias com a etiqueta " + esc(filtroEtiqueta) + ".") + " Para mudar a ordem arrastando, volte para Todas.</p>";
+        botaoDeFiltro("sem", "Sem etiqueta (" + semEtiqueta + ")", filtroSem, "", "") + "</div>";
+      h += '<p class="aviso">' + (haFiltroDeIdeias()
+        ? esc(textoDoFiltro()) + " Para mudar a ordem arrastando, volte para Todas."
+        : "Clique numa etiqueta para ver só as ideias dela. Clique de novo para tirá-la da vista.") + "</p>";
       var escolhidas = lista.filter(function (i) { return ideiasMarcadas[i.id]; });
       h += '<div class="etiquetar-bloco' + (escolhidas.length ? " grudado" : "") + '">' +
         '<div class="barra-escolha barra-etiquetar"><span class="aviso">' +
@@ -1764,8 +1800,8 @@
             ' aria-pressed="' + todasTem + '" style="--cor: ' + e.cor + '">' + (todasTem ? "Tirar " : "") + esc(e.nome) + "</button>";
         }).join("") + "</div></div>";
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
-      if (!lista.length) h += '<p class="aviso">' + (filtroEtiqueta
-        ? (filtroEtiqueta === "sem" ? "Todas as ideias já têm etiqueta." : "Nenhuma ideia com essa etiqueta.")
+      if (!lista.length) h += '<p class="aviso">' + (haFiltroDeIdeias()
+        ? "Nenhuma ideia sobra com esse filtro."
         : "Nenhuma ideia guardada ainda. Clique em Nova ideia e escreva em poucas palavras o tema, o ângulo ou a frase que apareceu na sua cabeça.") + "</p>";
       h += lista.map(function (i) {
         var aberta = ideiaAberta === i.id;
@@ -1778,7 +1814,7 @@
         return '<article class="ideia' + (aberta ? " aberta" : "") + '" data-id="' + i.id + '">' +
           '<div class="ideia-topo">' +
           '<label class="marcar"><input type="checkbox" data-marcar-ideia="' + i.id + '"' + (ideiasMarcadas[i.id] ? " checked" : "") + ' aria-label="Escolher esta ideia"></label>' +
-          (filtroEtiqueta ? '<span class="pega sem-arrasto" aria-hidden="true">⠿</span>'
+          (haFiltroDeIdeias() ? '<span class="pega sem-arrasto" aria-hidden="true">⠿</span>'
             : '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">⠿</span>') +
           '<button type="button" class="ideia-linha" data-abrir-ideia="' + i.id + '" aria-expanded="' + aberta + '">' +
           '<span class="ideia-resumo' + (resumo ? "" : " vazia") + '">' + (resumo ? esc(resumo) : "Ideia em branco") + "</span></button>" +
@@ -2139,7 +2175,13 @@
     }
     var bet = e.target.closest("[data-etiqueta]");
     if (bet && abaAtual === "ideias") {
-      filtroEtiqueta = bet.dataset.etiqueta === filtroEtiqueta ? "" : bet.dataset.etiqueta;
+      var alvoEt = bet.dataset.etiqueta;
+      if (!alvoEt) { filtroEtiqueta = {}; filtroSem = ""; }
+      else if (alvoEt === "sem") filtroSem = proximoEstado(filtroSem);
+      else {
+        var novoEstado = proximoEstado(filtroEtiqueta[alvoEt] || "");
+        if (novoEstado) filtroEtiqueta[alvoEt] = novoEstado; else delete filtroEtiqueta[alvoEt];
+      }
       renderIdeias();
       return;
     }
