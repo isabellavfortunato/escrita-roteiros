@@ -459,6 +459,13 @@
   .item .etiquetas-linha { margin-top: 2px; max-width: 100%; flex-wrap: wrap; overflow: visible; }
   .filtros { align-items: center; }
   .rotulo-linha { color: var(--navy-fraco); margin-right: 2px; white-space: nowrap; }
+  .rotulo-abre {
+    background: transparent; border: 0; padding: 4px 2px; margin-right: 2px;
+    color: var(--navy-suave); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase;
+  }
+  .rotulo-abre:hover { color: var(--navy); }
+  .rotulo-abre .seta { font-size: 11px; letter-spacing: 0; color: var(--laranja); }
   .linha-filtro { padding-bottom: 4px; border-bottom: 1px solid var(--linha); }
   .filtros .filtro-etiqueta { border-color: var(--cor); color: var(--cor); }
   .filtro-arquivadas { margin-left: auto; border-style: dashed; }
@@ -723,6 +730,8 @@
   var LIMITE_IDEIA = 100;
   var LIMITE_IMPORTACAO = 300;
   var CHAVE_ABA = "caderno-roteiros-aba";
+  var CHAVE_FILTROS = "caderno-abrir-filtros";
+  var CHAVE_ETIQUETAR = "caderno-abrir-etiquetar";
 
   /* ---------- Estado ---------- */
   var arm = null;           // armazenamento em uso
@@ -744,6 +753,8 @@
   var filtroSituacao = "";
   var verArquivadas = false;
   var filtroEtiquetaRoteiro = {};
+  var abrirFiltros = lerLocal(CHAVE_FILTROS) === "1";
+  var abrirEtiquetar = lerLocal(CHAVE_ETIQUETAR) === "1";
   var ideiasMarcadas = {};
   var marcados = {};
 
@@ -1981,6 +1992,16 @@
       return true;
     });
   }
+  function resumoDoFiltro() {
+    if (abrirFiltros) return "";
+    var so = etiquetasDoFiltro("so"), fora = etiquetasDoFiltro("fora"), partes = [];
+    if (filtroSem === "so") partes.push("sem etiqueta");
+    else if (so.length) partes.push(so.join(", "));
+    var tirando = fora.slice();
+    if (filtroSem === "fora") tirando.push("sem etiqueta");
+    if (tirando.length) partes.push("sem " + tirando.join(", "));
+    return partes.length ? " · " + partes.join(" · ") : "";
+  }
   function textoDoFiltro() {
     var so = etiquetasDoFiltro("so"), fora = etiquetasDoFiltro("fora");
     var mostrando = "";
@@ -2026,13 +2047,16 @@
       var guardadas = listaIdeias().filter(function (i) { return i.arquivada; }).length;
       var semEtiqueta = todas.filter(function (i) { return !(i.etiquetas || []).length; }).length;
       h += '<div class="filtros linha-filtro" role="group" aria-label="Filtrar por etiqueta">' +
-        '<span class="rotulo rotulo-linha">Filtrar</span>' +
-        '<button type="button" class="filtro" data-etiqueta="" aria-pressed="' + (!haFiltroDeIdeias()) + '">Todas (' + todas.length + ")</button>" +
-        ETIQUETAS.map(function (e) {
-          var n = todas.filter(function (i) { return temEtiqueta(i, e.nome); }).length;
-          return botaoDeFiltro(e.nome, esc(e.nome) + " (" + n + ")", filtroEtiqueta[e.nome] || "", ' style="--cor: ' + e.cor + '"', "filtro-etiqueta");
-        }).join("") +
-        botaoDeFiltro("sem", "Sem etiqueta (" + semEtiqueta + ")", filtroSem, "", "") +
+        '<button type="button" class="rotulo rotulo-abre" id="abrir-filtros" aria-expanded="' + abrirFiltros + '">' +
+        '<span class="seta" aria-hidden="true">' + (abrirFiltros ? "▾" : "▸") + "</span> Filtrar" + esc(resumoDoFiltro()) + "</button>" +
+        (abrirFiltros
+          ? '<button type="button" class="filtro" data-etiqueta="" aria-pressed="' + (!haFiltroDeIdeias()) + '">Todas (' + todas.length + ")</button>" +
+            ETIQUETAS.map(function (e) {
+              var n = todas.filter(function (i) { return temEtiqueta(i, e.nome); }).length;
+              return botaoDeFiltro(e.nome, esc(e.nome) + " (" + n + ")", filtroEtiqueta[e.nome] || "", ' style="--cor: ' + e.cor + '"', "filtro-etiqueta");
+            }).join("") +
+            botaoDeFiltro("sem", "Sem etiqueta (" + semEtiqueta + ")", filtroSem, "", "")
+          : "") +
         '<button type="button" class="filtro filtro-arquivadas" id="ver-arquivadas" aria-pressed="' + verArquivadas + '">Arquivadas (' + guardadas + ")</button></div>";
       if (verArquivadas) h += '<p class="aviso aviso-curto">No arquivo</p>';
       var escolhidas = lista.filter(function (i) { return ideiasMarcadas[i.id]; });
@@ -2043,11 +2067,14 @@
         '<button type="button" class="btn" id="limpar-ideias-marcadas"' + (escolhidas.length ? "" : " disabled") + ">Limpar</button>" +
         '<button type="button" class="btn" id="arquivar-escolhidas"' + (escolhidas.length ? "" : " disabled") + ">" +
         (verArquivadas ? "Desarquivar as escolhidas" : "Arquivar as escolhidas") + "</button></div>" +
-        '<div class="filtros etiquetas-lote"><span class="rotulo rotulo-linha">Etiquetar as escolhidas</span>' + ETIQUETAS.map(function (e) {
+        '<div class="filtros etiquetas-lote">' +
+        '<button type="button" class="rotulo rotulo-abre" id="abrir-etiquetar" aria-expanded="' + abrirEtiquetar + '">' +
+        '<span class="seta" aria-hidden="true">' + (abrirEtiquetar ? "▾" : "▸") + "</span> Etiquetar as escolhidas</button>" +
+        (abrirEtiquetar ? ETIQUETAS.map(function (e) {
           var todasTem = escolhidas.length > 0 && escolhidas.every(function (i) { return temEtiqueta(i, e.nome); });
           return '<button type="button" class="filtro filtro-etiqueta" data-lote="' + esc(e.nome) + '"' + (escolhidas.length ? "" : " disabled") +
             ' aria-pressed="' + todasTem + '" style="--cor: ' + e.cor + '">' + (todasTem ? "Tirar " : "") + esc(e.nome) + "</button>";
-        }).join("") + "</div></div>";
+        }).join("") : "") + "</div></div>";
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
       if (!lista.length) h += '<p class="aviso">' + (verArquivadas
         ? "Nenhuma ideia no arquivo ainda."
@@ -2479,6 +2506,18 @@
     }
     if (e.target.id === "limpar-ideias-marcadas") { ideiasMarcadas = {}; renderIdeias(); return; }
     if (e.target.id === "arquivar-escolhidas") { arquivarEmLote(); return; }
+    if (e.target.closest("#abrir-filtros")) {
+      abrirFiltros = !abrirFiltros;
+      gravarLocal(CHAVE_FILTROS, abrirFiltros ? "1" : "0");
+      renderIdeias();
+      return;
+    }
+    if (e.target.closest("#abrir-etiquetar")) {
+      abrirEtiquetar = !abrirEtiquetar;
+      gravarLocal(CHAVE_ETIQUETAR, abrirEtiquetar ? "1" : "0");
+      renderIdeias();
+      return;
+    }
     if (e.target.id === "ver-arquivadas") {
       verArquivadas = !verArquivadas;
       ideiasMarcadas = {};
