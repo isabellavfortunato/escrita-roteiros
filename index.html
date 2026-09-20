@@ -695,7 +695,7 @@
   function milhar(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
   var LIMITE_TEXTO_TELA = 9;
   var LIMITE_LEGENDA = 50;
-  var PALAVRAS_DA_LEGENDA = 42; // sobra espaço para as hashtags dentro do teto
+  var PALAVRAS_DA_LEGENDA = 50; // as hashtags ficam fora desta conta
   var HASHTAGS_FIXAS = ["#EmpreendedorismoFeminino", "#IAParaEmpresas", "#PequenosNegocios", "#MulherEmpreendedora"];
   var HASHTAG_DINHEIRO = "#OrganizacaoFinanceira";
   var ETIQUETAS_DE_DINHEIRO = ["Financeiro", "Precificação", "Cobrança & Inadimplência"];
@@ -1038,33 +1038,56 @@
     var saida = [], soma = 0;
     for (var i = 0; i < frases.length; i++) {
       var n = contar(frases[i]);
-      if (saida.length && soma + n > teto) break;
+      if (saida.length && soma + n > teto) continue; // não coube, tenta a próxima
       saida.push(frases[i]);
       soma += n;
       if (soma >= teto) break;
     }
     return saida;
   }
+  // o contador da legenda ignora a linha das hashtags
+  function contarLegenda(texto) {
+    return contar(String(texto || "").split(/\n/).filter(function (l) {
+      return l.trim().charAt(0) !== "#";
+    }).join(" "));
+  }
   function frasesParaLegenda(r) {
     var escolhidas = [];
     if (TIPOS[r.tipo] && TIPOS[r.tipo].video) {
-      var escada = TIPOS[r.tipo].blocos === "youtube"
-        ? ["yt-gancho", "yt-objecao", "yt-caso", "yt-final"]
-        : ["gancho", "crenca", "desenvolvimento", "solucao", "detalhe", "prova"];
-      escada.forEach(function (tipo) {
-        var f = primeiraFrase(textoDoBloco(r, tipo));
-        if (f && escolhidas.indexOf(f) === -1) escolhidas.push(f);
-      });
-      var textoFinal = textoDoBloco(r, "cta") || textoDoBloco(r, "fechamento");
-      var pergunta = frasesDoTexto(textoFinal).filter(function (f) { return f.indexOf("?") !== -1; })[0];
-      if (!escolhidas.length) {
-        (r.blocos || []).forEach(function (b) {
-          if (b.tipo === "yt-canal") return;
-          var f = primeiraFrase(b.texto);
-          if (f && escolhidas.indexOf(f) === -1) escolhidas.push(f);
+      var FORA_DA_LEGENDA = ["chamada", "ponte", "yt-canal", "yt-laco"];
+      var FINAIS = ["cta", "fechamento", "yt-encerramento"];
+      var textoFinal = "";
+      FINAIS.forEach(function (tipo) { if (!textoFinal) textoFinal = textoDoBloco(r, tipo); });
+      var frasesFinais = frasesDoTexto(textoFinal);
+      var pergunta = frasesFinais.filter(function (f) { return f.indexOf("?") !== -1; })[0];
+      var restante = PALAVRAS_DA_LEGENDA - (pergunta ? contar(pergunta) : 0);
+      var candidatos = (r.blocos || []).filter(function (b) {
+        return FORA_DA_LEGENDA.indexOf(b.tipo) === -1 && FINAIS.indexOf(b.tipo) === -1 && (b.texto || "").trim();
+      }).map(function (b) { return frasesDoTexto(b.texto).slice(0, 2); });
+      // primeiro uma frase de cada bloco, na ordem do roteiro, e só depois a segunda de cada
+      [0, 1].forEach(function (volta) {
+        candidatos.forEach(function (frases) {
+          var f = frases[volta];
+          if (!f || escolhidas.indexOf(f) !== -1) return;
+          // na segunda volta, a frase só entra se a primeira daquele bloco já estiver na legenda
+          if (volta === 1 && escolhidas.indexOf(frases[0]) === -1) return;
+          var n = contar(f);
+          if (n > restante) return;
+          escolhidas.push(f);
+          restante -= n;
         });
-      }
-      escolhidas = cortarEmPalavras(escolhidas, PALAVRAS_DA_LEGENDA - (pergunta ? contar(pergunta) : 0));
+      });
+      escolhidas.sort(function (a, b) {
+        var ordemA = -1, ordemB = -1, k = 0;
+        candidatos.forEach(function (frases) {
+          frases.forEach(function (f) {
+            k++;
+            if (f === a) ordemA = k;
+            if (f === b) ordemB = k;
+          });
+        });
+        return ordemA - ordemB;
+      });
       if (pergunta) escolhidas.push(pergunta);
       return escolhidas;
     }
@@ -1677,7 +1700,7 @@
       $("r-min").style.left = pct(c.min) + "%"; $("r-min").textContent = c.min;
       $("r-max").style.left = pct(c.max) + "%"; $("r-max").textContent = c.max;
       marcarContador($("c-textoTela"), contar(r.textoTela), c.blocos === "youtube" ? 6 : LIMITE_TEXTO_TELA);
-      marcarContador($("c-legenda"), contar(r.legenda), c.tetoLegenda || LIMITE_LEGENDA);
+      marcarContador($("c-legenda"), contarLegenda(r.legenda), c.tetoLegenda || LIMITE_LEGENDA);
     } else {
       var total = 0, acima = 0;
       r.telas.forEach(function (t, i) {
@@ -1686,7 +1709,7 @@
         marcarContador($("c-tela-" + i), k, c.porTela);
       });
       var q = r.telas.length;
-      if (c.legenda) marcarContador($("c-legenda"), contar(r.legenda), c.tetoLegenda || LIMITE_LEGENDA);
+      if (c.legenda) marcarContador($("c-legenda"), contarLegenda(r.legenda), c.tetoLegenda || LIMITE_LEGENDA);
       if (r.tipo === "estatico") {
         $("t-resumo").textContent = total + " " + plural(total, "palavra", "palavras") + " na arte · até " + c.porTela +
           (acima ? " · passou do limite" : "");
