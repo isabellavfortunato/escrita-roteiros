@@ -355,6 +355,7 @@
   }
   .etiquetas-linha { display: inline-flex; gap: 5px; flex-wrap: nowrap; overflow: hidden; }
   .escolher-etiquetas { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: 30px; }
+  .etiquetas-fechadas { flex-wrap: wrap; overflow: visible; gap: 5px; }
   .escolher-etiquetas .rotulo { margin-right: 2px; }
   .etiqueta-botao {
     border: 1px solid var(--cor); background: transparent; color: var(--cor);
@@ -734,6 +735,9 @@
   var CHAVE_ETIQUETAR = "caderno-abrir-etiquetar";
   var CHAVE_FORMATO = "caderno-abrir-formato";
   var CHAVE_TEMA = "caderno-abrir-tema";
+  var CHAVE_ET_ROTEIRO = "caderno-abrir-etiquetas-roteiro";
+  var CHAVE_ET_IDEIA = "caderno-abrir-etiquetas-ideia";
+  var CHAVE_ET_GAVETA = "caderno-abrir-etiquetas-gaveta";
 
   /* ---------- Estado ---------- */
   var arm = null;           // armazenamento em uso
@@ -759,6 +763,9 @@
   var abrirEtiquetar = lerLocal(CHAVE_ETIQUETAR) === "1";
   var abrirFormato = lerLocal(CHAVE_FORMATO) === "1";
   var abrirTema = lerLocal(CHAVE_TEMA) === "1";
+  var abrirEtiquetasRoteiro = lerLocal(CHAVE_ET_ROTEIRO) !== "0";
+  var abrirEtiquetasIdeia = lerLocal(CHAVE_ET_IDEIA) !== "0";
+  var abrirEtiquetasGaveta = lerLocal(CHAVE_ET_GAVETA) !== "0";
   var ideiasMarcadas = {};
   var marcados = {};
 
@@ -1377,7 +1384,10 @@
           (estado === "fora" ? "− " : "") + esc(e.nome) + " (" + e.quantos + ")</button>";
       }).join("");
       fg.innerHTML = '<div class="filtros linha-mini">' + linhaSituacao + "</div>" +
-        (linhaEtiquetas ? '<div class="filtros linha-mini linha-filtro">' + linhaEtiquetas + "</div>" : "");
+        (usadas.length ? '<div class="filtros linha-mini linha-filtro">' +
+          '<button type="button" class="rotulo rotulo-abre" id="abrir-etiquetas-gaveta" aria-expanded="' + abrirEtiquetasGaveta + '">' +
+          '<span class="seta" aria-hidden="true">' + (abrirEtiquetasGaveta ? "▾" : "▸") + "</span> Etiquetas</button>" +
+          (abrirEtiquetasGaveta ? linhaEtiquetas : "") + "</div>" : "");
     }
     if (filtroSituacao === "pronto") lista = lista.filter(function (r) { return r.pronto; });
     else if (filtroSituacao === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
@@ -1442,6 +1452,14 @@
         return '<option value="' + esc(g[0]) + '"' + (v === g[0] ? " selected" : "") + ">" + esc(g[0]) + "</option>";
       }).join("") + "</select></div>";
   }
+  function cabecalhoEtiquetas(id, aberto, marcadas, cor) {
+    var pilulas = aberto ? "" : marcadas.map(function (n) {
+      return '<span class="etiqueta" style="--cor: ' + cor(n) + '">' + esc(n) + "</span>";
+    }).join("");
+    return '<button type="button" class="rotulo rotulo-abre" id="' + id + '" aria-expanded="' + aberto + '">' +
+      '<span class="seta" aria-hidden="true">' + (aberto ? "▾" : "▸") + "</span> Etiquetas</button>" +
+      (pilulas ? '<span class="etiquetas-linha etiquetas-fechadas">' + pilulas + "</span>" : "");
+  }
   function dicaDoGancho(exemplo, tela) {
     var partes = [];
     if (exemplo) partes.push("Exemplo: " + exemplo);
@@ -1481,12 +1499,13 @@
     h += seletorHtml("Modalidade", "modalidade", MODALIDADES);
     if (r.tipo !== "stories") h += seletorHtml("Objetivo", "objetivo", OBJETIVOS);
     h += "</section>";
-    h += '<div class="escolher-etiquetas etiquetas-roteiro"><span class="rotulo">Etiquetas</span>' +
-      ETIQUETAS_ROTEIRO.map(function (e) {
+    h += '<div class="escolher-etiquetas etiquetas-roteiro">' +
+      cabecalhoEtiquetas("abrir-etiquetas-roteiro", abrirEtiquetasRoteiro, (r.etiquetas || []), corEtiquetaRoteiro) +
+      (abrirEtiquetasRoteiro ? ETIQUETAS_ROTEIRO.map(function (e) {
         var marcada = temEtiqueta(r, e.nome);
         return '<button type="button" class="etiqueta-botao' + (marcada ? " marcada" : "") +
           '" data-etiquetar-roteiro="' + esc(e.nome) + '" aria-pressed="' + marcada + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + "</button>";
-      }).join("") + "</div>";
+      }).join("") : "") + "</div>";
 
     if (c.video) {
       h += '<section class="medidor" aria-live="polite"><div class="cards">' +
@@ -2155,11 +2174,12 @@
               return '<button type="button" class="btn destino" data-destino="' + t + '" data-ideia-origem="' + i.id + '">' + TIPOS[t].nome + "</button>";
             }).join("") +
             '<button type="button" class="btn destino-cancelar">Cancelar</button></div>' : "") +
-          (aberta ? '<div class="escolher-etiquetas"><span class="rotulo">Etiquetas</span>' +
-            ETIQUETAS.map(function (e) {
+          (aberta ? '<div class="escolher-etiquetas">' +
+            cabecalhoEtiquetas("abrir-etiquetas-ideia", abrirEtiquetasIdeia, (i.etiquetas || []), corEtiqueta) +
+            (abrirEtiquetasIdeia ? ETIQUETAS.map(function (e) {
               var marcada = temEtiqueta(i, e.nome);
               return '<button type="button" class="etiqueta-botao' + (marcada ? " marcada" : "") + '" data-etiquetar="' + i.id + '" data-nome="' + esc(e.nome) + '" aria-pressed="' + marcada + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + "</button>";
-            }).join("") + "</div>" : "") +
+            }).join("") : "") + "</div>" : "") +
           (aberta ? '<textarea class="area" id="ix-' + i.id + '" data-ideia="' + i.id + '" aria-label="Ideia de ' + dataCurta(i.criado) + '" placeholder="Escreva a ideia"></textarea>' : "") +
           "</article>";
       }).join("");
@@ -2360,6 +2380,12 @@
   });
   $("busca").addEventListener("input", function (e) { busca = e.target.value.trim(); renderLista(); });
   $("filtros-gaveta").addEventListener("click", function (e) {
+    if (e.target.closest("#abrir-etiquetas-gaveta")) {
+      abrirEtiquetasGaveta = !abrirEtiquetasGaveta;
+      gravarLocal(CHAVE_ET_GAVETA, abrirEtiquetasGaveta ? "1" : "0");
+      renderLista();
+      return;
+    }
     var bet = e.target.closest("[data-etiqueta-roteiro]");
     if (bet) {
       var nomeEt = bet.dataset.etiquetaRoteiro;
@@ -2572,6 +2598,12 @@
       renderIdeias();
       return;
     }
+    if (e.target.closest("#abrir-etiquetas-ideia")) {
+      abrirEtiquetasIdeia = !abrirEtiquetasIdeia;
+      gravarLocal(CHAVE_ET_IDEIA, abrirEtiquetasIdeia ? "1" : "0");
+      renderIdeias();
+      return;
+    }
     if (e.target.closest("#abrir-etiquetar")) {
       abrirEtiquetar = !abrirEtiquetar;
       gravarLocal(CHAVE_ETIQUETAR, abrirEtiquetar ? "1" : "0");
@@ -2724,6 +2756,12 @@
       e.target.setAttribute("aria-pressed", String(!!atual.revisar));
       mostrarEstado("salvando", atual.revisar ? "Marcado como a revisar" : "Marca de revisão tirada");
       agendarSalvar();
+      return;
+    }
+    if (e.target.closest("#abrir-etiquetas-roteiro")) {
+      abrirEtiquetasRoteiro = !abrirEtiquetasRoteiro;
+      gravarLocal(CHAVE_ET_ROTEIRO, abrirEtiquetasRoteiro ? "1" : "0");
+      renderEditor();
       return;
     }
     if (e.target.id === "montar-legenda") {
