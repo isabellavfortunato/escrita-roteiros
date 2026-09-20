@@ -401,7 +401,13 @@
     padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
   }
   .item .tag-pronto { align-self: flex-start; margin-top: 2px; }
-  .filtros-gaveta { gap: 6px; }
+  .filtros-gaveta { gap: 6px; flex-direction: column; align-items: stretch; }
+  .filtros-gaveta .linha-mini { gap: 6px; }
+  .filtros-gaveta .linha-filtro { padding-top: 8px; border-top: 1px solid var(--linha); border-bottom: 0; }
+  .filtros-gaveta .estado-fora {
+    border-style: dashed; background: var(--creme); color: var(--navy-fraco);
+    text-decoration: line-through; text-decoration-thickness: 1px; font-weight: 500;
+  }
   .filtro-mini { padding: 3px 10px; font-size: 12.5px; }
   .filtro-pronto { border-color: var(--verde); color: var(--verde); }
   .filtro-pronto[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); color: #ffffff; }
@@ -708,7 +714,11 @@
     { nome: "Posicionamento", cor: "#1c2a44" },
     { nome: "Minha história", cor: "#9c3773" },
     { nome: "Mentalidade", cor: "#4b5563" },
-    { nome: "Claude", cor: "#c14b21" }
+    { nome: "Claude", cor: "#c14b21" },
+    { nome: "POV", cor: "#7a3b8f" },
+    { nome: "TDAH", cor: "#1f7a6b" },
+    { nome: "Empresa", cor: "#1c3f8f" },
+    { nome: "Joana", cor: "#9c3773" }
   ];
   var LIMITE_IDEIA = 100;
   var LIMITE_IMPORTACAO = 300;
@@ -733,6 +743,7 @@
   var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
   var filtroSituacao = "";
   var verArquivadas = false;
+  var filtroEtiquetaRoteiro = {};
   var ideiasMarcadas = {};
   var marcados = {};
 
@@ -1297,14 +1308,35 @@
     var prontos = lista.filter(function (r) { return r.pronto; }).length;
     var fg = $("filtros-gaveta");
     if (fg) {
-      fg.innerHTML = [["", "Todos (" + total + ")"], ["rascunho", "Rascunho (" + (total - prontos) + ")"], ["pronto", "Pronto (" + prontos + ")"]]
+      var linhaSituacao = [["", "Todos (" + total + ")"], ["rascunho", "Rascunho (" + (total - prontos) + ")"], ["pronto", "Pronto (" + prontos + ")"]]
         .map(function (f) {
           return '<button type="button" class="filtro filtro-mini' + (f[0] === "pronto" ? " filtro-pronto" : "") +
             '" data-situacao="' + f[0] + '" aria-pressed="' + (filtroSituacao === f[0]) + '">' + f[1] + "</button>";
         }).join("");
+      var usadas = ETIQUETAS_ROTEIRO.map(function (e) {
+        return { nome: e.nome, cor: e.cor, quantos: lista.filter(function (r) { return temEtiqueta(r, e.nome); }).length };
+      }).filter(function (e) { return e.quantos > 0 || filtroEtiquetaRoteiro[e.nome]; });
+      var linhaEtiquetas = usadas.map(function (e) {
+        var estado = filtroEtiquetaRoteiro[e.nome] || "";
+        return '<button type="button" class="filtro filtro-mini filtro-etiqueta estado-' + (estado || "livre") +
+          '" data-etiqueta-roteiro="' + esc(e.nome) + '" aria-pressed="' + (estado === "so") + '" style="--cor: ' + e.cor +
+          '" title="' + (estado === "so" ? "Clique para tirar da vista" : estado === "fora" ? "Clique para voltar ao normal" : "Clique para ver só estes") + '">' +
+          (estado === "fora" ? "− " : "") + esc(e.nome) + " (" + e.quantos + ")</button>";
+      }).join("");
+      fg.innerHTML = '<div class="filtros linha-mini">' + linhaSituacao + "</div>" +
+        (linhaEtiquetas ? '<div class="filtros linha-mini linha-filtro">' + linhaEtiquetas + "</div>" : "");
     }
     if (filtroSituacao === "pronto") lista = lista.filter(function (r) { return r.pronto; });
     else if (filtroSituacao === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
+    var soEtiquetas = Object.keys(filtroEtiquetaRoteiro).filter(function (n) { return filtroEtiquetaRoteiro[n] === "so"; });
+    var foraEtiquetas = Object.keys(filtroEtiquetaRoteiro).filter(function (n) { return filtroEtiquetaRoteiro[n] === "fora"; });
+    if (soEtiquetas.length || foraEtiquetas.length) {
+      lista = lista.filter(function (r) {
+        if (soEtiquetas.length && !soEtiquetas.some(function (n) { return temEtiqueta(r, n); })) return false;
+        if (foraEtiquetas.some(function (n) { return temEtiqueta(r, n); })) return false;
+        return true;
+      });
+    }
     if (busca) {
       var b = busca.toLowerCase();
       lista = lista.filter(function (r) { return (r.titulo || "").toLowerCase().indexOf(b) !== -1; });
@@ -1313,7 +1345,8 @@
     var el = $("lista");
     if (!carregou) { el.innerHTML = '<li class="vazio-lista">' + (arm ? "Carregando." : "") + "</li>"; return; }
     if (!lista.length) {
-      el.innerHTML = '<li class="vazio-lista">' + (filtroSituacao === "pronto" ? "Nenhum roteiro marcado como pronto para publicar."
+      el.innerHTML = '<li class="vazio-lista">' + (Object.keys(filtroEtiquetaRoteiro).length ? "Nenhum roteiro sobra com esse filtro de etiqueta."
+        : filtroSituacao === "pronto" ? "Nenhum roteiro marcado como pronto para publicar."
         : filtroSituacao === "rascunho" ? "Todos os roteiros daqui já estão prontos para publicar."
         : busca ? "Nenhum título com esse trecho."
         : "Ainda não há roteiros de " + TIPOS[abaAtual].nome + ". O que você escrever aqui fica salvo sozinho.") + "</li>";
@@ -2145,6 +2178,10 @@
     if (!texto) { mostrarEstado("erro", "Escreva a ideia antes de virar roteiro."); return; }
     var r = novoRoteiro(tipo);
     r.titulo = texto;
+    var herdadas = (ideia.etiquetas || []).filter(function (n) {
+      return ETIQUETAS_ROTEIRO.some(function (e) { return e.nome === n; });
+    });
+    if (herdadas.length) r.etiquetas = herdadas;
     delete r._novo;
     acervo[r.id] = r;
     if (arm) arm.salvar("roteiros", r.id, limpo(r)).then(avisarSalvo)
@@ -2253,8 +2290,17 @@
   });
   $("busca").addEventListener("input", function (e) { busca = e.target.value.trim(); renderLista(); });
   $("filtros-gaveta").addEventListener("click", function (e) {
+    var bet = e.target.closest("[data-etiqueta-roteiro]");
+    if (bet) {
+      var nomeEt = bet.dataset.etiquetaRoteiro;
+      var proximo = proximoEstado(filtroEtiquetaRoteiro[nomeEt] || "");
+      if (proximo) filtroEtiquetaRoteiro[nomeEt] = proximo; else delete filtroEtiquetaRoteiro[nomeEt];
+      renderLista();
+      return;
+    }
     var bs = e.target.closest("[data-situacao]");
     if (!bs) return;
+    if (!bs.dataset.situacao) filtroEtiquetaRoteiro = {};
     filtroSituacao = bs.dataset.situacao === filtroSituacao ? "" : bs.dataset.situacao;
     renderLista();
   });
