@@ -443,7 +443,7 @@
   .marcar input { width: 17px; height: 17px; accent-color: var(--navy); cursor: pointer; }
   .linha-abrir {
     flex: 1 1 auto; min-width: 0; background: transparent; border: 0;
-    display: grid; grid-template-columns: minmax(0, 1fr) 96px 86px minmax(0, auto) 150px; align-items: center; gap: 12px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 104px 84px 168px 148px; align-items: center; gap: 12px;
     padding: 11px 14px; text-align: left; color: var(--navy);
   }
   .linha-titulo { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
@@ -454,7 +454,7 @@
     justify-self: start; background: var(--laranja); color: #ffffff; border-radius: 999px;
     padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
   }
-  .linha-abrir .etiquetas-linha { justify-self: start; max-width: 260px; }
+  .linha-abrir .etiquetas-linha { justify-content: flex-start; width: 168px; max-width: 168px; }
   .etiquetas-roteiro { margin-left: 0; padding: 12px 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; }
   .item .etiquetas-linha { margin-top: 2px; max-width: 100%; flex-wrap: wrap; overflow: visible; }
   .filtros { align-items: center; }
@@ -1189,7 +1189,7 @@
           '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
           (r.pronto ? '<span class="tag-pronto">Pronto</span>'
             : r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
-          pilulasDoRoteiro(r) +
+          (pilulasDoRoteiro(r) || '<span class="etiquetas-linha"></span>') +
           '<span class="linha-meta">' + medida + " · " + dataCurta(r.atualizado) + "</span></button></div>";
       }).join("") + "</div>";
     }
