@@ -732,6 +732,8 @@
   var CHAVE_ABA = "caderno-roteiros-aba";
   var CHAVE_FILTROS = "caderno-abrir-filtros";
   var CHAVE_ETIQUETAR = "caderno-abrir-etiquetar";
+  var CHAVE_FORMATO = "caderno-abrir-formato";
+  var CHAVE_TEMA = "caderno-abrir-tema";
 
   /* ---------- Estado ---------- */
   var arm = null;           // armazenamento em uso
@@ -755,6 +757,8 @@
   var filtroEtiquetaRoteiro = {};
   var abrirFiltros = lerLocal(CHAVE_FILTROS) === "1";
   var abrirEtiquetar = lerLocal(CHAVE_ETIQUETAR) === "1";
+  var abrirFormato = lerLocal(CHAVE_FORMATO) === "1";
+  var abrirTema = lerLocal(CHAVE_TEMA) === "1";
   var ideiasMarcadas = {};
   var marcados = {};
 
@@ -1161,6 +1165,13 @@
     }
     return lista;
   }
+  function nomeDoFiltroTodos() {
+    if (!filtroTodos) return "";
+    if (filtroTodos === "pronto") return "Pronto";
+    if (filtroTodos === "rascunho") return "Rascunho";
+    if (filtroTodos === "revisar") return "A revisar";
+    return TIPOS[filtroTodos] ? TIPOS[filtroTodos].nome : filtroTodos;
+  }
   function renderTodos() {
     var total = todosOsRoteiros().length, lista = visiveisDaLista();
     var revisar = todosOsRoteiros().filter(function (r) { return r.revisar; }).length;
@@ -1172,14 +1183,22 @@
     var h = '<div class="ideias-wrap lista-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
       '<span class="aviso">' + total + " " + plural(total, "roteiro guardado", "roteiros guardados") + " · em ordem de título</span></div>" +
       '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '"></div>' +
-      '<div class="filtros" role="group" aria-label="Filtrar">' + filtros.map(function (f) {
+      '<div class="filtros" role="group" aria-label="Filtrar por formato">' +
+      '<button type="button" class="rotulo rotulo-abre" id="abrir-formato" aria-expanded="' + abrirFormato + '">' +
+      '<span class="seta" aria-hidden="true">' + (abrirFormato ? "▾" : "▸") + "</span> Formato" +
+      (!abrirFormato && filtroTodos && filtroTodos.indexOf("et:") !== 0 ? " · " + esc(nomeDoFiltroTodos()) : "") + "</button>" +
+      (abrirFormato ? filtros.map(function (f) {
         return '<button type="button" class="filtro" data-filtro="' + f[0] + '" aria-pressed="' + (filtroTodos === f[0]) + '">' + f[1] + "</button>";
-      }).join("") + "</div>" +
-      '<div class="filtros" role="group" aria-label="Filtrar por etiqueta">' + ETIQUETAS_ROTEIRO.map(function (et) {
+      }).join("") : "") + "</div>" +
+      '<div class="filtros" role="group" aria-label="Filtrar por tema">' +
+      '<button type="button" class="rotulo rotulo-abre" id="abrir-tema" aria-expanded="' + abrirTema + '">' +
+      '<span class="seta" aria-hidden="true">' + (abrirTema ? "▾" : "▸") + "</span> Tema" +
+      (!abrirTema && filtroTodos.indexOf("et:") === 0 ? " · " + esc(filtroTodos.slice(3)) : "") + "</button>" +
+      (abrirTema ? ETIQUETAS_ROTEIRO.map(function (et) {
         var quantos = todosOsRoteiros().filter(function (r) { return temEtiqueta(r, et.nome); }).length;
         return '<button type="button" class="filtro filtro-etiqueta" data-filtro="et:' + esc(et.nome) + '" aria-pressed="' +
           (filtroTodos === "et:" + et.nome) + '" style="--cor: ' + et.cor + '">' + esc(et.nome) + " (" + quantos + ")</button>";
-      }).join("") + "</div>";
+      }).join("") : "") + "</div>";
     var escolhidos = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; }).length;
     h += '<div class="barra-escolha"><span class="aviso">' +
       (escolhidos ? escolhidos + " " + plural(escolhidos, "roteiro escolhido", "roteiros escolhidos") : "Marque os roteiros que você quer no documento") + "</span>" +
@@ -2497,6 +2516,18 @@
       return;
     }
     if (e.target.id === "limpar-marcas") { marcados = {}; renderTodos(); return; }
+    if (e.target.closest("#abrir-formato")) {
+      abrirFormato = !abrirFormato;
+      gravarLocal(CHAVE_FORMATO, abrirFormato ? "1" : "0");
+      renderTodos();
+      return;
+    }
+    if (e.target.closest("#abrir-tema")) {
+      abrirTema = !abrirTema;
+      gravarLocal(CHAVE_TEMA, abrirTema ? "1" : "0");
+      renderTodos();
+      return;
+    }
     var bf = e.target.closest("[data-filtro]");
     if (bf) { filtroTodos = bf.dataset.filtro; renderTodos(); return; }
     if (e.target.id === "marcar-todas-ideias") {
