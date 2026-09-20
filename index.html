@@ -624,11 +624,14 @@
     tiktok:    { nome: "TikTok", sub: "Vídeo longo · 350 a 435 palavras", video: true, min: 350, max: 435, duracao: "2:00<small>a</small>2:30<small>min</small>" },
     carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, porTela: 25 },
     stories:   { nome: "Stories", sub: "Até 10 telas · 25 palavras por tela", video: false, telas: 10, porTela: 25 },
+    estatico:  { nome: "Post estático", sub: "Uma arte · até 100 palavras", video: false, telas: 1, porTela: 100, legenda: true },
+    youtube:   { nome: "YouTube", sub: "Vídeo longo · 1.740 a 3.480 palavras", video: true, min: 1740, max: 3480, duracao: "10<small>a</small>20<small>min</small>", blocos: "youtube", tetoLegenda: 150, rotuloLegenda: "Descrição" },
     ideias:    { nome: "Ideias", sub: "Até 100 palavras por ideia", ideias: true },
     todos:     { nome: "Todos os roteiros", sub: "Lista por título", lista: true },
     familias:  { nome: "Famílias de gancho", sub: "Consulta", consulta: true }
   };
-  var QUADRANTE = ["instagram", "tiktok", "carrossel", "stories"];
+  var QUADRANTE = ["instagram", "tiktok", "carrossel", "stories", "estatico", "youtube"];
+  var APRESENTACAO_CANAL = "Oi, eu sou a Isabella Fortunato, empreendo há quinze anos e toco duas empresas. Aqui eu falo com mulheres empresárias, as que fazem quase tudo sozinhas ou com uma ou duas pessoas ajudando. E o que eu mostro neste canal é como usar a inteligência artificial para organizar a empresa por dentro, o dinheiro, o preço, a rotina e as pessoas, e para a sua produtividade finalmente render, sem você precisar entender nada de tecnologia.";
   var FORMATOS = ["Tela dividida", "Fundo verde", "Falando para a câmera"];
   var MODALIDADES = ["Sonho", "Transformação", "Fofocas", "Objeções", "Lista", "Storytelling", "Posicionamento", "Educativo"];
   var OBJETIVOS = ["Compartilhável", "Salvável", "Likes", "Interação"];
@@ -642,7 +645,15 @@
     { tipo: "crenca", nome: "Crença", dica: "A ideia que fica depois que o vídeo acaba, dita em uma ou 2 frases. Precisa ser discutível, algo com que alguém possa discordar, nunca frase motivacional." },
     { tipo: "prova", nome: "Prova", dica: "Um exemplo só, o mais forte, com caso, número ou resultado, para sustentar a crença que acabou de ser dita." },
     { tipo: "fechamento", nome: "Fechamento com pergunta", dica: "Retomada de uma palavra do gancho, a pergunta que pede resposta escrita e o resumo salvável na tela." },
-    { tipo: "livre", nome: "Bloco livre", dica: "Texto fora da estrutura, para o que não se encaixa nos outros blocos." }
+    { tipo: "livre", nome: "Bloco livre", dica: "Texto fora da estrutura, para o que não se encaixa nos outros blocos." },
+    { tipo: "yt-gancho", nome: "Gancho hipnótico", casa: "youtube", dica: "A promessa do vídeo nos primeiros segundos, com os 4 elementos da introdução: empreendedorismo, organização, produtividade e inteligência artificial. O Claude é citado já aqui, no primeiro minuto." },
+    { tipo: "yt-canal", nome: "Apresentação do canal", casa: "youtube", dica: "O bloco fixo de apresentação, seguido da primeira chamada de inscrição. Nada de me segue, que é do TikTok e do Instagram." },
+    { tipo: "yt-objecao", nome: "Gancho de conteúdo", casa: "youtube", dica: "O segundo gancho, que quebra a objeção de quem acha que aquilo não serve para ela ou que é complicado demais." },
+    { tipo: "yt-caso", nome: "Caso pessoal", casa: "youtube", dica: "A ligação com uma história sua, para a promessa parar de ser teoria." },
+    { tipo: "yt-ensino", nome: "Ensino em tópicos", casa: "youtube", dica: "O miolo do vídeo, em tópicos numerados, cada um com o passo concreto e o que aparece na tela." },
+    { tipo: "yt-laco", nome: "Laço de retenção", casa: "youtube", dica: "Por volta de 60 a 65 por cento do vídeo: o pedido de curtida, o pedido de comentar uma palavra e a segunda chamada de inscrição." },
+    { tipo: "yt-final", nome: "Conteúdo final", casa: "youtube", dica: "O melhor material fica aqui, depois do laço, para quem ficou até o fim." },
+    { tipo: "yt-encerramento", nome: "Encerramento", casa: "youtube", dica: "Abre um problema novo e nomeia outro vídeo do canal. Sem pergunta final." }
   ];
   var GANCHOS = [];
   var FAMILIAS = [{"nome": "Identificação", "faz": "A pessoa se reconhece numa cena", "categorias": ["Dor nomeada", "Você também", "POV", "Com quantos anos você descobriu"]}, {"nome": "Culpa", "faz": "Aponta um responsável pelo resultado", "categorias": ["Inimigo comum", "Erro que a pessoa comete", "Provocação direta"]}, {"nome": "Relato próprio", "faz": "Você em primeira pessoa", "categorias": ["Como eu fiz", "Parei de fazer", "Bastidores", "História"]}, {"nome": "Contraste", "faz": "Põe 2 coisas lado a lado", "categorias": ["Dualidade", "Antes e depois", "Expectativa versus realidade", "Tipos de pessoas", "Comparação e decisão"]}, {"nome": "Ensino", "faz": "Promete uma explicação que ela não tem", "categorias": ["Educativo", "Passo a passo", "O subestimado", "Pergunta com lacuna"]}, {"nome": "Convite à ação", "faz": "Pede um movimento dela agora", "categorias": ["Na próxima vez que", "Desafio", "Autoteste", "Custo da inação"]}, {"nome": "Alívio", "faz": "Autoriza ou acolhe em vez de cobrar", "categorias": ["Permissão", "Recorte do público"]}, {"nome": "Autoridade", "faz": "Mostra de onde vem o que você sabe", "categorias": ["Como eu faria", "Autoridade por associação", "Números e dados"]}];
@@ -652,6 +663,9 @@
   GANCHOS = FAMILIAS.map(function (f) { return { familia: f.nome, tipos: f.categorias }; });
   var BLOCO = {}; BLOCOS.forEach(function (b, i) { b.ordem = i; BLOCO[b.tipo] = b; });
   var PADRAO_BLOCOS = BLOCOS.slice(0, 9).map(function (b) { return b.tipo; });
+  var PADRAO_YOUTUBE = BLOCOS.filter(function (b) { return b.casa === "youtube"; }).map(function (b) { return b.tipo; });
+  function blocosDoTipo(tipo) { return TIPOS[tipo] && TIPOS[tipo].blocos === "youtube" ? PADRAO_YOUTUBE : PADRAO_BLOCOS; }
+  function milhar(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
   var LIMITE_TEXTO_TELA = 9;
   var LIMITE_LEGENDA = 50;
   var PALAVRAS_DA_LEGENDA = 42; // sobra espaço para as hashtags dentro do teto
@@ -938,7 +952,10 @@
       textoTela: "", legenda: "", blocos: [], telas: [],
       criado: new Date().toISOString(), atualizado: new Date().toISOString()
     };
-    if (TIPOS[tipo].video) r.blocos = PADRAO_BLOCOS.map(blocoVazio);
+    if (TIPOS[tipo].video) {
+      r.blocos = blocosDoTipo(tipo).map(blocoVazio);
+      r.blocos.forEach(function (b) { if (b.tipo === "yt-canal") b.texto = APRESENTACAO_CANAL; });
+    }
     else for (var i = 0; i < TIPOS[tipo].telas; i++) r.telas.push(telaVazia());
     r._novo = true;
     return r;
@@ -946,7 +963,7 @@
   // Roteiros salvos antes da estrutura em blocos: o texto antigo vira um bloco livre no topo.
   function normalizar(r) {
     if (TIPOS[r.tipo] && TIPOS[r.tipo].video && !Array.isArray(r.blocos)) {
-      r.blocos = PADRAO_BLOCOS.map(blocoVazio);
+      r.blocos = blocosDoTipo(r.tipo).map(blocoVazio);
       if (r.corpo) r.blocos.unshift({ id: novoId(), tipo: "livre", texto: r.corpo });
     }
     if (!Array.isArray(r.telas)) r.telas = [];
@@ -989,13 +1006,17 @@
   function frasesParaLegenda(r) {
     var escolhidas = [];
     if (TIPOS[r.tipo] && TIPOS[r.tipo].video) {
-      ["gancho", "crenca", "solucao", "detalhe", "prova"].forEach(function (tipo) {
+      var escada = TIPOS[r.tipo].blocos === "youtube"
+        ? ["yt-gancho", "yt-objecao", "yt-caso", "yt-final"]
+        : ["gancho", "crenca", "solucao", "detalhe", "prova"];
+      escada.forEach(function (tipo) {
         var f = primeiraFrase(textoDoBloco(r, tipo));
         if (f && escolhidas.indexOf(f) === -1) escolhidas.push(f);
       });
       var pergunta = frasesDoTexto(textoDoBloco(r, "fechamento")).filter(function (f) { return f.indexOf("?") !== -1; })[0];
       if (!escolhidas.length) {
         (r.blocos || []).forEach(function (b) {
+          if (b.tipo === "yt-canal") return;
           var f = primeiraFrase(b.texto);
           if (f && escolhidas.indexOf(f) === -1) escolhidas.push(f);
         });
@@ -1005,6 +1026,7 @@
       return escolhidas;
     }
     var telas = (r.telas || []).filter(function (t) { return (t.texto || "").trim(); });
+    if (telas.length === 1) return cortarEmPalavras(frasesDoTexto(telas[0].texto), PALAVRAS_DA_LEGENDA);
     if (telas.length) escolhidas.push(primeiraFrase(telas[0].texto));
     if (telas.length > 2) escolhidas.push(primeiraFrase(telas[Math.floor(telas.length / 2)].texto));
     if (telas.length > 1) escolhidas.push(primeiraFrase(telas[telas.length - 1].texto));
@@ -1355,7 +1377,7 @@
     if (c.video) {
       h += '<section class="medidor" aria-live="polite"><div class="cards">' +
           '<div class="card card-principal"><span class="card-rotulo">Palavras</span><span class="card-valor" id="m-palavras">0</span><span class="pilula" id="m-pilula" data-s="vazio"></span></div>' +
-          '<div class="card estatico"><span class="card-rotulo">Faixa</span><span class="card-valor">' + c.min + "<small>a</small>" + c.max + '</span><span class="card-nota">palavras somando os blocos</span></div>' +
+          '<div class="card estatico"><span class="card-rotulo">Faixa</span><span class="card-valor' + (c.min > 999 ? " menor" : "") + '">' + milhar(c.min) + "<small>a</small>" + milhar(c.max) + '</span><span class="card-nota">palavras somando os blocos</span></div>' +
           '<div class="card"><span class="card-rotulo">Duração estimada</span><span class="card-valor" id="m-duracao">0<small>s</small></span><span class="card-nota">174 palavras por minuto</span></div>' +
           '<div class="card estatico"><span class="card-rotulo">Duração do vídeo</span><span class="card-valor">' + c.duracao + '</span><span class="card-nota">no vídeo editado</span></div>' +
         "</div>" +
@@ -1363,21 +1385,20 @@
           '<span class="regua-marca ini" style="left:0">0</span><span class="regua-marca" id="r-min"></span><span class="regua-marca" id="r-max"></span></div>' +
       "</section>";
 
-      h += '<div class="campo"><div class="campo-topo"><label for="textoTela">Texto na tela</label><span class="contador" id="c-textoTela"></span></div>' +
-        '<input class="entrada" id="textoTela" type="text" placeholder="A afirmação que aparece escrita junto com o gancho" value="' + esc(r.textoTela) + '"></div>';
+      h += '<div class="campo"><div class="campo-topo"><label for="textoTela">' + (c.blocos === "youtube" ? "Thumbnail" : "Texto na tela") + '</label><span class="contador" id="c-textoTela"></span></div>' +
+        '<input class="entrada" id="textoTela" type="text" placeholder="' + (c.blocos === "youtube" ? "Até 6 palavras em caixa alta" : "A afirmação que aparece escrita junto com o gancho") + '" value="' + esc(r.textoTela) + '"></div>';
       h += '<section class="blocos" id="blocos" aria-label="Blocos do roteiro"></section>';
       h += '<div class="acrescentar"><label for="novo-bloco">Acrescentar bloco</label>' +
-        '<select class="caixa" id="novo-bloco">' + BLOCOS.map(function (b) { return '<option value="' + b.tipo + '">' + b.nome + "</option>"; }).join("") + "</select>" +
+        '<select class="caixa" id="novo-bloco">' + BLOCOS.filter(function (b) {
+          return b.tipo === "livre" || (c.blocos === "youtube" ? b.casa === "youtube" : b.casa !== "youtube");
+        }).map(function (b) { return '<option value="' + b.tipo + '">' + b.nome + "</option>"; }).join("") + "</select>" +
         '<button class="btn" id="add-bloco" type="button">Acrescentar</button></div>';
-      h += '<div class="campo"><div class="campo-topo"><label for="legenda">Legenda</label>' +
-        '<button type="button" class="btn btn-mini" id="montar-legenda" title="Monta a legenda com as frases do próprio roteiro e acrescenta as hashtags">Montar legenda</button>' +
-        '<span class="contador" id="c-legenda"></span></div>' +
-        '<textarea class="area" id="legenda" placeholder="Texto da legenda seguido das hashtags">' + esc(r.legenda) + "</textarea></div>";
+      h += campoDaLegenda(r, c);
     } else {
       h += '<section class="resumo"><span class="aviso" id="t-resumo"></span><button class="btn" id="add-tela" type="button">Adicionar tela</button></section>';
       h += '<section class="telas" id="telas"></section>';
+      if (c.legenda) h += campoDaLegenda(r, c);
     }
-
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
       '<button class="btn" id="baixar-docx" type="button">Baixar em docx</button>' +
       '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.pronto ? "true" : "false") + '">' + (r.pronto ? "Pronto para publicar" : "Publicar") + "</button>" +
@@ -1388,6 +1409,12 @@
     if (c.video) renderBlocos(); else renderTelas();
     atualizarMedidas();
     var leg = $("legenda"); if (leg) crescer(leg);
+  }
+  function campoDaLegenda(r, c) {
+    return '<div class="campo"><div class="campo-topo"><label for="legenda">' + (c.rotuloLegenda || "Legenda") + "</label>" +
+        '<button type="button" class="btn btn-mini" id="montar-legenda" title="Monta a legenda com as frases do próprio roteiro e acrescenta as hashtags">Montar legenda</button>' +
+        '<span class="contador" id="c-legenda"></span></div>' +
+        '<textarea class="area" id="legenda" placeholder="Texto da legenda seguido das hashtags">' + esc(r.legenda) + "</textarea></div>";
   }
 
   function renderBlocos() {
@@ -1421,6 +1448,7 @@
   }
 
   function nomeTela(tipo, i, total) {
+    if (tipo === "estatico") return "Arte";
     if (tipo === "carrossel") {
       if (i === 0) return "Headline";
       if (i === total - 1) return "CTA";
@@ -1442,7 +1470,7 @@
         (podeExcluir ? '<button type="button" class="apagar" data-excluir="' + i + '" aria-label="Excluir ' + nomeTela(r.tipo, i, total) + '">Excluir</button>' : (fixa ? '<span class="tela-fixa-tag">fixa</span>' : "")) +
         "</div>" +
         '<label class="sub" for="tx-' + t.id + '">Texto</label>' +
-        '<textarea class="area" id="tx-' + t.id + '" data-tela="' + i + '" data-parte="texto" placeholder="' + (fixa && i === 0 ? "A frase que para o dedo" : fixa ? "O que você quer que ela faça agora" : "Até 25 palavras") + '"></textarea>' +
+        '<textarea class="area" id="tx-' + t.id + '" data-tela="' + i + '" data-parte="texto" placeholder="' + (fixa && i === 0 ? "A frase que para o dedo" : fixa ? "O que você quer que ela faça agora" : "Até " + TIPOS[r.tipo].porTela + " palavras") + '"></textarea>' +
         '<label class="sub" for="ds-' + t.id + '">Design</label>' +
         '<textarea class="area area-design" id="ds-' + t.id + '" data-tela="' + i + '" data-parte="design" placeholder="Fundo, foto, cor, destaque, posição do texto"></textarea>' +
         "</article>";
@@ -1454,6 +1482,7 @@
     var add = $("add-tela");
     add.hidden = total >= TIPOS[r.tipo].telas;
     add.textContent = r.tipo === "stories" ? "Adicionar story" : "Adicionar tela";
+    if (r.tipo === "estatico") add.hidden = true;
   }
 
   /* Arrastar para mudar a ordem, com mouse ou com o dedo. As setas do teclado
@@ -1544,8 +1573,8 @@
       $("r-cheio").style.width = pct(n) + "%";
       $("r-min").style.left = pct(c.min) + "%"; $("r-min").textContent = c.min;
       $("r-max").style.left = pct(c.max) + "%"; $("r-max").textContent = c.max;
-      marcarContador($("c-textoTela"), contar(r.textoTela), LIMITE_TEXTO_TELA);
-      marcarContador($("c-legenda"), contar(r.legenda), LIMITE_LEGENDA);
+      marcarContador($("c-textoTela"), contar(r.textoTela), c.blocos === "youtube" ? 6 : LIMITE_TEXTO_TELA);
+      marcarContador($("c-legenda"), contar(r.legenda), c.tetoLegenda || LIMITE_LEGENDA);
     } else {
       var total = 0, acima = 0;
       r.telas.forEach(function (t, i) {
@@ -1554,7 +1583,11 @@
         marcarContador($("c-tela-" + i), k, c.porTela);
       });
       var q = r.telas.length;
-      $("t-resumo").textContent = q + " " + plural(q, "tela", "telas") + " de " + c.telas + " · " + total + " " + plural(total, "palavra", "palavras") + " no total" +
+      if (c.legenda) marcarContador($("c-legenda"), contar(r.legenda), c.tetoLegenda || LIMITE_LEGENDA);
+      if (r.tipo === "estatico") {
+        $("t-resumo").textContent = total + " " + plural(total, "palavra", "palavras") + " na arte · até " + c.porTela +
+          (acima ? " · passou do limite" : "");
+      } else $("t-resumo").textContent = q + " " + plural(q, "tela", "telas") + " de " + c.telas + " · " + total + " " + plural(total, "palavra", "palavras") + " no total" +
         (acima ? " · " + acima + " " + plural(acima, "tela passou", "telas passaram") + " de " + c.porTela + " palavras" : "");
     }
   }
@@ -1707,6 +1740,7 @@
         if ((t.texto || "").trim()) partes.push(paragrafo(t.texto.trim()));
         if ((t.design || "").trim()) partes.push(paragrafo("Design: " + t.design.trim()));
       });
+      if (r.legenda) { partes.push(paragrafo("Legenda", { negrito: true })); partes.push(paragrafo(r.legenda.trim())); }
     }
     return partes.join("");
   }
