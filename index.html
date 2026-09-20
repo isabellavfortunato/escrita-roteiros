@@ -274,6 +274,9 @@
   .acrescentar label { font-size: 13.5px; color: var(--navy-suave); font-weight: 600; }
   .acrescentar .caixa { width: auto; min-width: 0; padding-block: 8px; font-size: 14px; }
 
+  .mudar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 16px; border-top: 1px solid var(--linha); }
+  .mudar-rotulo { font-size: 13.5px; color: var(--navy-suave); font-weight: 600; margin-right: 2px; }
+
   .acoes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: space-between; align-items: center; padding-top: 18px; border-top: 1px solid var(--linha); }
   .aviso { font-size: 13px; color: var(--navy-suave); }
 
@@ -1020,6 +1023,107 @@
     delete r.corpo;
     return r;
   }
+
+  /* ---------- Passar o mesmo roteiro de um formato para outro ---------- */
+  var PARA_YOUTUBE = {
+    gancho: "yt-gancho", contexto: "yt-caso", ponte: "yt-objecao", causa: "yt-objecao",
+    desenvolvimento: "yt-ensino", solucao: "yt-ensino", chamada: "yt-laco", detalhe: "yt-final",
+    crenca: "yt-final", prova: "yt-final", fechamento: "yt-encerramento", cta: "yt-encerramento",
+    lista: "lista", livre: "livre"
+  };
+  var DO_YOUTUBE = {
+    "yt-gancho": "gancho", "yt-canal": "livre", "yt-objecao": "ponte", "yt-caso": "contexto",
+    "yt-ensino": "desenvolvimento", "yt-laco": "chamada", "yt-final": "detalhe",
+    "yt-encerramento": "cta", lista: "lista", livre: "livre"
+  };
+  function textoLimpo(t) {
+    return String(t || "").split("\n").map(function (l) { return l.trim(); })
+      .filter(function (l) { return l && l !== MARCA_LISTA.trim(); }).join("\n");
+  }
+  function blocoDeTexto(tipo, texto) { var b = blocoVazio(tipo); b.texto = texto; return b; }
+  function blocoDoCanal() { return blocoDeTexto("yt-canal", APRESENTACAO_CANAL); }
+  function telasDeTextos(textos, max) {
+    if (!textos.length) return [telaVazia()];
+    var usar = textos.slice(0, Math.max(1, max));
+    if (textos.length > max) usar[max - 1] = textos.slice(max - 1).join("\n\n");
+    return usar.map(function (t) { var x = telaVazia(); x.texto = t; return x; });
+  }
+  function blocosDeTextos(textos, destino) {
+    var dYT = TIPOS[destino].blocos === "youtube";
+    if (!textos.length) {
+      var vazios = blocosDoTipo(destino).map(blocoVazio);
+      vazios.forEach(function (b) { if (b.tipo === "yt-canal") b.texto = APRESENTACAO_CANAL; });
+      return vazios;
+    }
+    var primeiro = dYT ? "yt-gancho" : "gancho";
+    var meio = dYT ? "yt-ensino" : "desenvolvimento";
+    var ultimo = dYT ? "yt-encerramento" : "cta";
+    var saida = textos.map(function (t, i) {
+      if (i === 0) return blocoDeTexto(primeiro, t);
+      if (i === textos.length - 1) return blocoDeTexto(ultimo, t);
+      return blocoDeTexto(meio, t);
+    });
+    if (textos.length === 1) {
+      saida.push(blocoVazio(dYT ? "yt-objecao" : "contexto"));
+      saida.push(blocoVazio(meio));
+      saida.push(blocoVazio(ultimo));
+    }
+    if (dYT) saida.splice(1, 0, blocoDoCanal());
+    return saida;
+  }
+  // Muda o tipo mantendo o mesmo roteiro: título, etiquetas, legenda e texto continuam os mesmos.
+  function converterFormato(r, destino) {
+    var origem = r.tipo;
+    if (!TIPOS[destino] || origem === destino) return false;
+    var oVideo = !!TIPOS[origem].video, dVideo = !!TIPOS[destino].video;
+    var oYT = TIPOS[origem].blocos === "youtube", dYT = TIPOS[destino].blocos === "youtube";
+    if (oVideo && dVideo) {
+      if (dYT && !oYT) {
+        r.blocos = (r.blocos || []).map(function (b) { b.tipo = PARA_YOUTUBE[b.tipo] || "livre"; return b; });
+        if (!r.blocos.some(function (b) { return b.tipo === "yt-canal"; })) {
+          r.blocos.splice(Math.min(1, r.blocos.length), 0, blocoDoCanal());
+        }
+      } else if (oYT && !dYT) {
+        r.blocos = (r.blocos || []).filter(function (b) {
+          return !(b.tipo === "yt-canal" && textoLimpo(b.texto) === textoLimpo(APRESENTACAO_CANAL));
+        }).map(function (b) { b.tipo = DO_YOUTUBE[b.tipo] || "livre"; return b; });
+      }
+      if (!r.blocos.length) r.blocos = blocosDeTextos([], destino);
+      r.telas = [];
+    } else if (oVideo && !dVideo) {
+      var deBlocos = (r.blocos || []).map(function (b) { return textoLimpo(b.texto); }).filter(Boolean);
+      r.telas = telasDeTextos(deBlocos, TIPOS[destino].telas);
+      r.blocos = [];
+    } else if (!oVideo && dVideo) {
+      var deTelas = (r.telas || []).map(function (t) { return textoLimpo(t.texto); }).filter(Boolean);
+      r.blocos = blocosDeTextos(deTelas, destino);
+      r.telas = [];
+    } else {
+      var max = TIPOS[destino].telas;
+      var ficam = (r.telas || []).filter(function (t) { return textoLimpo(t.texto) || String(t.design || "").trim(); });
+      if (!ficam.length) ficam = [telaVazia()];
+      if (ficam.length > max) {
+        var sobra = ficam.slice(max - 1), ultima = sobra[0];
+        ultima.texto = sobra.map(function (t) { return textoLimpo(t.texto); }).filter(Boolean).join("\n\n");
+        ultima.design = sobra.map(function (t) { return String(t.design || "").trim(); }).filter(Boolean).join(" ");
+        ficam = ficam.slice(0, max - 1).concat([ultima]);
+      }
+      r.telas = ficam;
+    }
+    r.tipo = destino;
+    if (dVideo) {
+      if (r.formato && FORMATOS.indexOf(r.formato) < 0) r.formato = "";
+    } else if (destino === "stories") {
+      if (r.formato && FORMATOS_STORY.indexOf(r.formato) < 0) r.formato = "";
+      (r.telas || []).forEach(function (t) {
+        if (t.formato && FORMATOS_STORY.indexOf(t.formato) < 0) t.formato = "";
+      });
+    } else {
+      (r.telas || []).forEach(function (t) { delete t.formato; });
+    }
+    r.atualizado = new Date().toISOString();
+    return true;
+  }
   /* ---------- Legenda montada com as frases do roteiro ---------- */
   function frasesDoTexto(txt) {
     var limpo = String(txt || "").replace(/\s+/g, " ").trim();
@@ -1558,6 +1662,11 @@
       h += '<section class="telas" id="telas"></section>';
       if (c.legenda) h += campoDaLegenda(r, c);
     }
+    h += '<div class="mudar"><span class="mudar-rotulo">Passar este roteiro para</span>' +
+      QUADRANTE.filter(function (t) { return t !== r.tipo; }).map(function (t) {
+        return '<button type="button" class="btn btn-mini btn-mudar" data-mudar="' + t +
+          '" title="Leva o mesmo texto para o formato ' + esc(TIPOS[t].nome) + '">' + esc(TIPOS[t].nome) + "</button>";
+      }).join("") + "</div>";
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
       '<button class="btn" id="baixar-docx" type="button">Baixar em docx</button>' +
       '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.pronto ? "true" : "false") + '">' + (r.pronto ? "Pronto para publicar" : "Publicar") + "</button>" +
@@ -2758,6 +2867,27 @@
       ber.setAttribute("aria-pressed", String(pos));
       agendarSalvar();
       renderListaDepois();
+      return;
+    }
+    var bmud = e.target.closest("[data-mudar]");
+    if (bmud && atual) {
+      var destino = bmud.dataset.mudar;
+      if (!confirmarDuasVezes(bmud, "Clique de novo para passar", TIPOS[destino].nome)) return;
+      bmud.dataset.confirmar = "";
+      salvarPendente();
+      if (!converterFormato(atual, destino)) return;
+      acervo[atual.id] = atual;
+      abaAtual = destino;
+      gravarLocal(CHAVE_ABA, abaAtual);
+      renderAbas();
+      document.querySelector(".corpo").classList.remove("sem-gaveta");
+      var bt2 = $("ver-todos"); if (bt2) bt2.setAttribute("aria-pressed", "false");
+      var bf3 = $("ver-familias"); if (bf3) bf3.setAttribute("aria-pressed", "false");
+      renderEditor();
+      renderLista();
+      agendarSalvar();
+      mostrarEstado("salvando", "Roteiro passado para " + TIPOS[destino].nome);
+      window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
     if (e.target.id === "marcar-pronto") {
