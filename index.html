@@ -1477,8 +1477,9 @@
     var h = '<input class="titulo" id="titulo" type="text" placeholder="Título do roteiro" value="' + esc(r.titulo) + '" aria-label="Título do roteiro">';
     h += '<section class="seletores">';
     if (c.video) h += seletorHtml("Formato", "formato", FORMATOS);
+    else if (r.tipo === "stories") h += seletorHtml("Formato", "formato", FORMATOS_STORY);
     h += seletorHtml("Modalidade", "modalidade", MODALIDADES);
-    h += seletorHtml("Objetivo", "objetivo", OBJETIVOS);
+    if (r.tipo !== "stories") h += seletorHtml("Objetivo", "objetivo", OBJETIVOS);
     h += "</section>";
     h += '<div class="escolher-etiquetas etiquetas-roteiro"><span class="rotulo">Etiquetas</span>' +
       ETIQUETAS_ROTEIRO.map(function (e) {
@@ -2483,6 +2484,11 @@
       atual.telas[+el.dataset.tela].formato = el.value;
     } else if (el.dataset.campo) {
       atual[el.dataset.campo] = el.value;
+      // no stories, o formato da sequência preenche as telas que ainda estão sem formato
+      if (el.dataset.campo === "formato" && atual.tipo === "stories" && el.value) {
+        (atual.telas || []).forEach(function (t) { if (!t.formato) t.formato = el.value; });
+        renderTelas();
+      }
     } else if (el.dataset.gancho) {
       var bl = atual.blocos.filter(function (x) { return x.id === el.dataset.gancho; })[0];
       if (!bl) return;
