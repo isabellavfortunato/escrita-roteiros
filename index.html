@@ -695,8 +695,8 @@
   function blocosDoTipo(tipo) { return TIPOS[tipo] && TIPOS[tipo].blocos === "youtube" ? PADRAO_YOUTUBE : PADRAO_BLOCOS; }
   function milhar(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
   var LIMITE_TEXTO_TELA = 9;
-  var LIMITE_LEGENDA = 50;
-  var PALAVRAS_DA_LEGENDA = 50; // as hashtags ficam fora desta conta
+  var LIMITE_LEGENDA = 80;
+  var PALAVRAS_DA_LEGENDA = 80; // as hashtags ficam fora desta conta
   var HASHTAGS_FIXAS = ["#EmpreendedorismoFeminino", "#IAParaEmpresas", "#PequenosNegocios", "#MulherEmpreendedora"];
   var HASHTAG_DINHEIRO = "#OrganizacaoFinanceira";
   var ETIQUETAS_DE_DINHEIRO = ["Financeiro", "Precificação", "Cobrança & Inadimplência"];
@@ -1058,43 +1058,69 @@
       return l.trim().charAt(0) !== "#";
     }).join(" "));
   }
+  // a frase mais direta de um bloco: a mais curta entre as 3 primeiras, sem contar as muito curtas demais
+  function fraseResumo(frases) {
+    var boas = frases.slice(0, 3).filter(function (f) { return contar(f) >= 4; });
+    if (!boas.length) return frases[0] || "";
+    return boas.slice().sort(function (a, b) { return contar(a) - contar(b); })[0];
+  }
   function frasesParaLegenda(r) {
     var escolhidas = [];
     if (TIPOS[r.tipo] && TIPOS[r.tipo].video) {
       var FORA_DA_LEGENDA = ["chamada", "ponte", "yt-canal", "yt-laco"];
       var FINAIS = ["cta", "fechamento", "yt-encerramento"];
+      var ABERTURA = ["gancho", "yt-gancho"];
       var textoFinal = "";
       FINAIS.forEach(function (tipo) { if (!textoFinal) textoFinal = textoDoBloco(r, tipo); });
-      var frasesFinais = frasesDoTexto(textoFinal);
-      var pergunta = frasesFinais.filter(function (f) { return f.indexOf("?") !== -1; })[0];
+      var pergunta = frasesDoTexto(textoFinal).filter(function (f) { return f.indexOf("?") !== -1; })[0];
       var restante = PALAVRAS_DA_LEGENDA - (pergunta ? contar(pergunta) : 0);
-      var candidatos = (r.blocos || []).filter(function (b) {
+
+      var blocos = (r.blocos || []).filter(function (b) {
         return FORA_DA_LEGENDA.indexOf(b.tipo) === -1 && FINAIS.indexOf(b.tipo) === -1 && (b.texto || "").trim();
-      }).map(function (b) { return frasesDoTexto(b.texto).slice(0, 2); });
-      // primeiro uma frase de cada bloco, na ordem do roteiro, e só depois a segunda de cada
-      [0, 1].forEach(function (volta) {
-        candidatos.forEach(function (frases) {
-          var f = frases[volta];
-          if (!f || escolhidas.indexOf(f) !== -1) return;
-          // na segunda volta, a frase só entra se a primeira daquele bloco já estiver na legenda
-          if (volta === 1 && escolhidas.indexOf(frases[0]) === -1) return;
-          var n = contar(f);
-          if (n > restante) return;
-          escolhidas.push(f);
-          restante -= n;
+      });
+      var abertura = blocos.filter(function (b) { return ABERTURA.indexOf(b.tipo) !== -1; });
+      var meio = blocos.filter(function (b) { return ABERTURA.indexOf(b.tipo) === -1; });
+
+      var ordenadas = [];
+      // 1. a headline do gancho
+      abertura.forEach(function (b) {
+        var f = frasesDoTexto(b.texto)[0];
+        if (f) ordenadas.push({ ordem: 0, pos: 0, texto: f, n: contar(f) });
+      });
+      // 2. a frase mais direta de cada bloco do meio, das mais curtas para as mais longas,
+      //    para caber o maior número de blocos dentro do teto
+      var resumos = [];
+      meio.forEach(function (b, k) {
+        var frases = frasesDoTexto(b.texto);
+        var f = fraseResumo(frases);
+        if (f) resumos.push({ ordem: k + 1, pos: frases.indexOf(f), texto: f, n: contar(f) });
+      });
+      resumos.sort(function (a, b) { return a.n - b.n; });
+      resumos.forEach(function (x) { ordenadas.push(x); });
+      // 3. se ainda sobrar espaço, a primeira frase de cada bloco do meio e a segunda do gancho
+      meio.forEach(function (b, k) {
+        frasesDoTexto(b.texto).slice(0, 2).forEach(function (f, j) {
+          ordenadas.push({ ordem: k + 1, pos: j, texto: f, n: contar(f), extra: true });
         });
       });
-      escolhidas.sort(function (a, b) {
-        var ordemA = -1, ordemB = -1, k = 0;
-        candidatos.forEach(function (frases) {
-          frases.forEach(function (f) {
-            k++;
-            if (f === a) ordemA = k;
-            if (f === b) ordemB = k;
-          });
-        });
-        return ordemA - ordemB;
+      abertura.forEach(function (b) {
+        var f = frasesDoTexto(b.texto)[1];
+        if (f) ordenadas.push({ ordem: 0, pos: 1, texto: f, n: contar(f), extra: true });
       });
+
+      var postas = [];
+      ordenadas.forEach(function (item) {
+        if (postas.some(function (x) { return x.texto === item.texto; })) return;
+        if (item.n > restante) return;
+        postas.push(item);
+        restante -= item.n;
+      });
+      // a legenda sai na ordem do roteiro: bloco por bloco e, dentro do bloco, frase por frase
+      postas.sort(function (a, b) {
+        if (a.ordem !== b.ordem) return a.ordem - b.ordem;
+        return (a.pos || 0) - (b.pos || 0);
+      });
+      escolhidas = postas.map(function (x) { return x.texto; });
       if (pergunta) escolhidas.push(pergunta);
       return escolhidas;
     }
