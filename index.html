@@ -94,6 +94,7 @@
   .nav-ideias-conta strong { font-family: var(--display); font-weight: 400; font-size: 52px; line-height: 0.9; color: var(--laranja); font-variant-numeric: tabular-nums; }
   .nav-ideias-conta span { font-size: 13px; color: #aab1bd; }
   .quadrante { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: var(--celula); gap: var(--vao); }
+  .quadrante > .quad:last-child:nth-child(odd) { grid-column: span 2; }
   .quad {
     background: var(--fundo); border: 1px solid var(--linha-forte); border-radius: 10px;
     padding: 0 20px; display: flex; align-items: center; gap: 14px; text-align: left; color: var(--navy-suave); min-width: 0;
@@ -290,6 +291,8 @@
   .tela-fixa-tag { font-size: 11.5px; color: var(--navy-fraco); border: 1px dashed var(--linha-forte); border-radius: 6px; padding: 2px 8px; }
   .tela .area { font-size: 16px; }
   .tela .area-design { font-family: var(--ui); font-size: 14px; background: var(--fundo); min-height: 64px; color: var(--navy-suave); border-color: var(--linha); }
+  .story-formato { display: flex; flex-direction: column; gap: 6px; }
+  .story-formato .caixa { padding-block: 8px; font-size: 14px; }
   .tela .sub { font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-fraco); font-weight: 600; }
 
   /* Ideias */
@@ -625,6 +628,7 @@
     carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, porTela: 25 },
     stories:   { nome: "Stories", sub: "Até 10 telas · 25 palavras por tela", video: false, telas: 10, porTela: 25 },
     estatico:  { nome: "Post estático", sub: "Uma arte · até 100 palavras", video: false, telas: 1, porTela: 100, legenda: true },
+    caixinha:  { nome: "Caixinha de perguntas", sub: "Até 10 respostas · 45 palavras cada", video: false, telas: 10, porTela: 45, perguntas: true },
     youtube:   { nome: "YouTube", sub: "Vídeo longo · 1.740 a 3.480 palavras", video: true, min: 1740, max: 3480, duracao: "10<small>a</small>20<small>min</small>", blocos: "youtube", tetoLegenda: 150, rotuloLegenda: "Descrição" },
     ideias:    { nome: "Ideias", sub: "Até 100 palavras por ideia", ideias: true },
     todos:     { nome: "Todos os roteiros", sub: "Lista por título", lista: true },
@@ -632,19 +636,25 @@
   };
   var QUADRANTE = ["instagram", "tiktok", "carrossel", "stories", "estatico", "youtube"];
   var APRESENTACAO_CANAL = "Oi, eu sou a Isabella Fortunato, empreendo há quinze anos e toco duas empresas. Aqui eu falo com mulheres empresárias, as que fazem quase tudo sozinhas ou com uma ou duas pessoas ajudando. E o que eu mostro neste canal é como usar a inteligência artificial para organizar a empresa por dentro, o dinheiro, o preço, a rotina e as pessoas, e para a sua produtividade finalmente render, sem você precisar entender nada de tecnologia.";
-  var FORMATOS = ["Tela dividida", "Fundo verde", "Falando para a câmera"];
+  var FORMATOS = ["Tela dividida", "Fundo verde", "Falando para a câmera", "Caixinha de perguntas"];
   var MODALIDADES = ["Sonho", "Transformação", "Fofocas", "Objeções", "Lista", "Storytelling", "Posicionamento", "Educativo"];
   var OBJETIVOS = ["Compartilhável", "Salvável", "Likes", "Interação"];
+  var MARCA_LISTA = "• ";
+  var FORMATOS_STORY = ["Caixinha de perguntas", "Enquete", "Figurinha de engajamento", "Foto", "Vídeo", "Vendas"];
   var BLOCOS = [
     { tipo: "gancho", nome: "Gancho", dica: "A headline falada, com o texto na tela entrando junto. Deixa o assunto cristalino sem entregar a lição já mastigada." },
+    { tipo: "contexto", nome: "Contexto", dica: "A cena concreta em que a Letícia se reconhece, com a consequência aparecendo cedo. Nada de aquecimento antes da dor." },
     { tipo: "ponte", nome: "Ponte", dica: "Direto ao ponto e a promessa do que vem, sem contexto longo." },
     { tipo: "causa", nome: "Causa", dica: "Por que o problema do gancho acontece, sem entregar a solução ainda. É aqui que a leitura se desloca: a pessoa acha que o problema mora num lugar e você mostra que ele mora em outro. A cena concreta em que a Letícia se vê cabe dentro deste bloco." },
+    { tipo: "desenvolvimento", nome: "Desenvolvimento", dica: "O miolo do roteiro: a virada que desloca a causa e o passo concreto, com verbo no imperativo e objeto definido." },
     { tipo: "solucao", nome: "Solução", dica: "A entrega prática, com o passo concreto, verbo no imperativo e objeto definido. É o bloco mais denso e o que mais se apoia no texto na tela." },
     { tipo: "chamada", nome: "Chamada do meio", dica: "O pedido de seguir, espelhando a dor daquele roteiro específico." },
     { tipo: "detalhe", nome: "Detalhe ignorado", dica: "Um detalhe só, o mais valioso, o erro comum que separa quem faz certo de quem faz errado." },
     { tipo: "crenca", nome: "Crença", dica: "A ideia que fica depois que o vídeo acaba, dita em uma ou 2 frases. Precisa ser discutível, algo com que alguém possa discordar, nunca frase motivacional." },
     { tipo: "prova", nome: "Prova", dica: "Um exemplo só, o mais forte, com caso, número ou resultado, para sustentar a crença que acabou de ser dita." },
+    { tipo: "lista", nome: "Lista", dica: "Os itens em tópicos, um por linha. Dentro deste bloco, cada Enter já abre um item novo." },
     { tipo: "fechamento", nome: "Fechamento com pergunta", dica: "Retomada de uma palavra do gancho, a pergunta que pede resposta escrita e o resumo salvável na tela." },
+    { tipo: "cta", nome: "CTA", dica: "O pedido do fim, escolhido para aquele roteiro: a pergunta direta sobre o tema, o pedido de salvar, o de compartilhar ou a palavra a comentar." },
     { tipo: "livre", nome: "Bloco livre", dica: "Texto fora da estrutura, para o que não se encaixa nos outros blocos." },
     { tipo: "yt-gancho", nome: "Gancho hipnótico", casa: "youtube", dica: "A promessa do vídeo nos primeiros segundos, com os 4 elementos da introdução: empreendedorismo, organização, produtividade e inteligência artificial. O Claude é citado já aqui, no primeiro minuto." },
     { tipo: "yt-canal", nome: "Apresentação do canal", casa: "youtube", dica: "O bloco fixo de apresentação, seguido da primeira chamada de inscrição. Nada de me segue, que é do TikTok e do Instagram." },
@@ -662,7 +672,7 @@
   var TELAS_GANCHOS = {"Como eu faria": "A folha em branco onde você começa a escrever.", "Como eu fiz": "O resultado antigo e o novo na mesma tela.", "Parei de fazer": "A coisa sendo fechada, apagada ou jogada fora.", "Inimigo comum": "A coisa acusada em destaque, com um círculo em volta.", "Dualidade": "A tela dividida em 2.", "Educativo": "A explicação começando a ser escrita.", "História": "A cena ou o objeto da história, antes de você aparecer.", "Passo a passo": "Os passos numerados entrando um a um.", "Provocação direta": "Você olhando direto para a câmera, sem corte.", "Números e dados": "O número grande sobre a planilha aberta.", "Pergunta com lacuna": "A pergunta escrita na tela, sozinha.", "Erro que a pessoa comete": "A ação errada acontecendo, com uma marca em cima.", "Dor nomeada": "A cena da dor, como o extrato aberto ou a mesa cheia.", "Antes e depois": "As 2 telas lado a lado.", "Você também": "O gesto do dia a dia, filmado de perto.", "POV": "A cena vista do ponto de vista dela, com a câmera na mão.", "Tipos de pessoas": "Cortes rápidos entre um tipo e outro.", "Com quantos anos você descobriu": "A frase na tela e você reagindo a ela.", "Expectativa versus realidade": "As 2 cenas em sequência, na mesma posição de câmera.", "Desafio": "O cronômetro ou o contador aparecendo.", "Bastidores": "A mesa, a tela e a bagunça reais, sem arrumar antes.", "Recorte do público": "O número do recorte escrito grande.", "Autoteste": "Os critérios entrando com caixa de marcar.", "Autoridade por associação": "A rotina de quem já resolveu, mostrada em vez de descrita.", "Na próxima vez que": "A cena exata do momento que se repete.", "Permissão": "Você dizendo a frase com a tela limpa atrás.", "O subestimado": "Aproximação forte na coisa pequena."};
   GANCHOS = FAMILIAS.map(function (f) { return { familia: f.nome, tipos: f.categorias }; });
   var BLOCO = {}; BLOCOS.forEach(function (b, i) { b.ordem = i; BLOCO[b.tipo] = b; });
-  var PADRAO_BLOCOS = BLOCOS.slice(0, 9).map(function (b) { return b.tipo; });
+  var PADRAO_BLOCOS = ["gancho", "contexto", "desenvolvimento", "cta"];
   var PADRAO_YOUTUBE = BLOCOS.filter(function (b) { return b.casa === "youtube"; }).map(function (b) { return b.tipo; });
   function blocosDoTipo(tipo) { return TIPOS[tipo] && TIPOS[tipo].blocos === "youtube" ? PADRAO_YOUTUBE : PADRAO_BLOCOS; }
   function milhar(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
@@ -945,7 +955,9 @@
 
   /* ---------- Roteiros ---------- */
   function telaVazia() { return { id: novoId(), texto: "", design: "" }; }
-  function blocoVazio(tipo) { return { id: novoId(), tipo: tipo, texto: "" }; }
+  function blocoVazio(tipo) {
+    return { id: novoId(), tipo: tipo, texto: tipo === "lista" ? MARCA_LISTA + "\n" + MARCA_LISTA + "\n" + MARCA_LISTA : "" };
+  }
   function novoRoteiro(tipo) {
     var r = {
       id: novoId(), tipo: tipo, titulo: "", formato: "", modalidade: "", objetivo: "",
@@ -1008,12 +1020,13 @@
     if (TIPOS[r.tipo] && TIPOS[r.tipo].video) {
       var escada = TIPOS[r.tipo].blocos === "youtube"
         ? ["yt-gancho", "yt-objecao", "yt-caso", "yt-final"]
-        : ["gancho", "crenca", "solucao", "detalhe", "prova"];
+        : ["gancho", "crenca", "desenvolvimento", "solucao", "detalhe", "prova"];
       escada.forEach(function (tipo) {
         var f = primeiraFrase(textoDoBloco(r, tipo));
         if (f && escolhidas.indexOf(f) === -1) escolhidas.push(f);
       });
-      var pergunta = frasesDoTexto(textoDoBloco(r, "fechamento")).filter(function (f) { return f.indexOf("?") !== -1; })[0];
+      var textoFinal = textoDoBloco(r, "cta") || textoDoBloco(r, "fechamento");
+      var pergunta = frasesDoTexto(textoFinal).filter(function (f) { return f.indexOf("?") !== -1; })[0];
       if (!escolhidas.length) {
         (r.blocos || []).forEach(function (b) {
           if (b.tipo === "yt-canal") return;
@@ -1153,7 +1166,7 @@
       h += '<div class="tabela">' + lista.map(function (r) {
         var medida = TIPOS[r.tipo].video
           ? palavrasVideo(r) + " " + plural(palavrasVideo(r), "palavra", "palavras")
-          : (r.telas || []).length + " " + plural((r.telas || []).length, "tela", "telas");
+          : (r.telas || []).length + " " + medidaDasTelas(r.tipo, (r.telas || []).length);
         return '<div class="linha' + (marcados[r.id] ? " marcada" : "") + '">' +
           '<label class="marcar"><input type="checkbox" data-marcar="' + r.id + '"' + (marcados[r.id] ? " checked" : "") + ' aria-label="Escolher ' + esc(r.titulo || "Sem título") + '"></label>' +
           '<button type="button" class="linha-abrir" data-abrir="' + r.id + '">' +
@@ -1258,10 +1271,16 @@
     var lista = doTipo(abaAtual);
     abrir(lista.length ? lista[0] : novoRoteiro(abaAtual));
   }
+  function medidaDasTelas(tipo, q) {
+    if (tipo === "caixinha") return plural(q, "pergunta", "perguntas");
+    if (tipo === "estatico") return plural(q, "arte", "artes");
+    if (tipo === "stories") return plural(q, "story", "stories");
+    return plural(q, "tela", "telas");
+  }
   function metaItem(r) {
     var partes = [];
     if (TIPOS[r.tipo].video) { var n = palavrasVideo(r); partes.push(n + " " + plural(n, "palavra", "palavras")); }
-    else { var q = (r.telas || []).length; partes.push(q + " " + plural(q, "tela", "telas")); }
+    else { var q = (r.telas || []).length; partes.push(q + " " + medidaDasTelas(r.tipo, q)); }
     if (r.modalidade) partes.push(r.modalidade);
     if (r.objetivo) partes.push(r.objetivo);
     partes.push(dataCurta(r.atualizado));
@@ -1449,6 +1468,7 @@
 
   function nomeTela(tipo, i, total) {
     if (tipo === "estatico") return "Arte";
+    if (tipo === "caixinha") return "Pergunta " + (i + 1);
     if (tipo === "carrossel") {
       if (i === 0) return "Headline";
       if (i === total - 1) return "CTA";
@@ -1469,10 +1489,23 @@
         '<span class="contador" id="c-tela-' + i + '"></span>' +
         (podeExcluir ? '<button type="button" class="apagar" data-excluir="' + i + '" aria-label="Excluir ' + nomeTela(r.tipo, i, total) + '">Excluir</button>' : (fixa ? '<span class="tela-fixa-tag">fixa</span>' : "")) +
         "</div>" +
-        '<label class="sub" for="tx-' + t.id + '">Texto</label>' +
-        '<textarea class="area" id="tx-' + t.id + '" data-tela="' + i + '" data-parte="texto" placeholder="' + (fixa && i === 0 ? "A frase que para o dedo" : fixa ? "O que você quer que ela faça agora" : "Até " + TIPOS[r.tipo].porTela + " palavras") + '"></textarea>' +
-        '<label class="sub" for="ds-' + t.id + '">Design</label>' +
-        '<textarea class="area area-design" id="ds-' + t.id + '" data-tela="' + i + '" data-parte="design" placeholder="Fundo, foto, cor, destaque, posição do texto"></textarea>' +
+        (r.tipo === "stories"
+          ? '<div class="story-formato"><label class="sub" for="fm-' + t.id + '">Formato</label>' +
+            '<select class="caixa' + (t.formato ? "" : " vazia") + '" id="fm-' + t.id + '" data-tela="' + i + '" data-parte="formato">' +
+            '<option value="">Escolha o formato</option>' +
+            FORMATOS_STORY.map(function (f) {
+              return '<option value="' + esc(f) + '"' + (t.formato === f ? " selected" : "") + ">" + esc(f) + "</option>";
+            }).join("") + "</select></div>"
+          : "") +
+        (TIPOS[r.tipo].perguntas
+          ? '<label class="sub" for="ds-' + t.id + '">Pergunta recebida</label>' +
+            '<textarea class="area area-design" id="ds-' + t.id + '" data-tela="' + i + '" data-parte="design" placeholder="A pergunta como ela chegou, na letra de quem perguntou"></textarea>' +
+            '<label class="sub" for="tx-' + t.id + '">Resposta</label>' +
+            '<textarea class="area" id="tx-' + t.id + '" data-tela="' + i + '" data-parte="texto" placeholder="Até ' + TIPOS[r.tipo].porTela + ' palavras, que é mais ou menos 15 segundos de fala"></textarea>'
+          : '<label class="sub" for="tx-' + t.id + '">Texto</label>' +
+            '<textarea class="area" id="tx-' + t.id + '" data-tela="' + i + '" data-parte="texto" placeholder="' + (fixa && i === 0 ? "A frase que para o dedo" : fixa ? "O que você quer que ela faça agora" : "Até " + TIPOS[r.tipo].porTela + " palavras") + '"></textarea>' +
+            '<label class="sub" for="ds-' + t.id + '">Design</label>' +
+            '<textarea class="area area-design" id="ds-' + t.id + '" data-tela="' + i + '" data-parte="design" placeholder="Fundo, foto, cor, destaque, posição do texto"></textarea>') +
         "</article>";
     }).join("");
     r.telas.forEach(function (t) {
@@ -1481,7 +1514,7 @@
     });
     var add = $("add-tela");
     add.hidden = total >= TIPOS[r.tipo].telas;
-    add.textContent = r.tipo === "stories" ? "Adicionar story" : "Adicionar tela";
+    add.textContent = r.tipo === "stories" ? "Adicionar story" : r.tipo === "caixinha" ? "Adicionar pergunta" : "Adicionar tela";
     if (r.tipo === "estatico") add.hidden = true;
   }
 
@@ -1587,6 +1620,11 @@
       if (r.tipo === "estatico") {
         $("t-resumo").textContent = total + " " + plural(total, "palavra", "palavras") + " na arte · até " + c.porTela +
           (acima ? " · passou do limite" : "");
+      } else if (c.perguntas) {
+        var fala = duracao(total);
+        $("t-resumo").textContent = q + " " + plural(q, "pergunta", "perguntas") + " de " + c.telas + " · " + total + " " + plural(total, "palavra", "palavras") +
+          " · cerca de " + fala.valor + " " + fala.unidade + " de fala" +
+          (acima ? " · " + acima + " " + plural(acima, "resposta passou", "respostas passaram") + " de " + c.porTela + " palavras" : "");
       } else $("t-resumo").textContent = q + " " + plural(q, "tela", "telas") + " de " + c.telas + " · " + total + " " + plural(total, "palavra", "palavras") + " no total" +
         (acima ? " · " + acima + " " + plural(acima, "tela passou", "telas passaram") + " de " + c.porTela + " palavras" : "");
     }
@@ -1736,7 +1774,12 @@
     } else {
       r.telas.forEach(function (t, i) {
         if (!(t.texto || "").trim() && !(t.design || "").trim()) return;
-        partes.push(paragrafo(nomeTela(r.tipo, i, r.telas.length), { negrito: true }));
+        partes.push(paragrafo(nomeTela(r.tipo, i, r.telas.length) + (t.formato ? " · " + t.formato : ""), { negrito: true }));
+        if (c.perguntas) {
+          if ((t.design || "").trim()) partes.push(paragrafo("Pergunta: " + t.design.trim()));
+          if ((t.texto || "").trim()) partes.push(paragrafo("Resposta: " + t.texto.trim()));
+          return;
+        }
         if ((t.texto || "").trim()) partes.push(paragrafo(t.texto.trim()));
         if ((t.design || "").trim()) partes.push(paragrafo("Design: " + t.design.trim()));
       });
@@ -2255,6 +2298,26 @@
   }
 
   var ed = $("editor");
+  ed.addEventListener("keydown", function (e) {
+    if (e.key !== "Enter" || e.shiftKey || !atual) return;
+    var el = e.target;
+    if (el.dataset == null || el.dataset.bloco == null) return;
+    var bloco = atual.blocos[+el.dataset.bloco];
+    if (!bloco || bloco.tipo !== "lista") return;
+    e.preventDefault();
+    var ini = el.selectionStart, fim = el.selectionEnd;
+    var antes = el.value.slice(0, ini), depois = el.value.slice(fim);
+    var linha = antes.slice(antes.lastIndexOf("\n") + 1);
+    if (linha.trim() === MARCA_LISTA.trim()) {
+      // item vazio: o Enter fecha a lista em vez de abrir outro marcador
+      el.value = antes.slice(0, antes.length - linha.length) + "\n" + depois;
+      el.selectionStart = el.selectionEnd = antes.length - linha.length + 1;
+    } else {
+      el.value = antes + "\n" + MARCA_LISTA + depois;
+      el.selectionStart = el.selectionEnd = ini + 1 + MARCA_LISTA.length;
+    }
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  });
   ed.addEventListener("input", function (e) {
     var el = e.target;
     if (el.id === "importar-texto") { contarLinhas(); crescer(el); return; }
@@ -2280,7 +2343,7 @@
     else if (el.id === "textoTela") atual.textoTela = el.value;
     else if (el.id === "legenda") { atual.legenda = el.value; crescer(el); }
     else if (el.dataset.bloco != null) { atual.blocos[+el.dataset.bloco].texto = el.value; crescer(el); }
-    else if (el.dataset.tela != null) { atual.telas[+el.dataset.tela][el.dataset.parte] = el.value; crescer(el); }
+    else if (el.dataset.tela != null && el.tagName !== "SELECT") { atual.telas[+el.dataset.tela][el.dataset.parte] = el.value; crescer(el); }
     else return;
     atualizarMedidas();
     agendarSalvar();
@@ -2299,7 +2362,9 @@
     }
     if (el.id === "limpar-numeracao") { contarLinhas(); return; }
     if (!atual || el.tagName !== "SELECT") return;
-    if (el.dataset.campo) {
+    if (el.dataset.parte === "formato" && el.dataset.tela != null) {
+      atual.telas[+el.dataset.tela].formato = el.value;
+    } else if (el.dataset.campo) {
       atual[el.dataset.campo] = el.value;
     } else if (el.dataset.gancho) {
       var bl = atual.blocos.filter(function (x) { return x.id === el.dataset.gancho; })[0];
