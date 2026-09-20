@@ -253,7 +253,9 @@
   }
   .bloco.arrastando { opacity: .85; box-shadow: 0 6px 18px rgba(11, 18, 31, .18); }
   .bloco-topo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .bloco-dica, .bloco .area, .bloco .gancho-tipo, .bloco .gancho-modelo, .bloco .gancho-exemplo, .bloco .gancho-tela { margin-left: 30px; }
+  .bloco .area, .bloco .gancho-tipo, .bloco .gancho-modelo { margin-left: 30px; }
+  .bloco-nome[title] { cursor: help; }
+  .aviso-curto { margin: 0; }
   .bloco .area { width: calc(100% - 30px); }
   .bloco-nome { font-family: var(--display); font-size: 25px; letter-spacing: 0.05em; line-height: 1; color: var(--navy); margin: 0; font-weight: 400; }
   .bloco-pos { font-size: 12px; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
@@ -420,6 +422,8 @@
     padding: 12px 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px;
   }
   .barra-escolha .aviso { margin-right: auto; }
+  .barra-escolha .aviso:empty { margin-right: auto; min-width: 0; }
+  .barra-etiquetar { padding-block: 8px; }
   .barra-escolha .btn[disabled] { opacity: .45; cursor: default; }
   .barra-escolha .btn[disabled]:hover { background: var(--papel); color: var(--navy); }
   .barra-escolha .btn-laranja[disabled]:hover { background: var(--laranja); color: #ffffff; }
@@ -1346,13 +1350,17 @@
     var exemplo = v ? exemploDoModelo(b.gancho, v) : "";
     var tela = TELAS_GANCHOS[b.gancho] || "";
     return '<div class="gancho-modelo"><label for="sm-' + b.id + '">Gancho</label>' +
-      '<select class="caixa' + (v ? "" : " vazia") + '" id="sm-' + b.id + '" data-modelo="' + b.id + '">' +
+      '<select class="caixa' + (v ? "" : " vazia") + '" id="sm-' + b.id + '" data-modelo="' + b.id + '" title="' + esc(dicaDoGancho(exemplo, tela)) + '">' +
       '<option value="">Escolha um dos ' + lista.length + " ganchos de " + esc(b.gancho) + "</option>" +
       lista.map(function (g) {
         return '<option value="' + esc(g[0]) + '"' + (v === g[0] ? " selected" : "") + ">" + esc(g[0]) + "</option>";
-      }).join("") + "</select></div>" +
-      '<p class="gancho-exemplo" id="ge-' + b.id + '">' + (exemplo ? "<b>Exemplo.</b> " + esc(exemplo) : "") + "</p>" +
-      (tela ? '<p class="gancho-tela"><b>Na tela.</b> ' + esc(tela) + "</p>" : "");
+      }).join("") + "</select></div>";
+  }
+  function dicaDoGancho(exemplo, tela) {
+    var partes = [];
+    if (exemplo) partes.push("Exemplo: " + exemplo);
+    if (tela) partes.push("Na tela: " + tela);
+    return partes.join("\n");
   }
   function seletorGanchoHtml(b) {
     var v = b.gancho || "";
@@ -1445,12 +1453,11 @@
       return '<article class="bloco" data-id="' + b.id + '">' +
         '<div class="bloco-topo">' +
         '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar o bloco ' + def.nome + '" title="Arraste para mudar a ordem">⠿</span>' +
-        '<h3 class="bloco-nome" id="bn-' + b.id + '">' + def.nome + "</h3>" +
+        '<h3 class="bloco-nome" id="bn-' + b.id + '" title="' + esc(String(def.dica).replace(/<[^>]*>/g, "")) + '">' + def.nome + "</h3>" +
         '<span class="bloco-pos">' + (i + 1) + " de " + total + "</span>" +
         '<span class="contador" id="c-bloco-' + i + '"></span>' +
 
         '<button type="button" class="apagar" data-apagar="' + i + '" aria-label="Apagar o bloco ' + def.nome + '">Apagar</button></div>' +
-        '<p class="bloco-dica">' + def.dica + "</p>" +
         (b.tipo === "gancho" ? seletorGanchoHtml(b) : "") +
         '<textarea class="area" id="bx-' + b.id + '" data-bloco="' + i + '" aria-labelledby="bn-' + b.id + '" placeholder="Escreva aqui"></textarea>' +
         "</article>";
@@ -1994,16 +2001,11 @@
         }).join("") +
         botaoDeFiltro("sem", "Sem etiqueta (" + semEtiqueta + ")", filtroSem, "", "") +
         '<button type="button" class="filtro filtro-arquivadas" id="ver-arquivadas" aria-pressed="' + verArquivadas + '">Arquivadas (' + guardadas + ")</button></div>";
-      h += '<p class="aviso">' + (verArquivadas
-        ? "Estas ideias estão no arquivo. Elas saem da lista principal e voltam com o botão Desarquivar."
-        : haFiltroDeIdeias()
-        ? esc(textoDoFiltro()) + " Para mudar a ordem arrastando, volte para Todas."
-        : "Clique numa etiqueta para ver só as ideias dela. Clique de novo para tirá-la da vista.") + "</p>";
+      if (verArquivadas) h += '<p class="aviso aviso-curto">No arquivo</p>';
       var escolhidas = lista.filter(function (i) { return ideiasMarcadas[i.id]; });
       h += '<div class="etiquetar-bloco' + (escolhidas.length ? " grudado" : "") + '">' +
         '<div class="barra-escolha barra-etiquetar"><span class="aviso">' +
-        (escolhidas.length ? escolhidas.length + " " + plural(escolhidas.length, "ideia escolhida", "ideias escolhidas") + ". Clique numa etiqueta para pôr ou tirar em todas."
-          : "Marque as caixinhas para etiquetar várias ideias de uma vez.") + "</span>" +
+        (escolhidas.length ? escolhidas.length + " " + plural(escolhidas.length, "escolhida", "escolhidas") : "") + "</span>" +
         '<button type="button" class="btn" id="marcar-todas-ideias">Marcar as da lista</button>' +
         '<button type="button" class="btn" id="limpar-ideias-marcadas"' + (escolhidas.length ? "" : " disabled") + ">Limpar</button>" +
         '<button type="button" class="btn" id="arquivar-escolhidas"' + (escolhidas.length ? "" : " disabled") + ">" +
@@ -2377,9 +2379,8 @@
       var bm = atual.blocos.filter(function (x) { return x.id === el.dataset.modelo; })[0];
       if (!bm) return;
       bm.modelo = el.value;
-      var ge = $("ge-" + bm.id);
       var ex = bm.modelo ? exemploDoModelo(bm.gancho, bm.modelo) : "";
-      if (ge) ge.innerHTML = ex ? "<b>Exemplo.</b> " + esc(ex) : "";
+      el.title = dicaDoGancho(ex, TELAS_GANCHOS[bm.gancho] || "");
     } else return;
     el.classList.toggle("vazia", !el.value);
     agendarSalvar();
