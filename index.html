@@ -706,35 +706,19 @@
   var HASHTAG_DINHEIRO = "#OrganizacaoFinanceira";
   var ETIQUETAS_DE_DINHEIRO = ["Financeiro", "Precificação", "Cobrança & Inadimplência"];
   var SINAIS_DE_DINHEIRO = ["dinheiro", "preço", "cobran", "lucro", "extrato", "pagar", "receber", "imposto", "custo", "desconto", "pró-labore", "orçamento", "inadimpl", "margem", "caixa", "conta ", "contas", "parcel", "boleto", "reais"];
-  var ETIQUETAS = [
-    { nome: "POV", cor: "#7a3b8f" },
-    { nome: "TDAH", cor: "#1f7a6b" },
-    { nome: "Claude", cor: "#c14b21" },
-    { nome: "Empresa", cor: "#1c3f8f" },
-    { nome: "Mentalidade", cor: "#b0343f" },
-    { nome: "Produtividade", cor: "#2f7d32" },
-    { nome: "Posicionamento", cor: "#8a6114" },
-    { nome: "Joana", cor: "#9c3773" },
-    { nome: "Lista", cor: "#6b4a2b" }
-  ];
-  var ETIQUETAS_ROTEIRO = [
-    { nome: "Financeiro", cor: "#1c3f8f" },
-    { nome: "Cliente & Vendas", cor: "#0f7a8c" },
-    { nome: "Precificação", cor: "#2f7d32" },
-    { nome: "Marketing", cor: "#7a3b8f" },
-    { nome: "Cobrança & Inadimplência", cor: "#b0343f" },
-    { nome: "RH", cor: "#6b7a1f" },
-    { nome: "Produtividade", cor: "#8a6114" },
-    { nome: "Posicionamento", cor: "#1c2a44" },
-    { nome: "Minha história", cor: "#9c3773" },
-    { nome: "Mentalidade", cor: "#4b5563" },
-    { nome: "Claude", cor: "#c14b21" },
-    { nome: "POV", cor: "#7a3b8f" },
-    { nome: "TDAH", cor: "#1f7a6b" },
-    { nome: "Empresa", cor: "#1c3f8f" },
-    { nome: "Joana", cor: "#9c3773" },
-    { nome: "Lista", cor: "#6b4a2b" }
-  ];
+  // Uma cor só para cada etiqueta, a mesma nas ideias e nos roteiros.
+  var COR_ETIQUETA = {
+    "POV": "#7a3b8f", "TDAH": "#1f7a6b", "Claude": "#c14b21", "Empresa": "#1c3f8f",
+    "Mentalidade": "#b0343f", "Produtividade": "#2f7d32", "Posicionamento": "#8a6114",
+    "Joana": "#9c3773", "Lista": "#6b4a2b",
+    "Financeiro": "#0b6e99", "Cliente & Vendas": "#0f7a8c", "Precificação": "#4b5563",
+    "Marketing": "#c0266d", "Cobrança & Inadimplência": "#7f1d1d", "RH": "#6b7a1f",
+    "Minha história": "#4338a0"
+  };
+  function comCor(nomes) { return nomes.map(function (n) { return { nome: n, cor: COR_ETIQUETA[n] }; }); }
+  var ETIQUETAS = comCor(["POV", "TDAH", "Claude", "Empresa", "Mentalidade", "Produtividade", "Posicionamento", "Joana", "Lista"]);
+  var ETIQUETAS_ROTEIRO = comCor(["Financeiro", "Cliente & Vendas", "Precificação", "Marketing", "Cobrança & Inadimplência",
+    "RH", "Produtividade", "Posicionamento", "Minha história", "Mentalidade", "Claude", "POV", "TDAH", "Empresa", "Joana", "Lista"]);
   var LIMITE_IDEIA = 100;
   var LIMITE_IMPORTACAO = 300;
   var CHAVE_ABA = "caderno-roteiros-aba";
@@ -761,7 +745,7 @@
   var busca = "";
   var importando = false;
   var virandoId = null;   // ideia que está escolhendo o destino
-  var buscaTodos = "", filtroTodos = "", situacaoTodos = "";
+  var buscaTodos = "", filtroTodos = "", situacaoTodos = "", temaTodos = "";
   var familiaAberta = null, categoriaAberta = null;
   var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
   var filtroSituacao = "";
@@ -1321,6 +1305,7 @@
     if (situacaoTodos === "pronto") lista = lista.filter(function (r) { return r.pronto; });
     else if (situacaoTodos === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
     else if (situacaoTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
+    if (temaTodos) lista = lista.filter(function (r) { return temEtiqueta(r, temaTodos); });
     if (filtroTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
     else if (filtroTodos === "pronto") lista = lista.filter(function (r) { return r.pronto; });
     else if (filtroTodos === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
@@ -1370,11 +1355,12 @@
       '<div class="filtros" role="group" aria-label="Filtrar por tema">' +
       '<button type="button" class="rotulo rotulo-abre" id="abrir-tema" aria-expanded="' + abrirTema + '">' +
       '<span class="seta" aria-hidden="true">' + (abrirTema ? "▾" : "▸") + "</span> Tema" +
-      (!abrirTema && filtroTodos.indexOf("et:") === 0 ? " · " + esc(filtroTodos.slice(3)) : "") + "</button>" +
-      (abrirTema ? ETIQUETAS_ROTEIRO.map(function (et) {
+      (!abrirTema && temaTodos ? " · " + esc(temaTodos) : "") + "</button>" +
+      (abrirTema ? '<button type="button" class="filtro" data-tema-todos="" aria-pressed="' + (!temaTodos) + '">Todos os temas (' + total + ")</button>" +
+        ETIQUETAS_ROTEIRO.map(function (et) {
         var quantos = todosOsRoteiros().filter(function (r) { return temEtiqueta(r, et.nome); }).length;
-        return '<button type="button" class="filtro filtro-etiqueta" data-filtro="et:' + esc(et.nome) + '" aria-pressed="' +
-          (filtroTodos === "et:" + et.nome) + '" style="--cor: ' + et.cor + '">' + esc(et.nome) + " (" + quantos + ")</button>";
+        return '<button type="button" class="filtro filtro-etiqueta" data-tema-todos="' + esc(et.nome) + '" aria-pressed="' +
+          (temaTodos === et.nome) + '" style="--cor: ' + et.cor + '">' + esc(et.nome) + " (" + quantos + ")</button>";
       }).join("") : "") + "</div>";
     var escolhidos = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; }).length;
     h += '<div class="barra-escolha"><span class="aviso">' +
@@ -2733,6 +2719,13 @@
     if (e.target.closest("#abrir-situacao")) {
       abrirSituacao = !abrirSituacao;
       gravarLocal(CHAVE_SITUACAO, abrirSituacao ? "1" : "0");
+      renderTodos();
+      return;
+    }
+    var btema = e.target.closest("[data-tema-todos]");
+    if (btema) {
+      var qual = btema.dataset.temaTodos;
+      temaTodos = qual === temaTodos ? "" : qual;
       renderTodos();
       return;
     }
