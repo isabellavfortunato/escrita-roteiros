@@ -418,6 +418,7 @@
   .btn-revisar[aria-pressed="true"] { background: var(--laranja); border-color: var(--laranja); color: #ffffff; }
   .btn-revisar[aria-pressed="true"]:hover { background: var(--laranja-hover); border-color: var(--laranja-hover); color: #ffffff; }
   .lista-wrap { max-width: 900px; }
+  .lista-wrap.todos-wrap { max-width: 1080px; }
   .busca-todos { max-width: 280px; }
   .filtros { display: flex; gap: 8px; flex-wrap: wrap; }
   .filtro {
@@ -1343,7 +1344,7 @@
     filtros.push(["pronto", "Pronto (" + prontosTodos + ")"]);
     filtros.push(["rascunho", "Rascunho (" + (total - prontosTodos) + ")"]);
     filtros.push(["revisar", "A revisar (" + revisar + ")"]);
-    var h = '<div class="ideias-wrap lista-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
+    var h = '<div class="ideias-wrap lista-wrap todos-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
       '<span class="aviso">' + total + " " + plural(total, "roteiro guardado", "roteiros guardados") + " · em ordem de título</span></div>" +
       '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '"></div>' +
       '<div class="filtros" role="group" aria-label="Filtrar por formato">' +
