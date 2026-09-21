@@ -742,6 +742,7 @@
   var CHAVE_ETIQUETAR = "caderno-abrir-etiquetar";
   var CHAVE_FORMATO = "caderno-abrir-formato";
   var CHAVE_TEMA = "caderno-abrir-tema";
+  var CHAVE_SITUACAO = "caderno-abrir-situacao";
   var CHAVE_ET_ROTEIRO = "caderno-abrir-etiquetas-roteiro";
   var CHAVE_ET_IDEIA = "caderno-abrir-etiquetas-ideia";
   var CHAVE_ET_GAVETA = "caderno-abrir-etiquetas-gaveta";
@@ -760,7 +761,7 @@
   var busca = "";
   var importando = false;
   var virandoId = null;   // ideia que está escolhendo o destino
-  var buscaTodos = "", filtroTodos = "";
+  var buscaTodos = "", filtroTodos = "", situacaoTodos = "";
   var familiaAberta = null, categoriaAberta = null;
   var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
   var filtroSituacao = "";
@@ -770,6 +771,7 @@
   var abrirEtiquetar = lerLocal(CHAVE_ETIQUETAR) === "1";
   var abrirFormato = lerLocal(CHAVE_FORMATO) === "1";
   var abrirTema = lerLocal(CHAVE_TEMA) === "1";
+  var abrirSituacao = lerLocal(CHAVE_SITUACAO) !== "0";
   var abrirEtiquetasRoteiro = lerLocal(CHAVE_ET_ROTEIRO) !== "0";
   var abrirEtiquetasIdeia = lerLocal(CHAVE_ET_IDEIA) !== "0";
   var abrirEtiquetasGaveta = lerLocal(CHAVE_ET_GAVETA) !== "0";
@@ -1315,6 +1317,10 @@
   }
   function visiveisDaLista() {
     var lista = todosOsRoteiros();
+    // a situação combina com o formato ou com o tema escolhido
+    if (situacaoTodos === "pronto") lista = lista.filter(function (r) { return r.pronto; });
+    else if (situacaoTodos === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
+    else if (situacaoTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
     if (filtroTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
     else if (filtroTodos === "pronto") lista = lista.filter(function (r) { return r.pronto; });
     else if (filtroTodos === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
@@ -1341,12 +1347,19 @@
     var revisar = todosOsRoteiros().filter(function (r) { return r.revisar; }).length;
     var filtros = [["", "Todos"]].concat(QUADRANTE.map(function (t) { return [t, TIPOS[t].nome]; }));
     var prontosTodos = todosOsRoteiros().filter(function (r) { return r.pronto; }).length;
-    filtros.push(["pronto", "Pronto (" + prontosTodos + ")"]);
-    filtros.push(["rascunho", "Rascunho (" + (total - prontosTodos) + ")"]);
-    filtros.push(["revisar", "A revisar (" + revisar + ")"]);
+    var situacoes = [["", "Todas (" + total + ")"], ["pronto", "Pronto (" + prontosTodos + ")"],
+      ["rascunho", "Não pronto (" + (total - prontosTodos) + ")"], ["revisar", "A revisar (" + revisar + ")"]];
+    var nomeSituacao = { pronto: "Pronto", rascunho: "Não pronto", revisar: "A revisar" };
     var h = '<div class="ideias-wrap lista-wrap todos-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
       '<span class="aviso">' + total + " " + plural(total, "roteiro guardado", "roteiros guardados") + " · em ordem de título</span></div>" +
       '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '"></div>' +
+      '<div class="filtros" role="group" aria-label="Filtrar por situação">' +
+      '<button type="button" class="rotulo rotulo-abre" id="abrir-situacao" aria-expanded="' + abrirSituacao + '">' +
+      '<span class="seta" aria-hidden="true">' + (abrirSituacao ? "▾" : "▸") + "</span> Situação" +
+      (!abrirSituacao && situacaoTodos ? " · " + nomeSituacao[situacaoTodos] : "") + "</button>" +
+      (abrirSituacao ? situacoes.map(function (f) {
+        return '<button type="button" class="filtro" data-situacao-todos="' + f[0] + '" aria-pressed="' + (situacaoTodos === f[0]) + '">' + f[1] + "</button>";
+      }).join("") : "") + "</div>" +
       '<div class="filtros" role="group" aria-label="Filtrar por formato">' +
       '<button type="button" class="rotulo rotulo-abre" id="abrir-formato" aria-expanded="' + abrirFormato + '">' +
       '<span class="seta" aria-hidden="true">' + (abrirFormato ? "▾" : "▸") + "</span> Formato" +
@@ -2717,6 +2730,14 @@
       renderTodos();
       return;
     }
+    if (e.target.closest("#abrir-situacao")) {
+      abrirSituacao = !abrirSituacao;
+      gravarLocal(CHAVE_SITUACAO, abrirSituacao ? "1" : "0");
+      renderTodos();
+      return;
+    }
+    var bsit = e.target.closest("[data-situacao-todos]");
+    if (bsit) { situacaoTodos = bsit.dataset.situacaoTodos; renderTodos(); return; }
     if (e.target.closest("#abrir-tema")) {
       abrirTema = !abrirTema;
       gravarLocal(CHAVE_TEMA, abrirTema ? "1" : "0");
