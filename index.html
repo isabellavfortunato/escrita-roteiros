@@ -712,7 +712,8 @@
     { nome: "Mentalidade", cor: "#b0343f" },
     { nome: "Produtividade", cor: "#2f7d32" },
     { nome: "Posicionamento", cor: "#8a6114" },
-    { nome: "Joana", cor: "#9c3773" }
+    { nome: "Joana", cor: "#9c3773" },
+    { nome: "Lista", cor: "#6b4a2b" }
   ];
   var ETIQUETAS_ROTEIRO = [
     { nome: "Financeiro", cor: "#1c3f8f" },
@@ -729,7 +730,8 @@
     { nome: "POV", cor: "#7a3b8f" },
     { nome: "TDAH", cor: "#1f7a6b" },
     { nome: "Empresa", cor: "#1c3f8f" },
-    { nome: "Joana", cor: "#9c3773" }
+    { nome: "Joana", cor: "#9c3773" },
+    { nome: "Lista", cor: "#6b4a2b" }
   ];
   var LIMITE_IDEIA = 100;
   var LIMITE_IMPORTACAO = 300;
@@ -2812,6 +2814,8 @@
     if (e.target.id === "confirmar-importar") { importarIdeias(); return; }
     if (e.target.id === "nova-ideia") {
       if (!carregouIdeias) return;
+      var anterior = ideiaAberta && ideias[ideiaAberta];
+      if (anterior && anterior._nova && !(anterior.texto || "").trim() && !(anterior.etiquetas || []).length) delete ideias[anterior.id];
       var agora = new Date().toISOString();
       var nova = { id: novoId(), texto: "", criado: agora, atualizado: agora, _nova: true };
       var topo = menorOrdem();
@@ -2947,6 +2951,33 @@
         b._t = setTimeout(function () { b.dataset.confirmar = ""; b.textContent = "Excluir roteiro"; }, 4000);
       }
     }
+  });
+  // Clicar fora da ideia aberta, ou apertar Esc, fecha a ideia e ela volta a ser uma linha como as outras.
+  function fecharIdeiaAberta() {
+    var id = ideiaAberta;
+    if (!id) return;
+    salvarIdeiasPendentes();
+    var i = ideias[id];
+    if (i && i._nova && !(i.texto || "").trim() && !(i.etiquetas || []).length) delete ideias[id];
+    ideiaAberta = null;
+    virandoId = null;
+    renderIdeias();
+  }
+  var cliqueFora = null;
+  document.addEventListener("click", function (e) {
+    cliqueFora = null;
+    if (abaAtual !== "ideias" || !ideiaAberta) return;
+    var dentro = e.target.closest && e.target.closest("article.ideia.aberta");
+    if (!dentro) cliqueFora = ideiaAberta;
+  }, true);
+  document.addEventListener("click", function () {
+    var antes = cliqueFora; cliqueFora = null;
+    // só fecha quando o próprio clique não abriu nem trocou de ideia
+    if (antes && ideiaAberta === antes && abaAtual === "ideias") fecharIdeiaAberta();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape" || abaAtual !== "ideias" || !ideiaAberta) return;
+    fecharIdeiaAberta();
   });
   window.addEventListener("resize", function () { document.querySelectorAll("#editor textarea.area").forEach(crescer); });
   document.addEventListener("visibilitychange", function () {
