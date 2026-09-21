@@ -333,7 +333,8 @@
   .ideia-data { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
   .ideia-data { flex: 0 0 46px; text-align: right; }
   .ideia-topo .contador { flex: 0 0 78px; text-align: right; }
-  .ideia .etiquetas-linha { flex: 0 0 150px; justify-content: flex-end; margin-left: auto; }
+  .ideia .etiquetas-linha { flex: 0 0 272px; justify-content: flex-start; margin-left: auto; }
+  .etiqueta-coluna { flex: 0 0 116px; width: 116px; box-sizing: border-box; text-align: center; overflow: hidden; text-overflow: ellipsis; }
   .etiqueta-mais {
     background: var(--creme); color: var(--navy-suave); border-radius: 999px;
     padding: 2px 8px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
@@ -348,6 +349,10 @@
     box-shadow: 0 8px 20px rgba(11, 18, 31, .12);
   }
   .etiquetas-lote { margin-bottom: 4px; }
+  .filtro-acao { border-style: dashed; color: var(--navy-suave); background: transparent; }
+  .filtro-acao:hover { border-style: solid; color: var(--navy); }
+  .lote-acoes { display: inline-flex; gap: 8px; margin-left: 6px; }
+  .lote-acoes .btn[disabled] { opacity: .4; cursor: default; }
   .etiquetas-lote .filtro-etiqueta[aria-pressed="true"], .filtros .filtro-etiqueta[aria-pressed="true"] { background: var(--cor); border-color: var(--cor); color: #ffffff; }
   .etiquetas-lote .filtro[disabled] { opacity: .4; cursor: default; }
   .ideia .marcar { padding: 0 2px 0 4px; flex: 0 0 auto; }
@@ -448,7 +453,7 @@
   .marcar input { width: 17px; height: 17px; accent-color: var(--navy); cursor: pointer; }
   .linha-abrir {
     flex: 1 1 auto; min-width: 0; background: transparent; border: 0;
-    display: grid; grid-template-columns: minmax(0, 1fr) 104px 84px 168px 148px; align-items: center; gap: 12px;
+    display: grid; grid-template-columns: minmax(0, 1fr) 104px 84px 272px 148px; align-items: center; gap: 12px;
     padding: 11px 14px; text-align: left; color: var(--navy);
   }
   .linha-num { flex: 0 0 34px; display: flex; align-items: center; justify-content: flex-end; font-size: 13px; font-weight: 600; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
@@ -460,7 +465,7 @@
     justify-self: start; background: var(--laranja); color: #ffffff; border-radius: 999px;
     padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
   }
-  .linha-abrir .etiquetas-linha { justify-content: flex-start; width: 168px; max-width: 168px; }
+  .linha-abrir .etiquetas-linha { justify-content: flex-start; width: 272px; max-width: 272px; }
   .etiquetas-roteiro { margin-left: 0; padding: 12px 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; }
   .item .etiquetas-linha { margin-top: 2px; max-width: 100%; flex-wrap: wrap; overflow: visible; }
   .filtros { align-items: center; }
@@ -710,8 +715,8 @@
   var COR_ETIQUETA = {
     "POV": "#7a3b8f", "TDAH": "#1f7a6b", "Claude": "#c14b21", "Empresa": "#1c3f8f",
     "Mentalidade": "#b0343f", "Produtividade": "#2f7d32", "Posicionamento": "#8a6114",
-    "Joana": "#9c3773", "Lista": "#6b4a2b",
-    "Financeiro": "#0b6e99", "Cliente & Vendas": "#0f7a8c", "Precificação": "#4b5563",
+    "Joana": "#9c3773", "Lista": "#0b6e99",
+    "Financeiro": "#6b4a2b", "Cliente & Vendas": "#0f7a8c", "Precificação": "#4b5563",
     "Marketing": "#c0266d", "Cobrança & Inadimplência": "#7f1d1d", "RH": "#6b7a1f",
     "Minha história": "#4338a0"
   };
@@ -745,7 +750,7 @@
   var busca = "";
   var importando = false;
   var virandoId = null;   // ideia que está escolhendo o destino
-  var buscaTodos = "", filtroTodos = "", situacaoTodos = "", temaTodos = "";
+  var buscaTodos = "", filtroTodos = "", situacaoTodos = "", temasTodos = {}, loteMarcadas = {};
   var familiaAberta = null, categoriaAberta = null;
   var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
   var filtroSituacao = "";
@@ -1305,7 +1310,8 @@
     if (situacaoTodos === "pronto") lista = lista.filter(function (r) { return r.pronto; });
     else if (situacaoTodos === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
     else if (situacaoTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
-    if (temaTodos) lista = lista.filter(function (r) { return temEtiqueta(r, temaTodos); });
+    var temas = Object.keys(temasTodos);
+    if (temas.length) lista = lista.filter(function (r) { return temas.some(function (n) { return temEtiqueta(r, n); }); });
     if (filtroTodos === "revisar") lista = lista.filter(function (r) { return r.revisar; });
     else if (filtroTodos === "pronto") lista = lista.filter(function (r) { return r.pronto; });
     else if (filtroTodos === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
@@ -1355,12 +1361,12 @@
       '<div class="filtros" role="group" aria-label="Filtrar por tema">' +
       '<button type="button" class="rotulo rotulo-abre" id="abrir-tema" aria-expanded="' + abrirTema + '">' +
       '<span class="seta" aria-hidden="true">' + (abrirTema ? "▾" : "▸") + "</span> Tema" +
-      (!abrirTema && temaTodos ? " · " + esc(temaTodos) : "") + "</button>" +
-      (abrirTema ? '<button type="button" class="filtro" data-tema-todos="" aria-pressed="' + (!temaTodos) + '">Todos os temas (' + total + ")</button>" +
+      (!abrirTema && Object.keys(temasTodos).length ? " · " + esc(emOrdem(Object.keys(temasTodos), ETIQUETAS_ROTEIRO).join(", ")) : "") + "</button>" +
+      (abrirTema ? botoesTodasNenhuma("tema") +
         ETIQUETAS_ROTEIRO.map(function (et) {
         var quantos = todosOsRoteiros().filter(function (r) { return temEtiqueta(r, et.nome); }).length;
         return '<button type="button" class="filtro filtro-etiqueta" data-tema-todos="' + esc(et.nome) + '" aria-pressed="' +
-          (temaTodos === et.nome) + '" style="--cor: ' + et.cor + '">' + esc(et.nome) + " (" + quantos + ")</button>";
+          (!!temasTodos[et.nome]) + '" style="--cor: ' + et.cor + '">' + esc(et.nome) + " (" + quantos + ")</button>";
       }).join("") : "") + "</div>";
     var escolhidos = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; }).length;
     h += '<div class="barra-escolha"><span class="aviso">' +
@@ -1521,7 +1527,7 @@
         (usadas.length ? '<div class="filtros linha-mini linha-filtro">' +
           '<button type="button" class="rotulo rotulo-abre" id="abrir-etiquetas-gaveta" aria-expanded="' + abrirEtiquetasGaveta + '">' +
           '<span class="seta" aria-hidden="true">' + (abrirEtiquetasGaveta ? "▾" : "▸") + "</span> Etiquetas</button>" +
-          (abrirEtiquetasGaveta ? linhaEtiquetas : "") + "</div>" : "");
+          (abrirEtiquetasGaveta ? botoesTodasNenhuma("gaveta", true) + linhaEtiquetas : "") + "</div>" : "");
     }
     if (filtroSituacao === "pronto") lista = lista.filter(function (r) { return r.pronto; });
     else if (filtroSituacao === "rascunho") lista = lista.filter(function (r) { return !r.pronto; });
@@ -1635,7 +1641,7 @@
     h += "</section>";
     h += '<div class="escolher-etiquetas etiquetas-roteiro">' +
       cabecalhoEtiquetas("abrir-etiquetas-roteiro", abrirEtiquetasRoteiro, (r.etiquetas || []), corEtiquetaRoteiro) +
-      (abrirEtiquetasRoteiro ? ETIQUETAS_ROTEIRO.map(function (e) {
+      (abrirEtiquetasRoteiro ? botoesTodasNenhuma("roteiro") + ETIQUETAS_ROTEIRO.map(function (e) {
         var marcada = temEtiqueta(r, e.nome);
         return '<button type="button" class="etiqueta-botao' + (marcada ? " marcada" : "") +
           '" data-etiquetar-roteiro="' + esc(e.nome) + '" aria-pressed="' + marcada + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + "</button>";
@@ -2151,14 +2157,28 @@
     for (var i = 0; i < ETIQUETAS_ROTEIRO.length; i++) if (ETIQUETAS_ROTEIRO[i].nome === nome) return ETIQUETAS_ROTEIRO[i].cor;
     return "#6a7284";
   }
+  // Em todo grupo de etiquetas: Todas marca todas, Nenhuma desmarca todas e dá para marcar quantas quiser.
+  function botoesTodasNenhuma(grupo, mini) {
+    var c = "filtro filtro-acao" + (mini ? " filtro-mini" : "");
+    return '<button type="button" class="' + c + '" data-todas="' + esc(grupo) + '">Todas</button>' +
+      '<button type="button" class="' + c + '" data-nenhuma="' + esc(grupo) + '">Nenhuma</button>';
+  }
+  // Nas linhas das listas, cada etiqueta ocupa uma coluna de largura fixa, sempre na mesma ordem.
+  function emOrdem(nomes, vocab) {
+    return vocab.map(function (e) { return e.nome; }).filter(function (n) { return nomes.indexOf(n) !== -1; });
+  }
+  function pilulasEmColunas(nomes, cor) {
+    var mostrar = nomes.slice(0, 2);
+    var h = mostrar.map(function (n) {
+      return '<span class="etiqueta etiqueta-coluna" style="--cor: ' + cor(n) + '" title="' + esc(n) + '">' + esc(n) + "</span>";
+    }).join("");
+    if (nomes.length > 2) h += '<span class="etiqueta-mais" title="' + esc(nomes.join(", ")) + '">+' + (nomes.length - 2) + "</span>";
+    return h;
+  }
   function pilulasDoRoteiro(r) {
-    var lista = (r.etiquetas || []).filter(function (n) {
-      return ETIQUETAS_ROTEIRO.some(function (e) { return e.nome === n; });
-    });
+    var lista = emOrdem(r.etiquetas || [], ETIQUETAS_ROTEIRO);
     if (!lista.length) return "";
-    return '<span class="etiquetas-linha">' + lista.map(function (n) {
-      return '<span class="etiqueta" style="--cor: ' + corEtiquetaRoteiro(n) + '">' + esc(n) + "</span>";
-    }).join("") + "</span>";
+    return '<span class="etiquetas-linha">' + pilulasEmColunas(lista, corEtiquetaRoteiro) + "</span>";
   }
   function corEtiqueta(nome) {
     for (var i = 0; i < ETIQUETAS.length; i++) if (ETIQUETAS[i].nome === nome) return ETIQUETAS[i].cor;
@@ -2251,7 +2271,7 @@
         '<button type="button" class="rotulo rotulo-abre" id="abrir-filtros" aria-expanded="' + abrirFiltros + '">' +
         '<span class="seta" aria-hidden="true">' + (abrirFiltros ? "▾" : "▸") + "</span> Filtrar" + esc(resumoDoFiltro()) + "</button>" +
         (abrirFiltros
-          ? '<button type="button" class="filtro" data-etiqueta="" aria-pressed="' + (!haFiltroDeIdeias()) + '">Todas (' + todas.length + ")</button>" +
+          ? botoesTodasNenhuma("filtro-ideias") +
             ETIQUETAS.map(function (e) {
               var n = todas.filter(function (i) { return temEtiqueta(i, e.nome); }).length;
               return botaoDeFiltro(e.nome, esc(e.nome) + " (" + n + ")", filtroEtiqueta[e.nome] || "", ' style="--cor: ' + e.cor + '"', "filtro-etiqueta");
@@ -2271,11 +2291,13 @@
         '<div class="filtros etiquetas-lote">' +
         '<button type="button" class="rotulo rotulo-abre" id="abrir-etiquetar" aria-expanded="' + abrirEtiquetar + '">' +
         '<span class="seta" aria-hidden="true">' + (abrirEtiquetar ? "▾" : "▸") + "</span> Etiquetar as escolhidas</button>" +
-        (abrirEtiquetar ? ETIQUETAS.map(function (e) {
-          var todasTem = escolhidas.length > 0 && escolhidas.every(function (i) { return temEtiqueta(i, e.nome); });
-          return '<button type="button" class="filtro filtro-etiqueta" data-lote="' + esc(e.nome) + '"' + (escolhidas.length ? "" : " disabled") +
-            ' aria-pressed="' + todasTem + '" style="--cor: ' + e.cor + '">' + (todasTem ? "Tirar " : "") + esc(e.nome) + "</button>";
-        }).join("") : "") + "</div></div>";
+        (abrirEtiquetar ? botoesTodasNenhuma("lote") + ETIQUETAS.map(function (e) {
+          return '<button type="button" class="filtro filtro-etiqueta" data-lote="' + esc(e.nome) + '"' +
+            ' aria-pressed="' + (!!loteMarcadas[e.nome]) + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + "</button>";
+        }).join("") +
+          '<span class="lote-acoes"><button type="button" class="btn btn-mini" id="lote-por"' + (escolhidas.length && Object.keys(loteMarcadas).length ? "" : " disabled") + ">Pôr nas escolhidas</button>" +
+          '<button type="button" class="btn btn-mini" id="lote-tirar"' + (escolhidas.length && Object.keys(loteMarcadas).length ? "" : " disabled") + ">Tirar das escolhidas</button></span>"
+          : "") + "</div></div>";
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
       if (!lista.length) h += '<p class="aviso">' + (verArquivadas
         ? "Nenhuma ideia no arquivo ainda."
@@ -2287,11 +2309,8 @@
         var escolhendo = virandoId === i.id;
         var tag = i.virou ? '<span class="tag-virou">virou roteiro de ' + esc(TIPOS[i.virou] ? TIPOS[i.virou].nome : i.virou) + "</span>" : "";
         var resumo = (i.texto || "").trim().replace(/\s+/g, " ");
-        var etiquetasDela = i.etiquetas || [];
-        var pilulas = etiquetasDela.slice(0, 2).map(function (nome) {
-          return '<span class="etiqueta" style="--cor: ' + corEtiqueta(nome) + '">' + esc(nome) + "</span>";
-        }).join("");
-        if (etiquetasDela.length > 2) pilulas += '<span class="etiqueta-mais" title="' + esc(etiquetasDela.join(", ")) + '">+' + (etiquetasDela.length - 2) + "</span>";
+        var etiquetasDela = emOrdem(i.etiquetas || [], ETIQUETAS);
+        var pilulas = pilulasEmColunas(etiquetasDela, corEtiqueta);
         return '<article class="ideia' + (aberta ? " aberta" : "") + '" data-id="' + i.id + '">' +
           '<div class="ideia-topo">' +
           '<label class="marcar"><input type="checkbox" data-marcar-ideia="' + i.id + '"' + (ideiasMarcadas[i.id] ? " checked" : "") + ' aria-label="Escolher esta ideia"></label>' +
@@ -2299,7 +2318,7 @@
             : '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">⠿</span>') +
           '<button type="button" class="ideia-linha" data-abrir-ideia="' + i.id + '" aria-expanded="' + aberta + '">' +
           '<span class="ideia-resumo' + (resumo ? "" : " vazia") + '">' + (resumo ? esc(resumo) : "Ideia em branco") + "</span></button>" +
-          (pilulas ? '<span class="etiquetas-linha">' + pilulas + "</span>" : "") +
+          '<span class="etiquetas-linha">' + pilulas + "</span>" +
           tag +
           '<span class="ideia-data">' + dataCurta(i.criado) + "</span>" +
           '<span class="contador" id="ci-' + i.id + '"></span>' +
@@ -2315,7 +2334,7 @@
             '<button type="button" class="btn destino-cancelar">Cancelar</button></div>' : "") +
           (aberta ? '<div class="escolher-etiquetas">' +
             cabecalhoEtiquetas("abrir-etiquetas-ideia", abrirEtiquetasIdeia, (i.etiquetas || []), corEtiqueta) +
-            (abrirEtiquetasIdeia ? ETIQUETAS.map(function (e) {
+            (abrirEtiquetasIdeia ? botoesTodasNenhuma("ideia:" + i.id) + ETIQUETAS.map(function (e) {
               var marcada = temEtiqueta(i, e.nome);
               return '<button type="button" class="etiqueta-botao' + (marcada ? " marcada" : "") + '" data-etiquetar="' + i.id + '" data-nome="' + esc(e.nome) + '" aria-pressed="' + marcada + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + "</button>";
             }).join("") : "") + "</div>" : "") +
@@ -2454,18 +2473,19 @@
     });
   }
 
-  function etiquetarEmLote(nome) {
+  function etiquetarEmLote(nomes, tirar) {
     var escolhidas = ideiasFiltradas().filter(function (i) { return ideiasMarcadas[i.id]; });
-    if (!escolhidas.length || !arm) return;
-    var tirar = escolhidas.every(function (i) { return temEtiqueta(i, nome); });
+    if (!escolhidas.length || !nomes.length || !arm) return;
+    var nome = nomes.join(", ");
     escolhidas.forEach(function (i) {
       var atuais = i.etiquetas || [];
-      if (tirar) i.etiquetas = atuais.filter(function (x) { return x !== nome; });
-      else if (!temEtiqueta(i, nome)) i.etiquetas = atuais.concat([nome]);
+      if (tirar) i.etiquetas = atuais.filter(function (x) { return nomes.indexOf(x) === -1; });
+      else i.etiquetas = atuais.concat(nomes.filter(function (n) { return atuais.indexOf(n) === -1; }));
       i.atualizado = new Date().toISOString();
       delete i._nova;
     });
     ideiasMarcadas = {};
+    loteMarcadas = {};
     renderIdeias();
     var a = arm, feitas = 0;
     mostrarEstado("salvando", (tirar ? "Tirando " : "Pondo ") + nome + " em " + escolhidas.length);
@@ -2519,6 +2539,17 @@
   });
   $("busca").addEventListener("input", function (e) { busca = e.target.value.trim(); renderLista(); });
   $("filtros-gaveta").addEventListener("click", function (e) {
+    var bg = e.target.closest("[data-todas], [data-nenhuma]");
+    if (bg) {
+      filtroEtiquetaRoteiro = {};
+      if (bg.dataset.todas != null) {
+        doTipo(abaAtual).forEach(function (r) {
+          (r.etiquetas || []).forEach(function (n) { if (corEtiquetaRoteiro(n) !== "#6a7284") filtroEtiquetaRoteiro[n] = "so"; });
+        });
+      }
+      renderLista();
+      return;
+    }
     if (e.target.closest("#abrir-etiquetas-gaveta")) {
       abrirEtiquetasGaveta = !abrirEtiquetasGaveta;
       gravarLocal(CHAVE_ET_GAVETA, abrirEtiquetasGaveta ? "1" : "0");
@@ -2580,6 +2611,33 @@
     return false;
   }
 
+  function todasOuNenhuma(grupo, todas) {
+    var nomesIdeia = ETIQUETAS.map(function (e) { return e.nome; });
+    var nomesRoteiro = ETIQUETAS_ROTEIRO.map(function (e) { return e.nome; });
+    if (grupo === "filtro-ideias") {
+      filtroEtiqueta = {}; filtroSem = "";
+      if (todas) nomesIdeia.forEach(function (n) { filtroEtiqueta[n] = "so"; });
+      renderIdeias();
+    } else if (grupo === "lote") {
+      loteMarcadas = {};
+      if (todas) nomesIdeia.forEach(function (n) { loteMarcadas[n] = true; });
+      renderIdeias();
+    } else if (grupo.indexOf("ideia:") === 0) {
+      var ideia = ideias[grupo.slice(6)]; if (!ideia) return;
+      ideia.etiquetas = todas ? nomesIdeia.slice() : [];
+      agendarIdeia(ideia);
+      renderIdeias();
+    } else if (grupo === "roteiro" && atual) {
+      atual.etiquetas = todas ? nomesRoteiro.slice() : [];
+      agendarSalvar();
+      renderEditor();
+      renderListaDepois();
+    } else if (grupo === "tema") {
+      temasTodos = {};
+      if (todas) nomesRoteiro.forEach(function (n) { temasTodos[n] = true; });
+      renderTodos();
+    }
+  }
   var ed = $("editor");
   ed.addEventListener("keydown", function (e) {
     if (e.key !== "Enter" || e.shiftKey || !atual) return;
@@ -2672,6 +2730,8 @@
     agendarSalvar();
   });
   ed.addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-todas], [data-nenhuma]");
+    if (btn) { todasOuNenhuma(btn.dataset.todas != null ? btn.dataset.todas : btn.dataset.nenhuma, btn.dataset.todas != null); return; }
     var ab = e.target.closest("[data-abrir]");
     if (ab) {
       var alvo = acervo[ab.dataset.abrir];
@@ -2725,7 +2785,7 @@
     var btema = e.target.closest("[data-tema-todos]");
     if (btema) {
       var qual = btema.dataset.temaTodos;
-      temaTodos = qual === temaTodos ? "" : qual;
+      if (temasTodos[qual]) delete temasTodos[qual]; else temasTodos[qual] = true;
       renderTodos();
       return;
     }
@@ -2783,7 +2843,15 @@
       return;
     }
     var bl = e.target.closest("[data-lote]");
-    if (bl) { etiquetarEmLote(bl.dataset.lote); return; }
+    if (bl) {
+      if (loteMarcadas[bl.dataset.lote]) delete loteMarcadas[bl.dataset.lote]; else loteMarcadas[bl.dataset.lote] = true;
+      renderIdeias();
+      return;
+    }
+    if (e.target.id === "lote-por" || e.target.id === "lote-tirar") {
+      etiquetarEmLote(emOrdem(Object.keys(loteMarcadas), ETIQUETAS), e.target.id === "lote-tirar");
+      return;
+    }
     var be = e.target.closest("[data-etiquetar]");
     if (be) {
       var alvoIdeia = ideias[be.dataset.etiquetar];
