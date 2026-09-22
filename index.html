@@ -2132,6 +2132,7 @@
       }).join("") + "</div>";
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
       '<button class="btn" id="baixar-docx" type="button">Baixar em docx</button>' +
+      '<button class="btn" id="duplicar-roteiro" type="button" title="Cria uma cópia deste roteiro para você mudar sem perder o original">Duplicar</button>' +
       '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.pronto ? "true" : "false") + '">' + (r.pronto ? "Pronto para publicar" : "Publicar") + "</button>" +
       '<button class="btn btn-revisar" id="marcar-revisar" type="button" aria-pressed="' + (r.revisar ? "true" : "false") + '">A revisar</button>' +
       '<button class="btn btn-perigo" id="excluir" type="button">Excluir roteiro</button></div>';
@@ -2794,6 +2795,7 @@
           '<span class="contador" id="ci-' + i.id + '"></span>' +
           (aberta
             ? '<button type="button" class="virar" data-virar="' + i.id + '">Virar roteiro</button>' +
+              '<button type="button" class="apagar" data-duplicar-ideia="' + i.id + '">Duplicar</button>' +
               '<button type="button" class="apagar" data-arquivar="' + i.id + '">' + (i.arquivada ? "Desarquivar" : "Arquivar") + "</button>" +
               '<button type="button" class="apagar" data-apagar-ideia="' + i.id + '" aria-label="Apagar a ideia">Apagar</button>'
             : "") + "</div>" +
@@ -2890,6 +2892,38 @@
       else mostrarEstado("salvo", feitas + " " + plural(feitas, "ideia importada", "ideias importadas") + (repetidas ? ", " + repetidas + " " + plural(repetidas, "já estava na lista", "já estavam na lista") : ""));
       renderIdeias();
     });
+  }
+  // Duplicar: a cópia nasce como rascunho, com o mesmo texto e as mesmas etiquetas.
+  function duplicarIdeia(ideia) {
+    var agora = new Date().toISOString();
+    var nova = {
+      id: novoId(), texto: ideia.texto || "", etiquetas: (ideia.etiquetas || []).slice(),
+      criado: agora, atualizado: agora
+    };
+    if (typeof ideia.ordem === "number") nova.ordem = ideia.ordem + 0.001;
+    ideias[nova.id] = nova;
+    ideiaAberta = nova.id;
+    virandoId = null;
+    if (arm) arm.salvar("ideias", nova.id, limpo(nova)).then(avisarSalvo)
+      .catch(function () { mostrarEstado("erro", "Não foi possível duplicar a ideia. Confira a conexão."); });
+    renderIdeias();
+    mostrarEstado("salvando", "Ideia duplicada");
+  }
+  function duplicarRoteiro(r) {
+    var copia = normalizar(clonar(limpo(r)));
+    copia.id = novoId();
+    copia.titulo = (r.titulo || "Sem título") + " (cópia)";
+    copia.criado = copia.atualizado = new Date().toISOString();
+    delete copia.pronto; delete copia.aPublicar; delete copia.dataPublicacao;
+    delete copia.tituloPublicacao; delete copia.revisar; delete copia.corRoupa;
+    (copia.blocos || []).forEach(function (b) { b.id = novoId(); });
+    (copia.telas || []).forEach(function (t) { t.id = novoId(); });
+    acervo[copia.id] = copia;
+    if (arm) arm.salvar("roteiros", copia.id, limpo(copia)).then(avisarSalvo)
+      .catch(function () { mostrarEstado("erro", "Não foi possível duplicar o roteiro. Confira a conexão."); });
+    abrir(copia);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    mostrarEstado("salvando", "Cópia criada. Mude o que quiser sem mexer no original.");
   }
   function virarRoteiro(ideia, tipo) {
     var texto = (ideia.texto || "").trim();
@@ -3446,6 +3480,12 @@
       renderIdeias();
       return;
     }
+    var bdi = e.target.closest("[data-duplicar-ideia]");
+    if (bdi) {
+      var origemIdeia = ideias[bdi.dataset.duplicarIdeia];
+      if (origemIdeia) duplicarIdeia(origemIdeia);
+      return;
+    }
     var bv = e.target.closest("[data-virar]");
     if (bv) { virandoId = virandoId === bv.dataset.virar ? null : bv.dataset.virar; renderIdeias(); return; }
     if (e.target.classList.contains("destino-cancelar")) { virandoId = null; renderIdeias(); return; }
@@ -3587,6 +3627,7 @@
       mostrarEstado("salvando", "Legenda montada com as frases do roteiro");
       return;
     }
+    if (e.target.id === "duplicar-roteiro") { duplicarRoteiro(atual); return; }
     if (e.target.id === "baixar-docx") { baixarDocx([atual]); return; }
     if (e.target.id === "copiar") { copiar(); return; }
     if (e.target.id === "excluir") {
