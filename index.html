@@ -243,6 +243,23 @@
   .entrada::placeholder, .area::placeholder { color: var(--navy-fraco); font-style: italic; }
   .entrada:focus-visible, .area:focus-visible { outline: none; border-color: var(--navy); box-shadow: 0 0 0 1px var(--navy); }
   .area { resize: none; overflow: hidden; min-height: 84px; }
+  .area-rica { white-space: pre-wrap; overflow-wrap: anywhere; cursor: text; outline: none; }
+  .area-rica:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(28, 42, 68, .12); }
+  .area-rica:empty::before { content: attr(data-placeholder); color: var(--navy-fraco); font-style: italic; pointer-events: none; }
+  .area-rica s { text-decoration-thickness: 1.5px; }
+  .formatar {
+    position: sticky; top: 8px; z-index: 5; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    padding: 6px 8px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(11, 18, 31, .06);
+  }
+  .fmt {
+    min-width: 34px; height: 32px; padding: 0 10px; border: 1px solid var(--linha); border-radius: 7px;
+    background: transparent; font: inherit; font-size: 15px; color: var(--navy); cursor: pointer;
+  }
+  .fmt:hover { border-color: var(--navy); background: var(--creme); }
+  .fmt-lista { font-size: 13.5px; font-weight: 600; }
+  .fmt-dica { margin-left: 6px; font-size: 12.5px; }
+  @media (max-width: 700px) { .fmt-dica { display: none; } }
 
   /* Blocos do vídeo */
   .blocos { display: flex; flex-direction: column; gap: 12px; }
@@ -1194,9 +1211,148 @@
     r.atualizado = new Date().toISOString();
     return true;
   }
+  /* ---------- Texto com negrito, itálico, sublinhado e riscado ----------
+     Guardado como texto simples com marcas: **negrito**, *itálico*, ++sublinhado++, ~~riscado~~.
+     A barra invertida protege um sinal que é só sinal. O que conta palavras ignora as marcas. */
+  var MARCAS = [["**", "b"], ["++", "u"], ["~~", "s"], ["*", "i"]];
+  function lerMarcas(t) {
+    t = String(t || "");
+    var partes = [], st = { b: false, i: false, u: false, s: false }, buf = "";
+    function fechar() { if (buf) partes.push({ t: buf, b: st.b, i: st.i, u: st.u, s: st.s }); buf = ""; }
+    for (var k = 0; k < t.length; k++) {
+      var ch = t[k];
+      if (ch === "\\" && k + 1 < t.length) { buf += t[k + 1]; k++; continue; }
+      var achou = null;
+      for (var m = 0; m < MARCAS.length; m++) if (t.substr(k, MARCAS[m][0].length) === MARCAS[m][0]) { achou = MARCAS[m]; break; }
+      if (achou) { fechar(); st[achou[1]] = !st[achou[1]]; k += achou[0].length - 1; continue; }
+      buf += ch;
+    }
+    fechar();
+    return partes;
+  }
+  function semMarcas(t) { return lerMarcas(t).map(function (p) { return p.t; }).join(""); }
+  function temMarcas(t) { return /\*|\+\+|~~|\\/.test(String(t || "")); }
+  function marcasParaHtml(t) {
+    var h = lerMarcas(t).map(function (p) {
+      var x = esc(p.t).replace(/\n/g, "<br>");
+      if (p.s) x = "<s>" + x + "</s>";
+      if (p.u) x = "<u>" + x + "</u>";
+      if (p.i) x = "<i>" + x + "</i>";
+      if (p.b) x = "<b>" + x + "</b>";
+      return x;
+    }).join("");
+    if (/\n$/.test(String(t || ""))) h += "<br>";
+    return h;
+  }
+  function protegerSinais(x) { return x.replace(/\\/g, "\\\\").replace(/\*/g, "\\*").replace(/\+(?=\+)|(?<=\+)\+/g, "\\+").replace(/~(?=~)|(?<=~)~/g, "\\~"); }
+  function partesDoHtml(raiz) {
+    var partes = [];
+    function por(txt, st) { if (txt) partes.push({ t: txt, b: st.b, i: st.i, u: st.u, s: st.s }); }
+    function andar(no, st) {
+      for (var c = no.firstChild; c; c = c.nextSibling) {
+        if (c.nodeType === 3) { por(c.nodeValue.replace(/\u00a0/g, " "), st); continue; }
+        if (c.nodeType !== 1) continue;
+        var tag = c.tagName, n = { b: st.b, i: st.i, u: st.u, s: st.s };
+        if (tag === "BR") { por("\n", st); continue; }
+        if (tag === "B" || tag === "STRONG") n.b = true;
+        if (tag === "I" || tag === "EM") n.i = true;
+        if (tag === "U" || tag === "INS") n.u = true;
+        if (tag === "S" || tag === "STRIKE" || tag === "DEL") n.s = true;
+        var est = c.style || {};
+        if (/bold|[6-9]00/.test(est.fontWeight || "")) n.b = true;
+        if (est.fontStyle === "italic") n.i = true;
+        var dec = (est.textDecoration || "") + " " + (est.textDecorationLine || "");
+        if (/underline/.test(dec)) n.u = true;
+        if (/line-through/.test(dec)) n.s = true;
+        var bloco = tag === "DIV" || tag === "P" || tag === "LI";
+        if (bloco && partes.length && !/\n$/.test(partes[partes.length - 1].t)) por("\n", st);
+        andar(c, n);
+      }
+    }
+    andar(raiz, { b: false, i: false, u: false, s: false });
+    return partes;
+  }
+  function partesParaMarcas(partes) {
+    var saida = "", st = { b: false, i: false, u: false, s: false };
+    partes.forEach(function (p) {
+      [["b", "**"], ["i", "*"], ["u", "++"], ["s", "~~"]].forEach(function (f) {
+        if (!!p[f[0]] !== st[f[0]]) { saida += f[1]; st[f[0]] = !!p[f[0]]; }
+      });
+      saida += protegerSinais(p.t);
+    });
+    [["b", "**"], ["i", "*"], ["u", "++"], ["s", "~~"]].forEach(function (f) { if (st[f[0]]) saida += f[1]; });
+    return saida;
+  }
+  function htmlParaMarcas(el) {
+    var t = partesParaMarcas(partesDoHtml(el));
+    // o navegador deixa um <br> sobrando no fim de quem termina em quebra de linha
+    if (el.lastChild && el.lastChild.nodeName === "BR") t = t.replace(/\n((?:\*\*|\*|\+\+|~~)*)$/, "$1");
+    return t;
+  }
+  function campoRico(id, attrs, placeholder) {
+    return '<div class="area area-rica" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" id="' + id + '" ' + attrs +
+      ' data-placeholder="' + esc(placeholder) + '"></div>';
+  }
+  function preencherRico(el, texto) { if (el) el.innerHTML = marcasParaHtml(texto || ""); }
+  function barraDeFormato() {
+    return '<div class="formatar" role="toolbar" aria-label="Formatar o texto">' +
+      '<button type="button" class="fmt" data-formatar="bold" title="Negrito (Cmd ou Ctrl + B)"><b>N</b></button>' +
+      '<button type="button" class="fmt" data-formatar="italic" title="Itálico (Cmd ou Ctrl + I)"><i>I</i></button>' +
+      '<button type="button" class="fmt" data-formatar="underline" title="Sublinhado (Cmd ou Ctrl + U)"><u>S</u></button>' +
+      '<button type="button" class="fmt" data-formatar="strikeThrough" title="Riscado (Cmd ou Ctrl + Shift + X)"><s>R</s></button>' +
+      '<button type="button" class="fmt fmt-lista" data-formatar="lista" title="Tópicos: põe ou tira o marcador das linhas escolhidas">• Tópicos</button>' +
+      "</div>";
+  }
+  function textoAteCursor(el) {
+    var sel = window.getSelection();
+    if (!sel.rangeCount) return "";
+    var r = document.createRange();
+    r.selectNodeContents(el);
+    r.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
+    var caixa = document.createElement("div");
+    caixa.appendChild(r.cloneContents());
+    return semMarcas(partesParaMarcas(partesDoHtml(caixa)));
+  }
+  function linhasEscolhidas(el) {
+    var sel = window.getSelection();
+    if (!sel.rangeCount) return null;
+    var inicio = textoAteCursor(el).split("\n").length - 1;
+    var r = document.createRange();
+    r.selectNodeContents(el);
+    r.setEnd(sel.getRangeAt(0).endContainer, sel.getRangeAt(0).endOffset);
+    var caixa = document.createElement("div");
+    caixa.appendChild(r.cloneContents());
+    var fim = semMarcas(partesParaMarcas(partesDoHtml(caixa))).split("\n").length - 1;
+    return [inicio, Math.max(inicio, fim)];
+  }
+  function cursorNoFim(el) {
+    var r = document.createRange(); r.selectNodeContents(el); r.collapse(false);
+    var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+  }
+  function alternarTopicos(el) {
+    var faixa = linhasEscolhidas(el) || [0, 0];
+    var linhas = htmlParaMarcas(el).split("\n");
+    var alvo = linhas.slice(faixa[0], faixa[1] + 1);
+    var todas = alvo.every(function (l) { return semMarcas(l).indexOf(MARCA_LISTA) === 0 || semMarcas(l).trim() === MARCA_LISTA.trim(); });
+    for (var k = faixa[0]; k <= faixa[1] && k < linhas.length; k++) {
+      if (todas) linhas[k] = linhas[k].replace(/^((?:\*\*|\*|\+\+|~~)*)• ?/, "$1");
+      else if (semMarcas(linhas[k]).indexOf(MARCA_LISTA) !== 0) linhas[k] = MARCA_LISTA + linhas[k];
+    }
+    preencherRico(el, linhas.join("\n"));
+    el.focus();
+    cursorNoFim(el);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
   /* ---------- Legenda montada com as frases do roteiro ---------- */
   function frasesDoTexto(txt) {
-    var limpo = String(txt || "").replace(/\s+/g, " ").trim();
+    // cada tópico vira uma frase, sem o marcador
+    var linhas = semMarcas(txt).split("\n").map(function (l) {
+      var t = l.trim();
+      if (t.indexOf(MARCA_LISTA.trim()) !== 0) return t;
+      t = t.slice(1).trim();
+      return t && !/[.!?:;]$/.test(t) ? t + "." : t;
+    });
+    var limpo = linhas.join("\n").replace(/\s+/g, " ").trim();
     if (!limpo) return [];
     var achadas = limpo.match(/[^.!?]+[.!?]*/g) || [];
     return achadas.map(function (f) { return f.trim(); }).filter(Boolean);
@@ -1866,6 +2022,7 @@
 
       h += '<div class="campo"><div class="campo-topo"><label for="textoTela">' + (c.blocos === "youtube" ? "Thumbnail" : "Texto na tela") + '</label><span class="contador" id="c-textoTela"></span></div>' +
         '<input class="entrada" id="textoTela" type="text" placeholder="' + (c.blocos === "youtube" ? "Até 6 palavras em caixa alta" : "A afirmação que aparece escrita junto com o gancho") + '" value="' + esc(r.textoTela) + '"></div>';
+      h += barraDeFormato();
       h += '<section class="blocos" id="blocos" aria-label="Blocos do roteiro"></section>';
       h += '<div class="acrescentar"><label for="novo-bloco">Acrescentar bloco</label>' +
         '<select class="caixa" id="novo-bloco">' + BLOCOS.filter(function (b) {
@@ -1875,6 +2032,7 @@
       h += campoDaLegenda(r, c);
     } else {
       h += '<section class="resumo"><span class="aviso" id="t-resumo"></span><button class="btn" id="add-tela" type="button">Adicionar tela</button></section>';
+      h += barraDeFormato();
       h += '<section class="telas" id="telas"></section>';
       if (c.legenda) h += campoDaLegenda(r, c);
     }
@@ -1916,10 +2074,10 @@
 
         '<button type="button" class="apagar" data-apagar="' + i + '" aria-label="Apagar o bloco ' + def.nome + '">Apagar</button></div>' +
         (b.tipo === "gancho" ? seletorGanchoHtml(b) : "") +
-        '<textarea class="area" id="bx-' + b.id + '" data-bloco="' + i + '" aria-labelledby="bn-' + b.id + '" placeholder="Escreva aqui"></textarea>' +
+        campoRico("bx-" + b.id, 'data-bloco="' + i + '" aria-labelledby="bn-' + b.id + '"', "Escreva aqui") +
         "</article>";
     }).join("");
-    r.blocos.forEach(function (b) { var t = $("bx-" + b.id); t.value = b.texto || ""; crescer(t); });
+    r.blocos.forEach(function (b) { preencherRico($("bx-" + b.id), b.texto); });
     ligarArrasto(el, ".bloco", function (ids) {
       var antes = r.blocos.map(function (b) { return b.id; }).join(",");
       if (antes === ids.join(",")) return;
@@ -1965,16 +2123,16 @@
           ? '<label class="sub" for="ds-' + t.id + '">Pergunta recebida</label>' +
             '<textarea class="area area-design" id="ds-' + t.id + '" data-tela="' + i + '" data-parte="design" placeholder="A pergunta como ela chegou, na letra de quem perguntou"></textarea>' +
             '<label class="sub" for="tx-' + t.id + '">Resposta</label>' +
-            '<textarea class="area" id="tx-' + t.id + '" data-tela="' + i + '" data-parte="texto" placeholder="Até ' + TIPOS[r.tipo].porTela + ' palavras, que é mais ou menos 15 segundos de fala"></textarea>'
+            campoRico("tx-" + t.id, 'data-tela="' + i + '" data-parte="texto"', "Até " + TIPOS[r.tipo].porTela + " palavras, que é mais ou menos 15 segundos de fala")
           : '<label class="sub" for="tx-' + t.id + '">Texto</label>' +
-            '<textarea class="area" id="tx-' + t.id + '" data-tela="' + i + '" data-parte="texto" placeholder="' + (fixa && i === 0 ? "A frase que para o dedo" : fixa ? "O que você quer que ela faça agora" : "Até " + TIPOS[r.tipo].porTela + " palavras") + '"></textarea>' +
+            campoRico("tx-" + t.id, 'data-tela="' + i + '" data-parte="texto"', fixa && i === 0 ? "A frase que para o dedo" : fixa ? "O que você quer que ela faça agora" : "Até " + TIPOS[r.tipo].porTela + " palavras") +
             '<label class="sub" for="ds-' + t.id + '">Design</label>' +
             '<textarea class="area area-design" id="ds-' + t.id + '" data-tela="' + i + '" data-parte="design" placeholder="Fundo, foto, cor, destaque, posição do texto"></textarea>') +
         "</article>";
     }).join("");
     r.telas.forEach(function (t) {
       var a = $("tx-" + t.id), d = $("ds-" + t.id);
-      a.value = t.texto || ""; d.value = t.design || ""; crescer(a); crescer(d);
+      preencherRico(a, t.texto); d.value = t.design || ""; crescer(d);
     });
     var add = $("add-tela");
     add.hidden = total >= TIPOS[r.tipo].telas;
@@ -2037,7 +2195,7 @@
     });
   }
 
-  function crescer(el) { el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; }
+  function crescer(el) { if (!el || el.tagName !== "TEXTAREA") return; el.style.height = "auto"; el.style.height = el.scrollHeight + 2 + "px"; }
 
   function marcarContador(el, n, limite) {
     if (!el) return;
@@ -2124,13 +2282,13 @@
         if (!(b.texto || "").trim()) return;
         var nomeB = (BLOCO[b.tipo] || BLOCO.livre).nome;
         if (b.tipo === "gancho" && b.gancho) nomeB += " (" + b.familia + ": " + b.gancho + (b.modelo ? " · " + b.modelo : "") + ")";
-        L.push(nomeB); L.push(b.texto.trim()); L.push("");
+        L.push(nomeB); L.push(semMarcas(b.texto).trim()); L.push("");
       });
       if (r.legenda) { L.push("Legenda"); L.push(r.legenda.trim()); }
     } else {
       r.telas.forEach(function (t, i) {
         L.push(nomeTela(r.tipo, i, r.telas.length));
-        L.push("Texto: " + (t.texto || "").trim());
+        L.push("Texto: " + semMarcas(t.texto).trim());
         L.push("Design: " + (t.design || "").trim());
         L.push("");
       });
@@ -2214,6 +2372,22 @@
       (op.negrito || op.titulo ? "<w:b/>" : "") + "</w:rPr>";
     return "<w:p>" + props + "<w:r>" + fonte + '<w:t xml:space="preserve">' + xml(texto) + "</w:t></w:r></w:p>";
   }
+  function runsFormatados(texto, tam) {
+    return lerMarcas(texto).map(function (p) {
+      var rpr = '<w:rPr><w:rFonts w:ascii="Cambria" w:hAnsi="Cambria"/>' + (p.b ? "<w:b/>" : "") + (p.i ? "<w:i/>" : "") +
+        (p.s ? "<w:strike/>" : "") + '<w:sz w:val="' + tam + '"/>' + (p.u ? '<w:u w:val="single"/>' : "") + "</w:rPr>";
+      return p.t.split("\n").map(function (pedaco, k) {
+        return "<w:r>" + rpr + (k ? "<w:br/>" : "") + '<w:t xml:space="preserve">' + xml(pedaco) + "</w:t></w:r>";
+      }).join("");
+    }).join("");
+  }
+  // Um parágrafo com negrito, itálico, sublinhado e riscado; os tópicos ganham recuo.
+  function paragrafoFormatado(texto, prefixo) {
+    var topico = semMarcas(texto).indexOf(MARCA_LISTA) === 0;
+    var recuo = topico ? '<w:ind w:left="360" w:hanging="360"/>' : "";
+    var props = '<w:pPr><w:spacing w:line="360" w:lineRule="auto" w:before="0" w:after="' + (topico ? 60 : 160) + '"/>' + recuo + "</w:pPr>";
+    return "<w:p>" + props + (prefixo ? runsFormatados(prefixo, 24) : "") + runsFormatados(texto, 24) + "</w:p>";
+  }
   function quebraDePagina() {
     return '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
   }
@@ -2232,7 +2406,7 @@
         var nome = (BLOCO[b.tipo] || BLOCO.livre).nome;
         if (b.tipo === "gancho" && b.gancho) nome += " (" + b.familia + ": " + b.gancho + (b.modelo ? " · " + b.modelo : "") + ")";
         partes.push(paragrafo(nome, { negrito: true }));
-        b.texto.trim().split(/\n+/).forEach(function (l) { if (l.trim()) partes.push(paragrafo(l.trim())); });
+        b.texto.trim().split(/\n+/).forEach(function (l) { if (semMarcas(l).trim()) partes.push(paragrafoFormatado(l.trim())); });
       });
       if (r.legenda) { partes.push(paragrafo("Legenda", { negrito: true })); partes.push(paragrafo(r.legenda.trim())); }
     } else {
@@ -2241,10 +2415,10 @@
         partes.push(paragrafo(nomeTela(r.tipo, i, r.telas.length) + (t.formato ? " · " + t.formato : ""), { negrito: true }));
         if (c.perguntas) {
           if ((t.design || "").trim()) partes.push(paragrafo("Pergunta: " + t.design.trim()));
-          if ((t.texto || "").trim()) partes.push(paragrafo("Resposta: " + t.texto.trim()));
+          if (semMarcas(t.texto).trim()) partes.push(paragrafoFormatado(t.texto.trim(), "Resposta: "));
           return;
         }
-        if ((t.texto || "").trim()) partes.push(paragrafo(t.texto.trim()));
+        if (semMarcas(t.texto).trim()) t.texto.trim().split(/\n+/).forEach(function (l) { if (semMarcas(l).trim()) partes.push(paragrafoFormatado(l.trim())); });
         if ((t.design || "").trim()) partes.push(paragrafo("Design: " + t.design.trim()));
       });
       if (r.legenda) { partes.push(paragrafo("Legenda", { negrito: true })); partes.push(paragrafo(r.legenda.trim())); }
@@ -2872,25 +3046,35 @@
     if ((acervo[id].dataPublicacao || "") === alvo.dataset.soltar) { renderTodos(); return; }
     marcarData(id, alvo.dataset.soltar);
   });
+  try { document.execCommand("styleWithCSS", false, false); } catch (erro) {}
   ed.addEventListener("keydown", function (e) {
-    if (e.key !== "Enter" || e.shiftKey || !atual) return;
     var el = e.target;
-    if (el.dataset == null || el.dataset.bloco == null) return;
-    var bloco = atual.blocos[+el.dataset.bloco];
-    if (!bloco || bloco.tipo !== "lista") return;
+    if (!atual || !el.isContentEditable || !el.classList.contains("area-rica")) return;
+    var cmd = e.metaKey || e.ctrlKey;
+    if (cmd && e.shiftKey && (e.key === "x" || e.key === "X")) { e.preventDefault(); document.execCommand("strikeThrough"); return; }
+    if (cmd && e.shiftKey && (e.key === "8" || e.key === "*")) { e.preventDefault(); alternarTopicos(el); return; }
+    if (e.key !== "Enter" || e.shiftKey) return;
     e.preventDefault();
-    var ini = el.selectionStart, fim = el.selectionEnd;
-    var antes = el.value.slice(0, ini), depois = el.value.slice(fim);
-    var linha = antes.slice(antes.lastIndexOf("\n") + 1);
+    var linha = textoAteCursor(el).split("\n").pop();
     if (linha.trim() === MARCA_LISTA.trim()) {
-      // item vazio: o Enter fecha a lista em vez de abrir outro marcador
-      el.value = antes.slice(0, antes.length - linha.length) + "\n" + depois;
-      el.selectionStart = el.selectionEnd = antes.length - linha.length + 1;
-    } else {
-      el.value = antes + "\n" + MARCA_LISTA + depois;
-      el.selectionStart = el.selectionEnd = ini + 1 + MARCA_LISTA.length;
-    }
-    el.dispatchEvent(new Event("input", { bubbles: true }));
+      // item vazio: o Enter fecha os tópicos em vez de abrir outro marcador
+      document.execCommand("delete"); document.execCommand("delete");
+      document.execCommand("insertLineBreak");
+    } else if (linha.indexOf(MARCA_LISTA) === 0) {
+      document.execCommand("insertLineBreak");
+      document.execCommand("insertText", false, MARCA_LISTA);
+    } else document.execCommand("insertLineBreak");
+  });
+  ed.addEventListener("paste", function (e) {
+    var el = e.target.closest && e.target.closest(".area-rica");
+    if (!el) return;
+    e.preventDefault();
+    var texto = (e.clipboardData || window.clipboardData).getData("text/plain") || "";
+    document.execCommand("insertText", false, texto.replace(/\r\n?/g, "\n"));
+  });
+  ed.addEventListener("mousedown", function (e) {
+    // a barra não pode tirar a seleção do texto
+    if (e.target.closest("[data-formatar]")) e.preventDefault();
   });
   ed.addEventListener("input", function (e) {
     var el = e.target;
@@ -2925,8 +3109,18 @@
     if (el.id === "titulo") atual.titulo = el.value;
     else if (el.id === "textoTela") atual.textoTela = el.value;
     else if (el.id === "legenda") { atual.legenda = el.value; crescer(el); }
-    else if (el.dataset.bloco != null) { atual.blocos[+el.dataset.bloco].texto = el.value; crescer(el); }
-    else if (el.dataset.tela != null && el.tagName !== "SELECT") { atual.telas[+el.dataset.tela][el.dataset.parte] = el.value; crescer(el); }
+    else if (el.dataset.bloco != null) {
+      var txb = htmlParaMarcas(el);
+      if (!semMarcas(txb).trim() && !el.textContent.trim()) { txb = ""; if (el.innerHTML && !el.querySelector("img")) el.innerHTML = ""; }
+      atual.blocos[+el.dataset.bloco].texto = txb;
+    }
+    else if (el.dataset.tela != null && el.tagName !== "SELECT") {
+      if (el.isContentEditable) {
+        var txt2 = htmlParaMarcas(el);
+        if (!el.textContent.trim()) { txt2 = ""; el.innerHTML = ""; }
+        atual.telas[+el.dataset.tela][el.dataset.parte] = txt2;
+      } else { atual.telas[+el.dataset.tela][el.dataset.parte] = el.value; crescer(el); }
+    }
     else return;
     atualizarMedidas();
     agendarSalvar();
@@ -2973,6 +3167,14 @@
     agendarSalvar();
   });
   ed.addEventListener("click", function (e) {
+    var bfmt = e.target.closest("[data-formatar]");
+    if (bfmt) {
+      var ativo = document.activeElement;
+      if (!ativo || !ativo.classList || !ativo.classList.contains("area-rica")) { mostrarEstado("erro", "Clique primeiro no texto que você quer formatar"); return; }
+      if (bfmt.dataset.formatar === "lista") alternarTopicos(ativo);
+      else document.execCommand(bfmt.dataset.formatar);
+      return;
+    }
     var btn = e.target.closest("[data-todas], [data-nenhuma]");
     if (btn) { todasOuNenhuma(btn.dataset.todas != null ? btn.dataset.todas : btn.dataset.nenhuma, btn.dataset.todas != null); return; }
     var ab = e.target.closest("[data-abrir]");
