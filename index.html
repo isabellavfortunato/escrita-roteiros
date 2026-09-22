@@ -252,6 +252,8 @@
     padding: 6px 8px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px;
     box-shadow: 0 4px 12px rgba(11, 18, 31, .06);
   }
+  .btn-claude { border-color: #c14b21; color: #c14b21; }
+  .btn-claude:hover { background: #c14b21; color: #ffffff; }
   .fmt {
     min-width: 34px; height: 32px; padding: 0 10px; border: 1px solid var(--linha); border-radius: 7px;
     background: transparent; font: inherit; font-size: 15px; color: var(--navy); cursor: pointer;
@@ -1472,6 +1474,93 @@
     return texto + "\n\n" + tags.join(" ");
   }
 
+  /* ---------- Legenda escrita pelo Claude (só onde o caderno roda dentro do Claude) ---------- */
+  var resumidor = null, resumindo = null;
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("sample").then(function (fn) {
+      resumidor = fn || null;
+      var b = $("resumir-legenda"); if (b) b.hidden = !resumidor;
+    }).catch(function () { resumidor = null; });
+  }
+  function textoCorridoDoRoteiro(r) {
+    var c = TIPOS[r.tipo], partes = [];
+    if (c.video) {
+      if (r.textoTela) partes.push("Texto na tela: " + r.textoTela.trim());
+      (r.blocos || []).forEach(function (b) {
+        var t = semMarcas(b.texto).trim();
+        if (t && b.tipo !== "yt-canal") partes.push((BLOCO[b.tipo] || BLOCO.livre).nome + ": " + t);
+      });
+    } else {
+      (r.telas || []).forEach(function (t, i) {
+        var x = semMarcas(t.texto).trim();
+        if (x) partes.push(nomeTela(r.tipo, i, r.telas.length) + ": " + x);
+      });
+    }
+    return partes.join("\n\n").slice(0, 20000);
+  }
+  function pedidoDeLegenda(r) {
+    var c = TIPOS[r.tipo], teto = c.tetoLegenda || LIMITE_LEGENDA;
+    return [
+      "Escreva a " + (c.rotuloLegenda ? "descrição de um vídeo do YouTube" : "legenda de um post do " + (c.nome === "TikTok" ? "TikTok" : "Instagram")) +
+        " a partir do roteiro abaixo, resumindo o roteiro inteiro, do começo ao fim, e não só o começo e o fim.",
+      "Quem escreve é a Isabella Fortunato, que empreende há 15 anos e fala com mulheres donas de negócio pequeno. Escreva na primeira pessoa, na voz dela, falando com a leitora na segunda pessoa.",
+      "Regras obrigatórias:",
+      "- No máximo " + teto + " palavras, com frases completas, sem nenhuma frase cortada no meio.",
+      "- Português brasileiro correto, com todos os acentos. Escreva para, está e para o, nunca pra, tá ou pro.",
+      "- Sem travessão, sem emoji, sem hashtag e sem vírgula antes de e ou de ou.",
+      "- Sem a construção não é isso, é aquilo, em nenhuma variante.",
+      "- Não use as palavras estratégia, fórmula, segredo, gargalo, faturamento, fluxo de caixa, processo, travar ou achismo.",
+      "- Números em algarismo, menos um, uma, uns e umas.",
+      "- Termine com uma pergunta simples para a leitora responder nos comentários. Se o roteiro já tiver uma pergunta no fim, use essa pergunta.",
+      "- Responda só com o texto da legenda, sem título, sem aspas e sem comentário antes ou depois.",
+      "",
+      "Título do roteiro: " + (r.titulo || "sem título"),
+      "",
+      "Roteiro:",
+      textoCorridoDoRoteiro(r)
+    ].join("\n");
+  }
+  function hashtagsDaLegenda(r, texto) {
+    var tags = HASHTAGS_FIXAS.slice();
+    if (temaDeDinheiro(r, texto)) tags.push(HASHTAG_DINHEIRO);
+    return tags.join(" ");
+  }
+  function resumirComClaude(botao) {
+    var campo = $("legenda");
+    if (!resumidor || !atual || !campo) return;
+    if (resumindo) { resumindo.abort(); return; }
+    if (!textoCorridoDoRoteiro(atual).trim()) { mostrarEstado("erro", "Escreva o roteiro antes de pedir a legenda"); return; }
+    if ((atual.legenda || "").trim() && !confirmarDuasVezes(botao, "Clique de novo para refazer", "Resumir com o Claude")) return;
+    botao.dataset.confirmar = ""; botao.style.borderColor = ""; botao.style.color = "";
+    var r = atual, antes = campo.value, ctl = new AbortController();
+    resumindo = ctl;
+    botao.textContent = "Parar";
+    campo.value = "O Claude está lendo o roteiro inteiro...";
+    crescer(campo);
+    resumidor(pedidoDeLegenda(r), {
+      signal: ctl.signal, cache: false,
+      onText: function (u) { if (atual === r) { campo.value = u.text; crescer(campo); } }
+    }).then(function (res) {
+      var texto = res.text.trim().replace(/\s*#\S+/g, "").trim();
+      var final = texto + "\n\n" + hashtagsDaLegenda(r, texto);
+      r.legenda = final;
+      if (atual === r) { campo.value = final; crescer(campo); atualizarMedidas(); agendarSalvar(); }
+      mostrarEstado("salvando", "Legenda escrita pelo Claude a partir do roteiro inteiro");
+    }).catch(function (e) {
+      if (atual === r) { campo.value = antes; crescer(campo); }
+      var code = e && e.code;
+      if (code === "cancelled") mostrarEstado("salvo", "Pedido de legenda cancelado");
+      else if (code === "not_granted" || code === "sampling_disabled" || code === "not_declared" || code === "capability_disabled" || code === "capability_removed") {
+        resumidor = null; botao.hidden = true;
+        mostrarEstado("erro", "O Claude não foi liberado para este caderno. Use Montar legenda.");
+      } else if (code === "rate_limited") mostrarEstado("erro", "Muitos pedidos seguidos. Espere um pouco e tente de novo.");
+      else mostrarEstado("erro", "O Claude não conseguiu escrever a legenda agora. Tente de novo daqui a pouco.");
+    }).then(function () {
+      resumindo = null;
+      if (botao.isConnected) botao.textContent = "Resumir com o Claude";
+    });
+  }
+
   function palavrasVideo(r) {
     if (Array.isArray(r.blocos)) return r.blocos.reduce(function (s, b) { return s + contar(b.texto); }, 0);
     return contar(r.corpo);
@@ -2055,6 +2144,7 @@
   function campoDaLegenda(r, c) {
     return '<div class="campo"><div class="campo-topo"><label for="legenda">' + (c.rotuloLegenda || "Legenda") + "</label>" +
         '<button type="button" class="btn btn-mini" id="montar-legenda" title="Monta a legenda com as frases do próprio roteiro e acrescenta as hashtags">Montar legenda</button>' +
+        '<button type="button" class="btn btn-mini btn-claude" id="resumir-legenda"' + (resumidor ? "" : " hidden") + ' title="O Claude lê o roteiro inteiro e escreve um resumo na sua voz, com as hashtags no fim">Resumir com o Claude</button>' +
         '<span class="contador" id="c-legenda"></span></div>' +
         '<textarea class="area" id="legenda" placeholder="Texto da legenda seguido das hashtags">' + esc(r.legenda) + "</textarea></div>";
   }
@@ -3482,6 +3572,7 @@
       renderEditor();
       return;
     }
+    if (e.target.id === "resumir-legenda") { resumirComClaude(e.target); return; }
     if (e.target.id === "montar-legenda") {
       var campoLegenda = $("legenda");
       var nova = montarLegenda(atual);
