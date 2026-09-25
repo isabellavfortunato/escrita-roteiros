@@ -773,7 +773,7 @@
     { tipo: "crenca", nome: "Crença", dica: "A ideia que fica depois que o vídeo acaba, dita em uma ou 2 frases. Precisa ser discutível, algo com que alguém possa discordar, nunca frase motivacional." },
     { tipo: "prova", nome: "Prova", dica: "Um exemplo só, o mais forte, com caso, número ou resultado, para sustentar a crença que acabou de ser dita." },
     { tipo: "lista", nome: "Lista", dica: "Os itens em tópicos, um por linha. Dentro deste bloco, cada Enter já abre um item novo." },
-    { tipo: "fechamento", nome: "Fechamento com pergunta", dica: "Retomada de uma palavra do gancho, a pergunta que pede resposta escrita e o resumo salvável na tela." },
+    { tipo: "fechamento", nome: "Fechamento", dica: "A retomada de uma palavra do gancho e a ideia que fica depois que o vídeo acaba, com o resumo salvável na tela. O pedido vem depois, no CTA." },
     { tipo: "cta", nome: "CTA", dica: "O pedido do fim, escolhido para aquele roteiro: a pergunta direta sobre o tema, o pedido de salvar, o de compartilhar ou a palavra a comentar." },
     { tipo: "livre", nome: "Bloco livre", dica: "Texto fora da estrutura, para o que não se encaixa nos outros blocos." },
     { tipo: "yt-gancho", nome: "Gancho hipnótico", casa: "youtube", dica: "A promessa do vídeo nos primeiros segundos, com os 4 elementos da introdução: empreendedorismo, organização, produtividade e inteligência artificial. O Claude é citado já aqui, no primeiro minuto." },
@@ -792,8 +792,10 @@
   var TELAS_GANCHOS = {"Dor nomeada": "A cena da dor, como o extrato aberto ou a mesa cheia", "Você também": "O gesto do dia a dia, filmado de perto", "POV": "A cena vista do ponto de vista dela, com a câmera na mão", "Com quantos anos você descobriu": "A frase na tela e você reagindo a ela", "Pergunta com lacuna": "A pergunta escrita na tela, sozinha", "Loop aberto": "A parte guardada aparecendo coberta ou desfocada na tela", "Informação retida": "Você com a mão perto da boca, como quem vai contar baixo", "O detalhe escondido": "A tela com um círculo aparecendo em cima do ponto que ninguém viu", "Revelação de bastidor": "A porta ou a tela se abrindo para o que normalmente não se mostra", "Inimigo comum": "A coisa acusada em destaque, com um círculo em volta", "Provocação direta": "Você olhando direto para a câmera, sem corte", "Erro que a pessoa comete": "A ação errada acontecendo, com uma marca em cima", "Dualidade": "A tela dividida em 2", "Antes e depois": "As 2 telas lado a lado", "Tipos de pessoas": "Cortes rápidos entre um tipo e outro", "Expectativa versus realidade": "As 2 cenas em sequência, na mesma posição de câmera", "Comparação e decisão": "As 2 opções lado a lado, com o critério escrito", "Como eu fiz": "O resultado antigo e o novo na mesma tela", "Parei de fazer": "A coisa sendo fechada, apagada ou jogada fora", "História": "A cena ou o objeto da história, antes de você aparecer", "Bastidores": "A mesa, a tela e a bagunça reais, sem arrumar antes", "Educativo": "A explicação começando a ser escrita", "Passo a passo": "Os passos numerados entrando um a um", "O subestimado": "Aproximação forte na coisa pequena", "Como eu faria": "A folha em branco onde você começa a escrever", "Números e dados": "O número grande sobre a planilha aberta", "Autoridade por associação": "A rotina de quem já resolveu, mostrada em vez de descrita", "Desafio": "O cronômetro ou o contador aparecendo", "Autoteste": "Os critérios entrando com caixa de marcar", "Na próxima vez que": "A cena exata do momento que se repete", "Custo da inação": "O contador somando sozinho na tela", "Recorte do público": "O número do recorte escrito grande", "Permissão": "Você dizendo a frase com a tela limpa atrás"};
   GANCHOS = FAMILIAS.map(function (f) { return { familia: f.nome, tipos: f.categorias }; });
   var BLOCO = {}; BLOCOS.forEach(function (b, i) { b.ordem = i; BLOCO[b.tipo] = b; });
-  var PADRAO_BLOCOS = ["gancho", "contexto", "desenvolvimento", "cta"];
+  var PADRAO_BLOCOS = ["gancho", "contexto", "desenvolvimento", "fechamento", "cta"];
   var PADRAO_YOUTUBE = BLOCOS.filter(function (b) { return b.casa === "youtube"; }).map(function (b) { return b.tipo; });
+  // no YouTube o fechamento entra antes do encerramento
+  PADRAO_YOUTUBE.splice(PADRAO_YOUTUBE.indexOf("yt-encerramento"), 0, "fechamento");
   function blocosDoTipo(tipo) { return TIPOS[tipo] && TIPOS[tipo].blocos === "youtube" ? PADRAO_YOUTUBE : PADRAO_BLOCOS; }
   function milhar(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
   var LIMITE_TEXTO_TELA = 9;
@@ -1123,7 +1125,7 @@
   var PARA_YOUTUBE = {
     gancho: "yt-gancho", contexto: "yt-caso", ponte: "yt-objecao", causa: "yt-objecao",
     desenvolvimento: "yt-ensino", solucao: "yt-ensino", chamada: "yt-laco", detalhe: "yt-final",
-    crenca: "yt-final", prova: "yt-final", fechamento: "yt-encerramento", cta: "yt-encerramento",
+    crenca: "yt-final", prova: "yt-final", fechamento: "fechamento", cta: "yt-encerramento",
     lista: "lista", livre: "livre"
   };
   var DO_YOUTUBE = {
@@ -2121,7 +2123,7 @@
       h += '<section class="blocos" id="blocos" aria-label="Blocos do roteiro"></section>';
       h += '<div class="acrescentar"><label for="novo-bloco">Acrescentar bloco</label>' +
         '<select class="caixa" id="novo-bloco">' + BLOCOS.filter(function (b) {
-          return b.tipo === "livre" || (c.blocos === "youtube" ? b.casa === "youtube" : b.casa !== "youtube");
+          return b.tipo === "livre" || b.tipo === "fechamento" || (c.blocos === "youtube" ? b.casa === "youtube" : b.casa !== "youtube");
         }).map(function (b) { return '<option value="' + b.tipo + '">' + b.nome + "</option>"; }).join("") + "</select>" +
         '<button class="btn" id="add-bloco" type="button">Acrescentar</button></div>';
       h += campoDaLegenda(r, c);
