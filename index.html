@@ -1824,7 +1824,8 @@
     var escolhidos = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; }).length;
     h += '<div class="barra-escolha"><span class="aviso">' +
       (escolhidos ? escolhidos + " " + plural(escolhidos, "roteiro escolhido", "roteiros escolhidos") : "Marque os roteiros para baixar ou para mudar a situação") + "</span>" +
-      '<button type="button" class="btn" id="marcar-todos">Marcar os da lista</button>' +
+      '<button type="button" class="btn" id="marcar-todos">' +
+        (lista.length && escolhidos >= lista.length ? "Desmarcar os " + lista.length : "Marcar os " + lista.length) + "</button>" +
       '<button type="button" class="btn" id="limpar-marcas"' + (escolhidos ? "" : " disabled") + ">Limpar</button>" +
       '<button type="button" class="btn btn-laranja" id="baixar-escolhidos"' + (escolhidos ? "" : " disabled") + ">Baixar em docx</button>" +
       '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
@@ -2763,7 +2764,8 @@
       h += '<div class="etiquetar-bloco' + (escolhidas.length ? " grudado" : "") + '">' +
         '<div class="barra-escolha barra-etiquetar"><span class="aviso">' +
         (escolhidas.length ? escolhidas.length + " " + plural(escolhidas.length, "escolhida", "escolhidas") : "") + "</span>" +
-        '<button type="button" class="btn" id="marcar-todas-ideias">Marcar as da lista</button>' +
+        '<button type="button" class="btn" id="marcar-todas-ideias">' +
+        (lista.length && escolhidas.length >= lista.length ? "Desmarcar as " + lista.length : "Marcar as " + lista.length) + "</button>" +
         '<button type="button" class="btn" id="limpar-ideias-marcadas"' + (escolhidas.length ? "" : " disabled") + ">Limpar</button>" +
         '<button type="button" class="btn" id="arquivar-escolhidas"' + (escolhidas.length ? "" : " disabled") + ">" +
         (verArquivadas ? "Desarquivar as escolhidas" : "Arquivar as escolhidas") + "</button></div>" +
@@ -3342,7 +3344,9 @@
       return;
     }
     if (e.target.id === "marcar-todos") {
-      visiveisDaLista().forEach(function (r) { marcados[r.id] = true; });
+      var naLista = visiveisDaLista();
+      var todosJa = naLista.length && naLista.every(function (r) { return marcados[r.id]; });
+      naLista.forEach(function (r) { if (todosJa) delete marcados[r.id]; else marcados[r.id] = true; });
       renderTodos();
       return;
     }
@@ -3403,7 +3407,9 @@
     var bf = e.target.closest("[data-filtro]");
     if (bf) { filtroTodos = bf.dataset.filtro; renderTodos(); return; }
     if (e.target.id === "marcar-todas-ideias") {
-      ideiasFiltradas().forEach(function (i) { ideiasMarcadas[i.id] = true; });
+      var naListaI = ideiasFiltradas();
+      var todasJa = naListaI.length && naListaI.every(function (i) { return ideiasMarcadas[i.id]; });
+      naListaI.forEach(function (i) { if (todasJa) delete ideiasMarcadas[i.id]; else ideiasMarcadas[i.id] = true; });
       renderIdeias();
       return;
     }
