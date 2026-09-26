@@ -1875,6 +1875,7 @@
         (lista.length && escolhidos >= lista.length ? "Desmarcar os " + lista.length : "Marcar os " + lista.length) + "</button>" +
       '<button type="button" class="btn" id="limpar-marcas"' + (escolhidos ? "" : " disabled") + ">Limpar</button>" +
       '<button type="button" class="btn btn-laranja" id="baixar-escolhidos"' + (escolhidos ? "" : " disabled") + ">Baixar em docx</button>" +
+      '<button type="button" class="btn" id="voltar-lote"' + (escolhidos ? "" : " disabled") + ' title="Devolve o assunto para as ideias e apaga os roteiros escolhidos">Voltar para ideias</button>' +
       '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
       [["rascunho", "Não pronto"], ["pronto", "Pronto"], ["publicar", "A publicar"]].map(function (f) {
         return '<button type="button" class="btn btn-mini" data-mudar-situacao="' + f[0] + '"' + (escolhidos ? "" : " disabled") + ">" + f[1] + "</button>";
@@ -2977,8 +2978,7 @@
     mostrarEstado("salvando", "Ideia duplicada");
   }
   // Desfaz o virar roteiro: o assunto volta para as ideias e o roteiro sai daqui.
-  function voltarParaIdeias(r) {
-    if (!arm) return;
+  function devolverIdeia(r) {
     var texto = (r.titulo || "").trim();
     var original = Object.keys(ideias).map(function (k) { return ideias[k]; })
       .filter(function (i) { return i.virou && (i.texto || "").trim() === texto; })[0];
@@ -2987,28 +2987,56 @@
       delete original.virou;
       original.atualizado = new Date().toISOString();
       salvarIdeia(original);
-    } else {
-      var agora = new Date().toISOString();
-      var nova = { id: novoId(), texto: texto || "Sem título", criado: agora, atualizado: agora };
-      var herdadas = (r.etiquetas || []).filter(function (n) {
-        return ETIQUETAS.some(function (e) { return e.nome === n; });
-      });
-      if (herdadas.length) nova.etiquetas = herdadas;
-      var topo = menorOrdem();
-      if (topo !== null) nova.ordem = topo - 1000;
-      ideias[nova.id] = nova;
-      arm.salvar("ideias", nova.id, limpo(nova)).catch(function () {
-        mostrarEstado("erro", "Não foi possível guardar a ideia. Confira a conexão.");
-      });
-      original = nova;
+      return original;
     }
-    excluirRoteiro(r);
-    ideiaAberta = original.id;
+    var agora = new Date().toISOString();
+    var nova = { id: novoId(), texto: texto || "Sem título", criado: agora, atualizado: agora };
+    var herdadas = (r.etiquetas || []).filter(function (n) {
+      return ETIQUETAS.some(function (e) { return e.nome === n; });
+    });
+    if (herdadas.length) nova.etiquetas = herdadas;
+    var topo = menorOrdem();
+    if (topo !== null) nova.ordem = topo - 1000;
+    ideias[nova.id] = nova;
+    arm.salvar("ideias", nova.id, limpo(nova)).catch(function () {
+      mostrarEstado("erro", "Não foi possível guardar a ideia. Confira a conexão.");
+    });
+    return nova;
+  }
+  function apagarSemAbrirOutro(r) {
+    if (pendente === r) { pendente = null; clearTimeout(timerSalvar); }
+    delete acervo[r.id];
+    if (atual && atual.id === r.id) atual = null;
+    arm.apagar("roteiros", r.id).catch(function () {
+      mostrarEstado("erro", "Não foi possível apagar o roteiro. Confira a conexão.");
+    });
+  }
+  function irParaIdeias(idAberta) {
+    ideiaAberta = idAberta || null;
     abaAtual = "ideias";
     gravarLocal(CHAVE_ABA, abaAtual);
     aplicarAba();
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  function voltarParaIdeias(r) {
+    if (!arm) return;
+    var ideia = devolverIdeia(r);
+    apagarSemAbrirOutro(r);
+    irParaIdeias(ideia.id);
     mostrarEstado("salvo", "O assunto voltou para as ideias");
+  }
+  function voltarEmLote(ids) {
+    if (!arm || !ids.length) return;
+    var ultima = null;
+    ids.forEach(function (id) {
+      var r = acervo[id];
+      if (!r) return;
+      ultima = devolverIdeia(r);
+      apagarSemAbrirOutro(r);
+    });
+    marcados = {};
+    irParaIdeias(ids.length === 1 && ultima ? ultima.id : null);
+    mostrarEstado("salvo", ids.length + " " + plural(ids.length, "roteiro voltou", "roteiros voltaram") + " para as ideias");
   }
   function duplicarRoteiro(r) {
     var copia = normalizar(clonar(limpo(r)));
@@ -3445,6 +3473,13 @@
       return;
     }
     if (e.target.id === "limpar-marcas") { marcados = {}; renderTodos(); return; }
+    if (e.target.id === "voltar-lote") {
+      var idsVolta = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; });
+      if (!idsVolta.length) return;
+      if (!confirmarDuasVezes(e.target, "Clique de novo: os roteiros somem", "Voltar para ideias")) return;
+      voltarEmLote(idsVolta);
+      return;
+    }
     var bms = e.target.closest("[data-mudar-situacao]");
     if (bms) {
       var ids = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; });
