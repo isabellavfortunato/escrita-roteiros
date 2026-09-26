@@ -78,6 +78,11 @@
     background: var(--papel); border-bottom: 1px solid var(--linha);
     padding: 16px 28px 18px; display: flex; flex-direction: column; gap: var(--vao);
   }
+  .nav-dupla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--vao); }
+  .nav-roteiros { background: var(--navy-medio); }
+  .nav-dupla .nav-ideias-nome b { font-size: 44px; }
+  .nav-dupla .nav-ideias-conta strong { font-size: 38px; }
+  .nav-dupla .nav-ideias { padding: 0 22px; }
   .nav-ideias {
     width: 100%; height: calc(var(--celula) * 2 + var(--vao));
     background: var(--navy); color: var(--creme); border: 0; border-radius: 12px;
@@ -656,7 +661,10 @@
     .medidor { margin-inline: -16px; padding-inline: 16px; }
     .topo { padding: 14px 16px 12px; }
     .abas { --celula: 54px; padding: 12px 16px 14px; }
+    .nav-dupla { grid-template-columns: minmax(0, 1fr); }
     .nav-ideias { padding: 0 20px; }
+    .nav-dupla .nav-ideias-nome b { font-size: 40px; }
+    .nav-dupla .nav-ideias-conta strong { font-size: 34px; }
     .nav-ideias-nome b { font-size: 46px; }
     .nav-ideias-conta strong { font-size: 40px; }
     .quad { padding: 0 14px; }
@@ -694,7 +702,6 @@
     </div>
     <div class="topo-dir">
       <button class="btn btn-todos" id="ver-familias" type="button" aria-pressed="false">Famílias</button>
-      <button class="btn btn-todos" id="ver-todos" type="button" aria-pressed="false">Todos os roteiros</button>
       <span class="estado" id="estado" data-s="neutro">Abrindo seus roteiros</span>
       <button class="btn btn-sair" id="sair" type="button" hidden>Sair</button>
     </div>
@@ -1895,9 +1902,13 @@
   }
 
   function renderAbas() {
-    var h = '<button class="nav-ideias" role="tab" id="aba-ideias" data-tipo="ideias" aria-selected="' + (abaAtual === "ideias") + '">' +
+    var h = '<div class="nav-dupla">' +
+      '<button class="nav-ideias" role="tab" id="aba-ideias" data-tipo="ideias" aria-selected="' + (abaAtual === "ideias") + '">' +
       '<span class="nav-ideias-nome"><b>Ideias<i>.</i></b><span class="sub">Até ' + LIMITE_IDEIA + ' palavras por ideia</span></span>' +
-      '<span class="nav-ideias-conta"><strong id="n-ideias"></strong><span id="n-ideias-rotulo"></span></span></button>';
+      '<span class="nav-ideias-conta"><strong id="n-ideias"></strong><span id="n-ideias-rotulo"></span></span></button>' +
+      '<button class="nav-ideias nav-roteiros" role="tab" id="aba-todos" data-tipo="todos" aria-selected="' + (abaAtual === "todos") + '">' +
+      '<span class="nav-ideias-nome"><b>Roteiros<i>.</i></b><span class="sub">Todos, em ordem de título</span></span>' +
+      '<span class="nav-ideias-conta"><strong id="n-todos"></strong><span id="n-todos-rotulo"></span></span></button></div>';
     h += '<div class="quadrante">' + QUADRANTE.map(function (t) {
       var c = TIPOS[t];
       return '<button class="quad" role="tab" id="aba-' + t + '" data-tipo="' + t + '" aria-selected="' + (t === abaAtual) + '">' +
@@ -1914,6 +1925,12 @@
       var n = doTipo(t).length;
       el.innerHTML = "<strong>" + n + "</strong> <span>" + plural(n, "roteiro", "roteiros") + "</span>";
     });
+    var nt = $("n-todos"), ntr = $("n-todos-rotulo");
+    if (nt) {
+      var quantosR = todosOsRoteiros().length;
+      nt.textContent = carregou ? quantosR : "";
+      ntr.textContent = carregou ? plural(quantosR, "roteiro guardado", "roteiros guardados") : "";
+    }
     var ni = $("n-ideias"), nr = $("n-ideias-rotulo");
     if (!ni) return;
     if (!carregouIdeias) { ni.textContent = ""; nr.textContent = ""; return; }
@@ -2141,9 +2158,9 @@
       }).join("") + "</div>";
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
       '<button class="btn" id="baixar-docx" type="button">Baixar em docx</button>' +
-      '<button class="btn" id="duplicar-roteiro" type="button" title="Cria uma cópia deste roteiro para você mudar sem perder o original">Duplicar</button>' +
       '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.pronto ? "true" : "false") + '">' + (r.pronto ? "Pronto para publicar" : "Publicar") + "</button>" +
-      '<button class="btn btn-revisar" id="marcar-revisar" type="button" aria-pressed="' + (r.revisar ? "true" : "false") + '">A revisar</button>' +
+      '<button class="btn" id="duplicar-roteiro" type="button" title="Cria uma cópia deste roteiro para você mudar sem perder o original">Duplicar</button>' +
+      '<button class="btn" id="voltar-ideia" type="button" title="Devolve o assunto para as ideias e apaga este roteiro">Voltar para ideias</button>' +
       '<button class="btn btn-perigo" id="excluir" type="button">Excluir roteiro</button></div>';
 
     $("editor").innerHTML = h;
@@ -2919,6 +2936,40 @@
     renderIdeias();
     mostrarEstado("salvando", "Ideia duplicada");
   }
+  // Desfaz o virar roteiro: o assunto volta para as ideias e o roteiro sai daqui.
+  function voltarParaIdeias(r) {
+    if (!arm) return;
+    var texto = (r.titulo || "").trim();
+    var original = Object.keys(ideias).map(function (k) { return ideias[k]; })
+      .filter(function (i) { return i.virou && (i.texto || "").trim() === texto; })[0];
+    if (original) {
+      delete original.arquivada;
+      delete original.virou;
+      original.atualizado = new Date().toISOString();
+      salvarIdeia(original);
+    } else {
+      var agora = new Date().toISOString();
+      var nova = { id: novoId(), texto: texto || "Sem título", criado: agora, atualizado: agora };
+      var herdadas = (r.etiquetas || []).filter(function (n) {
+        return ETIQUETAS.some(function (e) { return e.nome === n; });
+      });
+      if (herdadas.length) nova.etiquetas = herdadas;
+      var topo = menorOrdem();
+      if (topo !== null) nova.ordem = topo - 1000;
+      ideias[nova.id] = nova;
+      arm.salvar("ideias", nova.id, limpo(nova)).catch(function () {
+        mostrarEstado("erro", "Não foi possível guardar a ideia. Confira a conexão.");
+      });
+      original = nova;
+    }
+    excluirRoteiro(r);
+    ideiaAberta = original.id;
+    abaAtual = "ideias";
+    gravarLocal(CHAVE_ABA, abaAtual);
+    aplicarAba();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    mostrarEstado("salvo", "O assunto voltou para as ideias");
+  }
   function duplicarRoteiro(r) {
     var copia = normalizar(clonar(limpo(r)));
     copia.id = novoId();
@@ -3106,7 +3157,7 @@
     aplicarAba();
     window.scrollTo(0, 0);
   });
-  $("ver-todos").addEventListener("click", function () {
+  if ($("ver-todos")) $("ver-todos").addEventListener("click", function () {
     salvarPendente(); salvarIdeiasPendentes();
     abaAtual = abaAtual === "todos" ? "instagram" : "todos";
     gravarLocal(CHAVE_ABA, abaAtual);
@@ -3642,6 +3693,11 @@
       return;
     }
     if (e.target.id === "duplicar-roteiro") { duplicarRoteiro(atual); return; }
+    if (e.target.id === "voltar-ideia") {
+      if (!confirmarDuasVezes(e.target, "Clique de novo: o roteiro some", "Voltar para ideias")) return;
+      voltarParaIdeias(atual);
+      return;
+    }
     if (e.target.id === "baixar-docx") { baixarDocx([atual]); return; }
     if (e.target.id === "copiar") { copiar(); return; }
     if (e.target.id === "excluir") {
