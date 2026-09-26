@@ -852,6 +852,7 @@
   var busca = "";
   var importando = false;
   var virandoId = null;   // ideia que está escolhendo o destino
+  var virandoLote = false; // as ideias escolhidas estão escolhendo o destino
   var buscaTodos = "", filtroTodos = "", situacaoTodos = "", temasTodos = {}, loteMarcadas = {};
   var vistaTodos = lerLocal(CHAVE_VISTA) === "calendario" ? "calendario" : "lista", mesCal = null, calAberto = null, timerCal = null;
   var familiaAberta = null, categoriaAberta = null;
@@ -2825,8 +2826,16 @@
         '<button type="button" class="btn" id="marcar-todas-ideias">' +
         (lista.length && escolhidas.length >= lista.length ? "Desmarcar as " + lista.length : "Marcar as " + lista.length) + "</button>" +
         '<button type="button" class="btn" id="limpar-ideias-marcadas"' + (escolhidas.length ? "" : " disabled") + ">Limpar</button>" +
+        '<button type="button" class="btn" id="virar-lote"' + (escolhidas.length ? "" : " disabled") +
+        ' aria-expanded="' + virandoLote + '">Virar roteiro</button>' +
         '<button type="button" class="btn" id="arquivar-escolhidas"' + (escolhidas.length ? "" : " disabled") + ">" +
         (verArquivadas ? "Desarquivar as escolhidas" : "Arquivar as escolhidas") + "</button></div>" +
+        (virandoLote && escolhidas.length ? '<div class="destinos"><span class="aviso">Virar ' + escolhidas.length + " " +
+          plural(escolhidas.length, "ideia escolhida em", "ideias escolhidas em") + "</span>" +
+          QUADRANTE.map(function (t) {
+            return '<button type="button" class="btn destino" data-destino-lote="' + t + '">' + TIPOS[t].nome + "</button>";
+          }).join("") +
+          '<button type="button" class="btn destino-cancelar-lote">Cancelar</button></div>' : "") +
         '<div class="filtros etiquetas-lote">' +
         '<button type="button" class="rotulo rotulo-abre" id="abrir-etiquetar" aria-expanded="' + abrirEtiquetar + '">' +
         '<span class="seta" aria-hidden="true">' + (abrirEtiquetar ? "▾" : "▸") + "</span> Etiquetar as escolhidas</button>" +
@@ -3054,9 +3063,9 @@
     window.scrollTo({ top: 0, behavior: "smooth" });
     mostrarEstado("salvando", "Cópia criada. Mude o que quiser sem mexer no original.");
   }
-  function virarRoteiro(ideia, tipo) {
+  function criarRoteiroDaIdeia(ideia, tipo) {
     var texto = (ideia.texto || "").trim();
-    if (!texto) { mostrarEstado("erro", "Escreva a ideia antes de virar roteiro."); return; }
+    if (!texto) return null;
     var r = novoRoteiro(tipo);
     r.titulo = texto;
     var herdadas = (ideia.etiquetas || []).filter(function (n) {
@@ -3071,6 +3080,32 @@
     ideia.arquivada = true;
     ideia.atualizado = new Date().toISOString();
     if (arm) arm.salvar("ideias", ideia.id, limpo(ideia));
+    return r;
+  }
+  function virarEmLote(tipo) {
+    var escolhidas = ideiasFiltradas().filter(function (i) { return ideiasMarcadas[i.id] && (i.texto || "").trim(); });
+    if (!escolhidas.length || !arm) return;
+    var primeiro = null;
+    escolhidas.forEach(function (i) {
+      var r = criarRoteiroDaIdeia(i, tipo);
+      if (r && !primeiro) primeiro = r;
+    });
+    ideiasMarcadas = {};
+    virandoLote = false;
+    virandoId = null;
+    ideiaAberta = null;
+    abaAtual = tipo;
+    gravarLocal(CHAVE_ABA, abaAtual);
+    renderAbas();
+    document.querySelector(".corpo").classList.remove("sem-gaveta");
+    if (primeiro) abrir(primeiro); else aplicarAba();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    mostrarEstado("salvo", escolhidas.length + " " + plural(escolhidas.length, "roteiro criado", "roteiros criados") +
+      " em " + TIPOS[tipo].nome + ". " + plural(escolhidas.length, "A ideia foi", "As ideias foram") + " para o arquivo.");
+  }
+  function virarRoteiro(ideia, tipo) {
+    var r = criarRoteiroDaIdeia(ideia, tipo);
+    if (!r) { mostrarEstado("erro", "Escreva a ideia antes de virar roteiro."); return; }
     virandoId = null;
     abaAtual = tipo;
     gravarLocal(CHAVE_ABA, abaAtual);
@@ -3629,6 +3664,10 @@
       if (origemIdeia) duplicarIdeia(origemIdeia);
       return;
     }
+    if (e.target.id === "virar-lote") { virandoLote = !virandoLote; virandoId = null; renderIdeias(); return; }
+    if (e.target.classList.contains("destino-cancelar-lote")) { virandoLote = false; renderIdeias(); return; }
+    var bdl = e.target.closest("[data-destino-lote]");
+    if (bdl) { virarEmLote(bdl.dataset.destinoLote); return; }
     var bv = e.target.closest("[data-virar]");
     if (bv) { virandoId = virandoId === bv.dataset.virar ? null : bv.dataset.virar; renderIdeias(); return; }
     if (e.target.classList.contains("destino-cancelar")) { virandoId = null; renderIdeias(); return; }
