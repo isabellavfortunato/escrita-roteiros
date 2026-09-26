@@ -765,7 +765,7 @@
   var APRESENTACAO_CANAL = "Oi, eu sou a Isabella Fortunato, empreendo há quinze anos e toco duas empresas. Aqui eu falo com mulheres empresárias, as que fazem quase tudo sozinhas ou com uma ou duas pessoas ajudando. E o que eu mostro neste canal é como usar a inteligência artificial para organizar a empresa por dentro, o dinheiro, o preço, a rotina e as pessoas, e para a sua produtividade finalmente render, sem você precisar entender nada de tecnologia.";
   var FORMATOS = ["Tela dividida", "Fundo verde", "Falando para a câmera", "Caixinha de perguntas"];
   var MODALIDADES = ["Sonho", "Transformação", "Fofocas", "Objeções", "Lista", "Storytelling", "Posicionamento", "Educativo"];
-  var OBJETIVOS = ["Compartilhável", "Salvável", "Likes", "Interação"];
+  var OBJETIVOS = ["Seguir", "Compartilhar", "Salvar", "Likes", "Interação"];
   var MARCA_LISTA = "• ";
   var FORMATOS_STORY = ["Caixinha de perguntas", "Enquete", "Figurinha de engajamento", "Foto", "Vídeo", "Vendas"];
   var BLOCOS = [
@@ -1122,6 +1122,9 @@
       var certa = FAMILIAS.filter(function (f) { return f.categorias.indexOf(b.gancho) !== -1; })[0];
       if (certa && b.familia !== certa.nome) b.familia = certa.nome;
     });
+    // os objetivos antigos passaram a ter outro nome
+    if (r.objetivo === "Compartilhável") r.objetivo = "Compartilhar";
+    if (r.objetivo === "Salvável") r.objetivo = "Salvar";
     // o fechamento virou bloco fixo: entra nos roteiros antigos, vazio, antes do CTA
     if (TIPOS[r.tipo] && TIPOS[r.tipo].video && Array.isArray(r.blocos) && r.blocos.length &&
         !r.blocos.some(function (b) { return b.tipo === "fechamento"; })) {
@@ -1312,6 +1315,36 @@
     // o navegador deixa um <br> sobrando no fim de quem termina em quebra de linha
     if (el.lastChild && el.lastChild.nodeName === "BR") t = t.replace(/\n((?:\*\*|\*|\+\+|~~)*)$/, "$1");
     return t;
+  }
+  // O ditado por voz costuma entregar o texto com espaço na frente e com a primeira letra minúscula.
+  function arrumarDitado(t) {
+    var x = String(t || "").replace(/^[ \t]+/, "");
+    return x.replace(/(^|\n|[.!?]["')\]]?[ \t])((?:\*\*|\*|\+\+|~~|[ \t])*)([a-zà-öø-ÿ])/g,
+      function (todo, antes, marcas, letra) { return antes + marcas + letra.toUpperCase(); });
+  }
+  function pareceDitado(e) {
+    if (!e || !e.inputType) return true;
+    if (e.inputType === "insertFromPaste" || e.inputType === "insertReplacementText" || e.inputType === "insertCompositionText") return true;
+    return !!(e.data && e.data.length > 2);
+  }
+  function noFimDoCampo(el) {
+    if (el.isContentEditable) return textoAteCursor(el).length >= semMarcas(htmlParaMarcas(el)).length;
+    return el.selectionStart === el.value.length;
+  }
+  function arrumarCampo(el, e) {
+    if (!pareceDitado(e) || !noFimDoCampo(el)) return false;
+    if (el.isContentEditable) {
+      var t = htmlParaMarcas(el), novo = arrumarDitado(t);
+      if (novo === t) return false;
+      preencherRico(el, novo);
+      cursorNoFim(el);
+      return true;
+    }
+    var v = el.value, x = arrumarDitado(v);
+    if (x === v) return false;
+    el.value = x;
+    el.selectionStart = el.selectionEnd = x.length;
+    return true;
   }
   function campoRico(id, attrs, placeholder) {
     return '<div class="area area-rica" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="true" id="' + id + '" ' + attrs +
@@ -3290,6 +3323,7 @@
     }
     if (el.dataset.ideia != null) {
       var i = ideias[el.dataset.ideia]; if (!i) return;
+      arrumarCampo(el, e);
       i.texto = el.value; crescer(el);
       marcarContador($("ci-" + i.id), contar(i.texto), LIMITE_IDEIA);
       agendarIdeia(i);
@@ -3298,16 +3332,18 @@
       return;
     }
     if (!atual) return;
-    if (el.id === "titulo") atual.titulo = el.value;
-    else if (el.id === "textoTela") atual.textoTela = el.value;
-    else if (el.id === "legenda") { atual.legenda = el.value; crescer(el); }
+    if (el.id === "titulo") { arrumarCampo(el, e); atual.titulo = el.value; }
+    else if (el.id === "textoTela") { arrumarCampo(el, e); atual.textoTela = el.value; }
+    else if (el.id === "legenda") { arrumarCampo(el, e); atual.legenda = el.value; crescer(el); }
     else if (el.dataset.bloco != null) {
+      arrumarCampo(el, e);
       var txb = htmlParaMarcas(el);
       if (!semMarcas(txb).trim() && !el.textContent.trim()) { txb = ""; if (el.innerHTML && !el.querySelector("img")) el.innerHTML = ""; }
       atual.blocos[+el.dataset.bloco].texto = txb;
     }
     else if (el.dataset.tela != null && el.tagName !== "SELECT") {
       if (el.isContentEditable) {
+        arrumarCampo(el, e);
         var txt2 = htmlParaMarcas(el);
         if (!el.textContent.trim()) { txt2 = ""; el.innerHTML = ""; }
         atual.telas[+el.dataset.tela][el.dataset.parte] = txt2;
