@@ -1122,6 +1122,13 @@
       var certa = FAMILIAS.filter(function (f) { return f.categorias.indexOf(b.gancho) !== -1; })[0];
       if (certa && b.familia !== certa.nome) b.familia = certa.nome;
     });
+    // o fechamento virou bloco fixo: entra nos roteiros antigos, vazio, antes do CTA
+    if (TIPOS[r.tipo] && TIPOS[r.tipo].video && Array.isArray(r.blocos) && r.blocos.length &&
+        !r.blocos.some(function (b) { return b.tipo === "fechamento"; })) {
+      var fim = r.blocos.map(function (b) { return b.tipo; })
+        .findIndex(function (t) { return t === "cta" || t === "yt-encerramento" || t === "chamada"; });
+      r.blocos.splice(fim === -1 ? r.blocos.length : fim, 0, blocoVazio("fechamento"));
+    }
     if (!Array.isArray(r.telas)) r.telas = [];
     if (!Array.isArray(r.blocos)) r.blocos = [];
     delete r.corpo;
