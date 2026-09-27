@@ -29,6 +29,8 @@
     --laranja: #c14b21;
     --laranja-hover: #a93f1a;
     --vermelho: #b92e4b;
+    --vinho: #8f2540;
+    --mostarda: #c9962c;
     --verde: #1f6b3a;
     --verde-hover: #185830;
     --display: "Bebas Neue", "Oswald", "Arial Narrow", Impact, sans-serif;
@@ -444,6 +446,12 @@
   .mudar-situacao .btn[disabled] { opacity: .4; cursor: default; }
 
   /* Lista e calendário em todos os roteiros */
+  .vistas-cartoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .vista-cartao { height: 84px; padding: 0 20px; }
+  .vista-cartao .nav-ideias-nome b { font-size: 34px; }
+  .vista-cartao .nav-ideias-nome b i, .vista-cartao .nav-ideias-conta strong { color: var(--cor); }
+  .vista-cartao .nav-ideias-conta strong { font-size: 30px; }
+  .vista-cartao[aria-selected="true"] { box-shadow: inset 0 -5px 0 var(--cor); background: var(--navy-medio); }
   .vistas { display: flex; gap: 0; border-bottom: 1px solid var(--linha); }
   .vista {
     background: transparent; border: 0; border-bottom: 3px solid transparent; margin-bottom: -1px;
@@ -573,6 +581,9 @@
   .ins-grupo-nome { font-size: 13.5px; overflow-wrap: anywhere; }
   .ins-grupo-num { font-size: 13.5px; text-align: right; font-variant-numeric: tabular-nums; }
   @media (max-width: 900px) {
+    .vista-cartao { height: 74px; padding: 0 14px; }
+    .vista-cartao .nav-ideias-nome b { font-size: 26px; }
+    .vista-cartao .nav-ideias-conta strong { font-size: 24px; }
     .ins-tabela { grid-template-columns: 84px repeat(5, minmax(52px, 1fr)); }
     .ins-tabela .ins-cab:nth-child(7), .ins-tabela .ins-cab:nth-child(8) { display: none; }
     .ins-cel.ins-invest { justify-content: flex-start; }
@@ -584,6 +595,17 @@
   }
   /* No celular a tabela vira duas colunas, com o nome de cada número ao lado dele. */
   @media (max-width: 700px) {
+    .vistas-cartoes { gap: 6px; }
+    .vista-cartao {
+      height: 66px; padding: 0 9px; flex-direction: column; align-items: flex-start;
+      justify-content: center; gap: 2px;
+    }
+    .vista-cartao .nav-ideias-nome { max-width: 100%; }
+    .vista-cartao .nav-ideias-nome b { font-size: 17px; white-space: nowrap; }
+    .vista-cartao .sub { display: none; }
+    .vista-cartao .nav-ideias-conta { flex-direction: row; align-items: baseline; gap: 5px; text-align: left; }
+    .vista-cartao .nav-ideias-conta strong { font-size: 17px; }
+    .vista-cartao .nav-ideias-conta span { font-size: 11.5px; }
     .ins-tabela { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
     .ins-cab { display: none; }
     .ins-rede { grid-column: 1 / -1; margin-top: 8px; }
@@ -2560,6 +2582,23 @@
     return h ? '<div class="ins-grupos">' + h + "</div>" : "";
   }
 
+  // Os três modos de ver os roteiros, no mesmo feitio dos cartões de Ideias e de Roteiros.
+  var VISTAS = [
+    { chave: "lista", nome: "Lista", sub: "Em ordem de título", rotulo: ["roteiro", "roteiros"], cor: "var(--vinho)" },
+    { chave: "calendario", nome: "Calendário", sub: "Publicações marcadas", rotulo: ["a publicar", "a publicar"], cor: "var(--laranja)" },
+    { chave: "insights", nome: "Insights", sub: "Métricas dos posts", rotulo: ["post", "posts"], cor: "var(--mostarda)" }
+  ];
+  function htmlVistas(total, aPublicar) {
+    var contas = { lista: total, calendario: aPublicar, insights: Object.keys(metricas).length };
+    return '<div class="vistas-cartoes" role="tablist" aria-label="Como ver os roteiros">' + VISTAS.map(function (v) {
+      var n = contas[v.chave];
+      return '<button type="button" class="nav-ideias vista-cartao" role="tab" data-vista="' + v.chave +
+        '" aria-selected="' + (vistaTodos === v.chave) + '" style="--cor: ' + v.cor + '">' +
+        '<span class="nav-ideias-nome"><b>' + v.nome + "<i>.</i></b>" +
+        '<span class="sub">' + v.sub + "</span></span>" +
+        '<span class="nav-ideias-conta"><strong>' + n + "</strong><span>" + plural(n, v.rotulo[0], v.rotulo[1]) + "</span></span></button>";
+    }).join("") + "</div>";
+  }
   function renderTodos() {
     var total = todosOsRoteiros().length, lista = visiveisDaLista();
     var revisar = todosOsRoteiros().filter(function (r) { return r.revisar; }).length;
@@ -2575,10 +2614,7 @@
         : vistaTodos === "insights" ? " · " + Object.keys(metricas).length + " " + plural(Object.keys(metricas).length, "post com métricas", "posts com métricas")
         : " · " + quantosEm("publicar") + " a publicar") + "</span></div>" +
       (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
-      '<div class="vistas" role="tablist" aria-label="Como ver os roteiros">' +
-      '<button type="button" class="vista" role="tab" data-vista="lista" aria-selected="' + (vistaTodos === "lista") + '">Lista</button>' +
-      '<button type="button" class="vista" role="tab" data-vista="calendario" aria-selected="' + (vistaTodos === "calendario") + '">Calendário</button>' +
-      '<button type="button" class="vista" role="tab" data-vista="insights" aria-selected="' + (vistaTodos === "insights") + '">Insights</button></div>';
+      htmlVistas(total, quantosEm("publicar"));
     if (vistaTodos === "insights") {
       h += htmlInsights() + "</div>";
       $("editor").innerHTML = h;
