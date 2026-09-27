@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="favicon.png" type="image/png" sizes="512x512">
@@ -39,6 +39,7 @@
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
   html { background: var(--fundo); }
+  .app { min-height: 100dvh; }
   body {
     background: var(--fundo);
     color: var(--navy);
@@ -507,6 +508,99 @@
     .cal-card-titulo { font-size: 11px; -webkit-line-clamp: 2; }
     .cal-nome-mes { min-width: 0; font-size: 16px; }
   }
+  .ins { display: flex; flex-direction: column; gap: 14px; }
+  .ins-acoes { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .busca-insights { max-width: 280px; margin-left: auto; }
+  .ins-importar {
+    display: flex; flex-direction: column; gap: 10px; padding: 14px;
+    background: var(--papel); border: 1px solid var(--navy); border-radius: 12px;
+  }
+  .ins-linha-arquivo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .ins-arquivo { width: auto; padding: 6px 8px; font-size: 13.5px; }
+  .ins-area { min-height: 110px; font-size: 14px; }
+  .ins-importar-acoes { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
+  .ins-erro { margin: 0; font-size: 13.5px; color: var(--vermelho); }
+  .ins-previa { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--linha); }
+  .ins-previa-linha {
+    display: grid; grid-template-columns: 28px minmax(0, 1fr) 230px; gap: 10px; align-items: start;
+    padding: 8px; background: var(--fundo); border: 1px solid var(--linha); border-radius: 8px;
+  }
+  .ins-previa-linha.fora { opacity: .5; }
+  .ins-previa-nome { display: flex; flex-direction: column; gap: 3px; font-size: 14px; overflow-wrap: anywhere; }
+  .ins-previa-rede { font-size: 12.5px; color: var(--navy-suave); border-left: 3px solid var(--cor); padding-left: 8px; }
+  .ins-previa-lado { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; text-align: right; }
+  .ins-cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .ins-cartao {
+    display: flex; flex-direction: column; gap: 2px; padding: 12px 14px;
+    background: var(--papel); border: 1px solid var(--linha); border-radius: 10px;
+  }
+  .ins-cartao-nome { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--navy-fraco); }
+  .ins-cartao-numero { font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .ins-tabela {
+    display: grid; grid-template-columns: 104px repeat(5, minmax(66px, 1fr)) 118px 86px;
+    gap: 4px 6px; align-items: center;
+  }
+  .ins-cab { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--navy-fraco); }
+  .ins-cab-num { text-align: right; }
+  .ins-post {
+    grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    margin-top: 8px; padding: 8px 10px; background: var(--papel);
+    border: 1px solid var(--linha); border-left: 3px solid var(--navy); border-radius: 8px;
+  }
+  .ins-post-num { font-size: 12px; font-weight: 700; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
+  .ins-titulo { width: auto; flex: 1 1 260px; min-width: 180px; font-size: 14px; font-weight: 600; }
+  .ins-rotulo { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--navy-fraco); }
+  .ins-select { width: auto; max-width: 260px; font-size: 13px; padding: 5px 8px; }
+  .ins-data { width: auto; font-size: 13px; padding: 5px 8px; }
+  .ins-excluir { margin-left: auto; }
+  .ins-rede {
+    font-size: 11.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--cor); border-left: 3px solid var(--cor); padding-left: 7px;
+  }
+  .ins-cel { display: flex; justify-content: flex-end; min-width: 0; }
+  .ins-num {
+    width: 100%; max-width: 92px; text-align: right; font: inherit; font-size: 13.5px; font-variant-numeric: tabular-nums;
+    padding: 5px 7px; background: #ffffff; border: 1px solid var(--linha); border-radius: 7px; color: var(--navy);
+  }
+  .ins-num:focus { outline: 2px solid var(--navy); outline-offset: -1px; }
+  .ins-pago[aria-pressed="true"] { background: var(--laranja); border-color: var(--laranja); color: #ffffff; }
+  .ins-grupos { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+  .ins-grupo {
+    display: flex; flex-direction: column; gap: 8px; padding: 12px 14px;
+    background: var(--papel); border: 1px solid var(--linha); border-radius: 10px;
+  }
+  .ins-grupo-tabela { display: grid; grid-template-columns: minmax(0, 1fr) 54px 92px 78px; gap: 4px 8px; align-items: center; }
+  .ins-grupo-nome { font-size: 13.5px; overflow-wrap: anywhere; }
+  .ins-grupo-num { font-size: 13.5px; text-align: right; font-variant-numeric: tabular-nums; }
+  @media (max-width: 900px) {
+    .ins-tabela { grid-template-columns: 84px repeat(5, minmax(52px, 1fr)); }
+    .ins-tabela .ins-cab:nth-child(7), .ins-tabela .ins-cab:nth-child(8) { display: none; }
+    .ins-cel.ins-invest { justify-content: flex-start; }
+    .ins-cel:has(.ins-pago) { grid-column: 1 / -1; justify-content: flex-start; }
+    .ins-previa-linha { grid-template-columns: 28px minmax(0, 1fr); }
+    .ins-previa-lado { grid-column: 2; align-items: flex-start; text-align: left; }
+    .busca-insights { margin-left: 0; max-width: 100%; }
+    .ins-select, .ins-titulo { max-width: 100%; }
+  }
+  /* No celular a tabela vira duas colunas, com o nome de cada número ao lado dele. */
+  @media (max-width: 700px) {
+    .ins-tabela { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; }
+    .ins-cab { display: none; }
+    .ins-rede { grid-column: 1 / -1; margin-top: 8px; }
+    .ins-cel { justify-content: space-between; align-items: center; gap: 8px; }
+    .ins-cel[data-metrica]::before {
+      content: attr(data-metrica); font-size: 11px; font-weight: 700; letter-spacing: .04em;
+      text-transform: uppercase; color: var(--navy-fraco); white-space: nowrap;
+    }
+    .ins-num { max-width: 86px; }
+    .ins-post { flex-direction: column; align-items: stretch; }
+    .ins-titulo { flex: 0 0 auto; min-width: 0; }
+    .ins-post-num { align-self: flex-start; }
+    .ins-excluir { margin-left: 0; align-self: flex-start; }
+    .ins-data { width: 100%; }
+    .ins-cartao-nome { font-size: 11px; letter-spacing: 0; overflow-wrap: anywhere; }
+    .ins-grupo-tabela { grid-template-columns: minmax(0, 1fr) 44px 74px 66px; }
+  }
   .filtros-gaveta { gap: 6px; flex-direction: column; align-items: stretch; }
   .filtros-gaveta .linha-mini { gap: 6px; }
   .filtros-gaveta .linha-filtro { padding-top: 8px; border-top: 1px solid var(--linha); border-bottom: 0; }
@@ -654,13 +748,24 @@
   @media (max-width: 1100px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 900px) {
     .corpo { grid-template-columns: minmax(0, 1fr); }
-    .gaveta { border-right: 0; border-bottom: 1px solid var(--linha); padding: 14px 16px; }
+    .gaveta {
+      border-right: 0; border-bottom: 1px solid var(--linha);
+      padding: 14px max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
+    }
     .abrir-gaveta { display: inline-flex; }
     .gaveta:not(.aberta) .gaveta-conteudo { display: none; }
-    .editor { padding: 22px 16px 56px; }
+    .editor {
+      padding: 22px max(16px, env(safe-area-inset-right)) calc(56px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    }
     .medidor { margin-inline: -16px; padding-inline: 16px; }
-    .topo { padding: 14px 16px 12px; }
-    .abas { --celula: 54px; padding: 12px 16px 14px; }
+    .topo {
+      padding: calc(14px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 12px max(16px, env(safe-area-inset-left));
+    }
+    .abas { --celula: 54px; padding: 12px max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left)); }
+    /* Nenhum campo de escrita abaixo de 16px: é o tamanho a partir do qual o iPhone para de dar zoom sozinho quando o campo recebe o toque. */
+    input, textarea, select, .busca, .importar-area, .ins-area, .ins-titulo,
+    .ins-select, .ins-data, .ins-num, .tela .area-design, .login-card input { font-size: 16px; }
+    .ins-select { max-width: 100%; }
     .nav-dupla { grid-template-columns: minmax(0, 1fr); }
     .nav-ideias { padding: 0 20px; }
     .nav-dupla .nav-ideias-nome b { font-size: 40px; }
@@ -844,6 +949,7 @@
   var acervo = {};          // roteiros por id
   var atual = null;         // roteiro aberto
   var ideias = {};          // ideias por id
+  var metricas = {};        // métricas dos posts por id
   var carregou = false, carregouIdeias = false;
   var abaAtual = lerLocal(CHAVE_ABA) || "ideias";
   if (!TIPOS[abaAtual]) abaAtual = "ideias";
@@ -854,7 +960,10 @@
   var virandoId = null;   // ideia que está escolhendo o destino
   var virandoLote = false; // as ideias escolhidas estão escolhendo o destino
   var buscaTodos = "", filtroTodos = "", situacaoTodos = "", temasTodos = {}, loteMarcadas = {};
-  var vistaTodos = lerLocal(CHAVE_VISTA) === "calendario" ? "calendario" : "lista", mesCal = null, calAberto = null, timerCal = null;
+  var vistaTodos = { calendario: 1, insights: 1 }[lerLocal(CHAVE_VISTA)] ? lerLocal(CHAVE_VISTA) : "lista";
+  var mesCal = null, calAberto = null, timerCal = null;
+  var carregouMetricas = false, importarMetricas = false, prevMetricas = null, erroImportar = "", timerMetrica = null;
+  var filtroRede = "", filtroPago = "", ordemInsights = "visualizacoes", redePadrao = "ig", buscaInsights = "";
   var familiaAberta = null, categoriaAberta = null;
   var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
   var filtroSituacao = "";
@@ -910,7 +1019,7 @@
      Três lugares possíveis, com a mesma interface:
      o banco do artefato no Claude, o Firebase (versão do GitHub, com login) e o próprio navegador. */
   function adaptadorLocal() {
-    var chaves = { roteiros: "caderno-roteiros-v1", ideias: "caderno-ideias-v1" };
+    var chaves = { roteiros: "caderno-roteiros-v1", ideias: "caderno-ideias-v1", metricas: "caderno-metricas-v1" };
     var mapas = {};
     function ler(n) {
       if (!mapas[n]) { try { mapas[n] = JSON.parse(lerLocal(chaves[n]) || "{}") || {}; } catch (e) { mapas[n] = {}; } }
@@ -955,8 +1064,8 @@
     salvarIdeiasPendentes();
     desligar.forEach(function (f) { try { f(); } catch (e) {} });
     desligar = [];
-    arm = null; acervo = {}; ideias = {}; atual = null;
-    carregou = false; carregouIdeias = false;
+    arm = null; acervo = {}; ideias = {}; metricas = {}; atual = null;
+    carregou = false; carregouIdeias = false; carregouMetricas = false;
   }
 
   var timerDemora = null;
@@ -966,7 +1075,7 @@
   }
   function conectar(adaptador, mensagem) {
     arm = adaptador;
-    carregou = false; carregouIdeias = false; acervo = {}; ideias = {}; atual = null;
+    carregou = false; carregouIdeias = false; carregouMetricas = false; acervo = {}; ideias = {}; metricas = {}; atual = null;
     mostrarEstado(arm.tipo === "local" ? "neutro" : "salvo", mensagem || "Tudo salvo");
     var erroEscuta = function () {
       if (!arm) return;
@@ -1016,6 +1125,13 @@
       if (!carregouIdeias) { carregouIdeias = true; if (abaAtual === "ideias") renderIdeias(); }
       else if (abaAtual === "ideias" && mudou && !focoNasIdeias) renderIdeias();
       atualizarContagens();
+    }, erroEscuta));
+    desligar.push(arm.ouvir("metricas", function (m) {
+      metricas = m || {};
+      var primeira = !carregouMetricas;
+      carregouMetricas = true;
+      var escrevendo = document.activeElement && document.activeElement.closest && document.activeElement.closest(".ins");
+      if (abaAtual === "todos" && vistaTodos === "insights" && (primeira || !escrevendo)) renderTodos();
     }, erroEscuta));
   }
 
@@ -1821,6 +1937,629 @@
     renderTodos();
     mostrarEstado("salvando", chave ? "Publicação marcada para " + dataDoDia(chave) : "Data tirada");
   }
+  /* ---------- Insights: as métricas do Instagram e do TikTok ---------- */
+  var REDES = [{ chave: "ig", nome: "Instagram", cor: "#c13584" }, { chave: "tt", nome: "TikTok", cor: "#111827" }];
+  var METRICAS = [
+    { chave: "visualizacoes", nome: "Visualizações", curto: "Visualizações" },
+    { chave: "seguidores", nome: "Novos seguidores", curto: "Seguidores" },
+    { chave: "salvamentos", nome: "Salvamentos", curto: "Salvamentos" },
+    { chave: "compartilhamentos", nome: "Compartilhamentos", curto: "Compart." },
+    { chave: "comentarios", nome: "Comentários", curto: "Comentários" }
+  ];
+  function nomeDaRede(rd) {
+    for (var i = 0; i < REDES.length; i++) if (REDES[i].chave === rd) return REDES[i].nome;
+    return rd;
+  }
+  function corDaRede(rd) {
+    for (var i = 0; i < REDES.length; i++) if (REDES[i].chave === rd) return REDES[i].cor;
+    return "#4b5563";
+  }
+  function semAcento(s) { return String(s == null ? "" : s).normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+  function chaveDoTexto(s) { return semAcento(s).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+  function numeroBonito(n) {
+    if (n == null || n === "") return "";
+    return Number(n).toLocaleString("pt-BR");
+  }
+  // Aceita 1.234, 1 234, 12,5 mil, 3,4K e 2,1 mi, que é como as telas das redes mostram os números.
+  function numeroDoTexto(v) {
+    if (typeof v === "number") return isFinite(v) ? v : null;
+    var s = semAcento(v).trim();
+    if (!s) return null;
+    var m = s.match(/(-?[\d][\d.,\s]*)\s*(mil|k|mi|m|milhoes|milhao)?/i);
+    if (!m) return null;
+    var cru = m[1].replace(/\s/g, ""), fator = 1, sufixo = (m[2] || "").toLowerCase();
+    if (sufixo === "mil" || sufixo === "k") fator = 1000;
+    else if (sufixo === "mi" || sufixo === "m" || sufixo === "milhoes" || sufixo === "milhao") fator = 1000000;
+    var numero;
+    if (cru.indexOf(".") !== -1 && cru.indexOf(",") !== -1) numero = parseFloat(cru.replace(/\./g, "").replace(",", "."));
+    else if (cru.indexOf(",") !== -1) numero = parseFloat(cru.replace(",", "."));
+    else if (/^-?\d{1,3}(\.\d{3})+$/.test(cru)) numero = parseFloat(cru.replace(/\./g, ""));
+    else numero = parseFloat(cru);
+    if (!isFinite(numero)) return null;
+    return Math.round(numero * fator);
+  }
+  function simOuNao(v) {
+    var s = chaveDoTexto(v);
+    if (!s) return false;
+    return /^(sim|s|x|1|true|verdadeiro|pago|trafego pago|impulsionado|promovido|anuncio)/.test(s);
+  }
+  function dataISO(v) {
+    var s = String(v == null ? "" : v).trim();
+    var m = s.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return m[1] + "-" + m[2] + "-" + m[3];
+    m = s.match(/(\d{1,2})\s*[\/.-]\s*(\d{1,2})(?:\s*[\/.-]\s*(\d{2,4}))?/);
+    if (!m) return "";
+    var ano = m[3] ? (m[3].length === 2 ? "20" + m[3] : m[3]) : String(new Date().getFullYear());
+    return ano + "-" + String(m[2]).padStart(2, "0") + "-" + String(m[1]).padStart(2, "0");
+  }
+  function redeDoTexto(v) {
+    var s = chaveDoTexto(v);
+    if (/tiktok|tik tok|\btt\b/.test(s)) return "tt";
+    if (/instagram|insta|reels|\big\b/.test(s)) return "ig";
+    return "";
+  }
+  // Lê o nome de uma coluna e diz qual métrica ela guarda e de qual rede, quando o nome disser.
+  function colunaDe(bruto) {
+    var t = chaveDoTexto(bruto);
+    if (!t) return null;
+    var rede = redeDoTexto(t);
+    var campo = "";
+    if (/visualizac|views|reproduc|plays|exibic/.test(t)) campo = "visualizacoes";
+    else if (/seguidor|follow|seguindo/.test(t)) campo = "seguidores";
+    else if (/salvament|salvos|salvo|saves|guardad/.test(t)) campo = "salvamentos";
+    else if (/compartilha|shares|envios|enviad/.test(t)) campo = "compartilhamentos";
+    else if (/comentario|comments/.test(t)) campo = "comentarios";
+    else if (/investi|gasto|valor gasto|impulsionamento/.test(t)) campo = "investido";
+    else if (/trafego pago|pago|impulsionad|promovid|anuncio|ads/.test(t)) campo = "pago";
+    else if (/plataforma|rede social|\brede\b|canal/.test(t)) campo = "plataforma";
+    else if (/data|publicad|publicac/.test(t)) campo = "data";
+    else if (/texto na tela|titulo|nome|post|roteiro|video|conteudo|legenda/.test(t)) campo = "titulo";
+    if (!campo) return null;
+    return { campo: campo, rede: rede };
+  }
+  function ehMetrica(campo) {
+    for (var i = 0; i < METRICAS.length; i++) if (METRICAS[i].chave === campo) return true;
+    return false;
+  }
+  function temNumero(b) {
+    if (!b) return false;
+    for (var i = 0; i < METRICAS.length; i++) if (b[METRICAS[i].chave] != null) return true;
+    return b.investido != null || !!b.pago;
+  }
+  function algumNumero(p) {
+    return Object.keys(p.redes || {}).some(function (rd) { return temNumero(p.redes[rd]); });
+  }
+
+  /* ---------- Leitura do arquivo ---------- */
+  function lerZip(buf) {
+    var dv = new DataView(buf), u8 = new Uint8Array(buf), fim = -1;
+    for (var i = u8.length - 22; i >= 0 && i > u8.length - 66000; i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { fim = i; break; }
+    }
+    if (fim < 0) throw new Error("Este arquivo não parece um docx");
+    var quantos = dv.getUint16(fim + 10, true), inicio = dv.getUint32(fim + 16, true), p = inicio, itens = [];
+    var textos = new TextDecoder();
+    for (var k = 0; k < quantos; k++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      var metodo = dv.getUint16(p + 10, true), comp = dv.getUint32(p + 20, true);
+      var nomeTam = dv.getUint16(p + 28, true), extraTam = dv.getUint16(p + 30, true), comTam = dv.getUint16(p + 32, true);
+      var local = dv.getUint32(p + 42, true);
+      var nome = textos.decode(u8.subarray(p + 46, p + 46 + nomeTam));
+      var ln = dv.getUint16(local + 26, true), le = dv.getUint16(local + 28, true);
+      var ini = local + 30 + ln + le;
+      itens.push({ nome: nome, metodo: metodo, dados: u8.subarray(ini, ini + comp) });
+      p += 46 + nomeTam + extraTam + comTam;
+    }
+    return itens;
+  }
+  function descomprimir(item) {
+    if (item.metodo === 0) return Promise.resolve(new TextDecoder().decode(item.dados));
+    if (typeof DecompressionStream !== "function") {
+      return Promise.reject(new Error("Este navegador não abre docx aqui. Cole o conteúdo no campo de texto."));
+    }
+    var fluxo = new Blob([item.dados]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+    return new Response(fluxo).text();
+  }
+  function conteudoDoDocx(xml) {
+    var W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+    var d = new DOMParser().parseFromString(xml, "application/xml");
+    function pegar(no, n) {
+      var l = no.getElementsByTagNameNS ? no.getElementsByTagNameNS(W, n) : [];
+      if (!l.length) l = no.getElementsByTagName("w:" + n);
+      return Array.prototype.slice.call(l);
+    }
+    function textoDe(no) {
+      return pegar(no, "t").map(function (t) { return t.textContent; }).join("").replace(/\s+/g, " ").trim();
+    }
+    function emTabela(no) {
+      for (var a = no.parentNode; a; a = a.parentNode) if (a.localName === "tbl") return true;
+      return false;
+    }
+    var tabelas = pegar(d, "tbl").map(function (tb) {
+      return pegar(tb, "tr").map(function (tr) { return pegar(tr, "tc").map(textoDe); });
+    });
+    var linhas = pegar(d, "p").filter(function (p) { return !emTabela(p); }).map(textoDe);
+    return { tabelas: tabelas, linhas: linhas };
+  }
+  function celulasDaLinha(l) {
+    var s = String(l == null ? "" : l);
+    if (!s.trim()) return null;
+    if (/^[\s|:-]+$/.test(s) && s.indexOf("-") !== -1) return "separador";
+    var partes = null;
+    if (s.indexOf("\t") !== -1) partes = s.split("\t");
+    else if (s.split("|").length > 2) partes = s.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|");
+    else if (s.split(";").length > 2) partes = s.split(";");
+    if (!partes) return null;
+    return partes.map(function (c) { return String(c).trim(); });
+  }
+  function tabelasDoTexto(linhas) {
+    var tabs = [], aberta = null;
+    linhas.forEach(function (l) {
+      var cels = celulasDaLinha(l);
+      if (cels === "separador") return;
+      if (cels && cels.length >= 2) { if (!aberta) { aberta = []; tabs.push(aberta); } aberta.push(cels); }
+      else aberta = null;
+    });
+    return tabs;
+  }
+  function postsDaTabela(tab, padrao) {
+    if (!tab || tab.length < 2) return [];
+    var mapa = tab[0].map(function (c) { return colunaDe(c); });
+    var colTitulo = -1, temMetrica = false;
+    mapa.forEach(function (c, i) {
+      if (!c) return;
+      if (c.campo === "titulo" && colTitulo < 0) colTitulo = i;
+      if (ehMetrica(c.campo)) temMetrica = true;
+    });
+    if (!temMetrica || colTitulo < 0) return [];
+    var saida = [];
+    tab.slice(1).forEach(function (linha) {
+      var titulo = String(linha[colTitulo] || "").trim();
+      if (!titulo || colunaDe(titulo) && chaveDoTexto(titulo) === chaveDoTexto(tab[0][colTitulo])) return;
+      var post = { titulo: titulo, data: "", redes: {} };
+      var redeDaLinha = "";
+      mapa.forEach(function (c, i) {
+        if (!c || c.campo !== "plataforma") return;
+        redeDaLinha = redeDoTexto(linha[i]) || redeDaLinha;
+      });
+      mapa.forEach(function (c, i) {
+        if (!c || c.campo === "titulo" || c.campo === "plataforma") return;
+        var valor = linha[i];
+        if (valor == null || String(valor).trim() === "") return;
+        if (c.campo === "data") { post.data = dataISO(valor) || post.data; return; }
+        var qual = c.rede || redeDaLinha || padrao;
+        var b = post.redes[qual] = post.redes[qual] || {};
+        if (c.campo === "pago") b.pago = simOuNao(valor);
+        else if (c.campo === "investido") b.investido = numeroDoTexto(valor);
+        else b[c.campo] = numeroDoTexto(valor);
+      });
+      if (algumNumero(post)) saida.push(post);
+    });
+    return saida;
+  }
+  function postsDasLinhas(linhas, padrao) {
+    var saida = [], post = null, rede = "";
+    linhas.forEach(function (bruto) {
+      var l = String(bruto == null ? "" : bruto).trim();
+      if (!l) return;
+      var so = chaveDoTexto(l);
+      if (so === "instagram" || so === "reels" || so === "instagram reels") { rede = "ig"; return; }
+      if (so === "tiktok" || so === "tik tok") { rede = "tt"; return; }
+      var m = l.match(/^([^:]{2,70}):\s*(.*)$/);
+      if (!m) return;
+      var col = colunaDe(m[1]), valor = String(m[2]).trim();
+      if (!col || !valor) return;
+      if (col.campo === "titulo") {
+        post = { titulo: valor, data: "", redes: {} };
+        saida.push(post);
+        rede = col.rede || "";
+        return;
+      }
+      if (!post) return;
+      if (col.campo === "plataforma") { rede = redeDoTexto(valor) || rede; return; }
+      if (col.campo === "data") { post.data = dataISO(valor) || post.data; return; }
+      var qual = col.rede || rede || padrao;
+      var b = post.redes[qual] = post.redes[qual] || {};
+      if (col.campo === "pago") b.pago = simOuNao(valor);
+      else if (col.campo === "investido") b.investido = numeroDoTexto(valor);
+      else b[col.campo] = numeroDoTexto(valor);
+    });
+    return saida.filter(algumNumero);
+  }
+  function juntarLeituras(lista) {
+    var mapa = {}, ordem = [];
+    lista.forEach(function (x) {
+      var k = chaveDoTexto(x.titulo);
+      if (!k) return;
+      if (!mapa[k]) { mapa[k] = { titulo: String(x.titulo).trim(), data: x.data || "", redes: {} }; ordem.push(k); }
+      var alvo = mapa[k];
+      if (x.data && !alvo.data) alvo.data = x.data;
+      Object.keys(x.redes).forEach(function (rd) {
+        var de = x.redes[rd], para = alvo.redes[rd] = alvo.redes[rd] || {};
+        Object.keys(de).forEach(function (c) { if (de[c] != null && de[c] !== "") para[c] = de[c]; });
+      });
+    });
+    return ordem.map(function (k) { return mapa[k]; }).filter(algumNumero);
+  }
+  function lerEntrada(conteudo, padrao) {
+    var achados = [];
+    (conteudo.tabelas || []).forEach(function (t) { achados = achados.concat(postsDaTabela(t, padrao)); });
+    tabelasDoTexto(conteudo.linhas || []).forEach(function (t) { achados = achados.concat(postsDaTabela(t, padrao)); });
+    // as linhas soltas também entram, porque um mesmo arquivo pode ter tabela e blocos escritos
+    achados = achados.concat(postsDasLinhas(conteudo.linhas || [], padrao));
+    return juntarLeituras(achados);
+  }
+
+  /* ---------- Ligação com os roteiros ---------- */
+  function textoDoRoteiro(r) { return chaveDoTexto(r.textoTela); }
+  function acharRoteiroPorTexto(t) {
+    var alvo = chaveDoTexto(t);
+    if (!alvo) return "";
+    var lista = todosOsRoteiros();
+    function achar(f) { var r = lista.filter(f)[0]; return r ? r.id : ""; }
+    var id = achar(function (r) { return textoDoRoteiro(r) && textoDoRoteiro(r) === alvo; });
+    if (!id) id = achar(function (r) { return chaveDoTexto(r.titulo) && chaveDoTexto(r.titulo) === alvo; });
+    if (!id && alvo.length >= 10) {
+      id = achar(function (r) { var a = textoDoRoteiro(r); return a.length >= 10 && (a.indexOf(alvo) !== -1 || alvo.indexOf(a) !== -1); });
+    }
+    if (!id && alvo.length >= 10) {
+      id = achar(function (r) { var a = chaveDoTexto(r.titulo); return a.length >= 10 && (a.indexOf(alvo) !== -1 || alvo.indexOf(a) !== -1); });
+    }
+    if (!id) {
+      var palavras = alvo.split(" ").filter(function (w) { return w.length > 3; });
+      var melhor = null, nota = 0;
+      lista.forEach(function (r) {
+        var texto = chaveDoTexto((r.textoTela || "") + " " + (r.titulo || ""));
+        var n = palavras.filter(function (w) { return texto.indexOf(w) !== -1; }).length;
+        if (n > nota) { nota = n; melhor = r; }
+      });
+      if (melhor && palavras.length >= 3 && nota >= Math.max(2, Math.ceil(palavras.length * 0.6))) id = melhor.id;
+    }
+    return id;
+  }
+  function acharMetricaPorTitulo(t) {
+    var alvo = chaveDoTexto(t);
+    if (!alvo) return null;
+    var achadas = Object.keys(metricas).map(function (k) { return metricas[k]; })
+      .filter(function (m) { return chaveDoTexto(m.titulo) === alvo; });
+    return achadas[0] || null;
+  }
+  function nomeDoRoteiro(id) {
+    var r = acervo[id];
+    if (!r) return "";
+    return (r.titulo || "").trim() || (r.textoTela || "").trim() || "Sem título";
+  }
+
+  /* ---------- Guardar e apagar ---------- */
+  function redeVazia() {
+    var b = { pago: false, investido: null };
+    METRICAS.forEach(function (mt) { b[mt.chave] = null; });
+    return b;
+  }
+  function metricaNova(titulo) {
+    var agora = new Date().toISOString();
+    return { id: novoId(), titulo: titulo || "", roteiroId: "", data: "", ig: redeVazia(), tt: redeVazia(), criado: agora, atualizado: agora };
+  }
+  function salvarMetrica(m, depois) {
+    m.atualizado = new Date().toISOString();
+    metricas[m.id] = m;
+    if (depois === "esperar") {
+      clearTimeout(timerMetrica);
+      timerMetrica = setTimeout(function () { gravarMetrica(m); }, 700);
+    } else gravarMetrica(m);
+  }
+  function gravarMetrica(m) {
+    if (!arm) return;
+    arm.salvar("metricas", m.id, m).then(avisarSalvo).catch(function () {
+      mostrarEstado("erro", "Não foi possível salvar as métricas. Confira a conexão.");
+    });
+  }
+  function apagarMetrica(id) {
+    delete metricas[id];
+    renderTodos();
+    if (arm) arm.apagar("metricas", id).then(function () { mostrarEstado("salvo", "Post excluído dos insights"); })
+      .catch(function () { mostrarEstado("erro", "Não foi possível excluir. Tente de novo."); });
+  }
+  function alterarMetrica(id, mudar, depois) {
+    var m = metricas[id];
+    if (!m) return null;
+    var c = clonar(m);
+    mudar(c);
+    salvarMetrica(c, depois);
+    return c;
+  }
+
+  /* ---------- Importação ---------- */
+  function lerArquivoMetricas(arquivo) {
+    if (!arquivo) return;
+    erroImportar = "";
+    var nome = (arquivo.name || "").toLowerCase();
+    mostrarEstado("salvando", "Lendo " + (arquivo.name || "o arquivo"));
+    var promessa;
+    if (/\.docx$/.test(nome)) {
+      promessa = arquivo.arrayBuffer().then(function (buf) {
+        var itens = lerZip(buf);
+        var doc = itens.filter(function (x) { return x.nome === "word/document.xml"; })[0];
+        if (!doc) throw new Error("Não achei o texto dentro deste docx");
+        return descomprimir(doc);
+      }).then(conteudoDoDocx);
+    } else {
+      promessa = arquivo.text().then(function (t) { return { tabelas: [], linhas: t.replace(/\r\n?/g, "\n").split("\n") }; });
+    }
+    promessa.then(function (conteudo) {
+      montarPrevia(lerEntrada(conteudo, redePadrao), arquivo.name || "");
+    }).catch(function (e) {
+      erroImportar = (e && e.message) || "Não consegui ler este arquivo";
+      prevMetricas = null;
+      mostrarEstado("erro", erroImportar);
+      renderTodos();
+    });
+  }
+  function lerTextoMetricas() {
+    var campo = $("metricas-texto");
+    var t = campo ? campo.value : "";
+    erroImportar = "";
+    if (!t.trim()) { erroImportar = "Cole o conteúdo antes de ler"; renderTodos(); return; }
+    montarPrevia(lerEntrada({ tabelas: [], linhas: t.replace(/\r\n?/g, "\n").split("\n") }, redePadrao), "texto colado");
+  }
+  function montarPrevia(posts, origem) {
+    if (!posts.length) {
+      erroImportar = "Não achei métricas reconhecíveis em " + (origem || "este conteúdo") +
+        ". O arquivo precisa ter o texto na tela do post e pelo menos uma coluna de visualizações, seguidores, salvamentos, compartilhamentos ou comentários.";
+      prevMetricas = null;
+      mostrarEstado("erro", "Nada reconhecido no arquivo");
+      renderTodos();
+      return;
+    }
+    prevMetricas = {
+      origem: origem || "",
+      linhas: posts.map(function (p) {
+        var existente = acharMetricaPorTitulo(p.titulo);
+        return {
+          post: p,
+          id: existente ? existente.id : "",
+          roteiroId: existente && existente.roteiroId ? existente.roteiroId : acharRoteiroPorTexto(p.titulo),
+          usar: true
+        };
+      })
+    };
+    importarMetricas = true;
+    mostrarEstado("salvo", posts.length + " " + plural(posts.length, "post lido", "posts lidos"));
+    renderTodos();
+  }
+  function confirmarMetricas() {
+    if (!prevMetricas) return;
+    var escolhidas = prevMetricas.linhas.filter(function (l) { return l.usar; });
+    escolhidas.forEach(function (l) {
+      var base = l.id && metricas[l.id] ? clonar(metricas[l.id]) : metricaNova(l.post.titulo);
+      base.titulo = l.post.titulo || base.titulo;
+      if (l.post.data) base.data = l.post.data;
+      if (l.roteiroId) base.roteiroId = l.roteiroId;
+      REDES.forEach(function (rd) {
+        var de = l.post.redes[rd.chave];
+        if (!de) return;
+        var para = base[rd.chave] = base[rd.chave] || redeVazia();
+        METRICAS.forEach(function (mt) { if (de[mt.chave] != null) para[mt.chave] = de[mt.chave]; });
+        if (de.investido != null) para.investido = de.investido;
+        if (de.pago != null) para.pago = !!de.pago;
+      });
+      salvarMetrica(base);
+    });
+    prevMetricas = null;
+    importarMetricas = false;
+    mostrarEstado("salvando", escolhidas.length + " " + plural(escolhidas.length, "post guardado", "posts guardados"));
+    renderTodos();
+  }
+
+  /* ---------- A tela ---------- */
+  function metricasVisiveis() {
+    var lista = Object.keys(metricas).map(function (k) { return metricas[k]; });
+    if (buscaInsights) {
+      var b = chaveDoTexto(buscaInsights);
+      lista = lista.filter(function (m) {
+        return chaveDoTexto(m.titulo).indexOf(b) !== -1 || chaveDoTexto(nomeDoRoteiro(m.roteiroId)).indexOf(b) !== -1;
+      });
+    }
+    lista = lista.filter(function (m) { return redesDoPost(m).length; });
+    var ordenar = ordemInsights;
+    lista.sort(function (a, b) {
+      if (ordenar === "titulo") return chaveDoTexto(a.titulo).localeCompare(chaveDoTexto(b.titulo), "pt-BR");
+      if (ordenar === "data") return String(b.data || "").localeCompare(String(a.data || ""));
+      return (somaDoPost(b, ordenar) || 0) - (somaDoPost(a, ordenar) || 0);
+    });
+    return lista;
+  }
+  // Uma rede entra na conta quando tem número e quando combina com o filtro de orgânico ou de tráfego pago.
+  function redesDoPost(m) {
+    return REDES.map(function (r) { return r.chave; }).filter(function (rd) {
+      if (filtroRede && filtroRede !== rd) return false;
+      var b = m[rd];
+      if (!temNumero(b)) return false;
+      if (filtroPago === "pago" && !b.pago) return false;
+      if (filtroPago === "organico" && b.pago) return false;
+      return true;
+    });
+  }
+  function somaDoPost(m, campo) {
+    var total = null;
+    redesDoPost(m).forEach(function (rd) {
+      var v = m[rd][campo];
+      if (v != null) total = (total || 0) + v;
+    });
+    return total;
+  }
+  function htmlInsights() {
+    var lista = metricasVisiveis();
+    var total = Object.keys(metricas).length;
+    var h = '<div class="ins">';
+
+    h += '<div class="ins-acoes">' +
+      '<button type="button" class="btn btn-laranja" id="abrir-metricas" aria-expanded="' + importarMetricas + '">' +
+      (importarMetricas ? "Fechar a importação" : "Importar métricas") + "</button>" +
+      '<input class="busca busca-insights" id="busca-insights" type="search" placeholder="Buscar pelo texto na tela" aria-label="Buscar pelo texto na tela" value="' + esc(buscaInsights) + '"></div>';
+
+    if (importarMetricas) {
+      h += '<section class="ins-importar">' +
+        '<p class="aviso">Escolha o docx que veio da pesquisa e eu leio as tabelas e as linhas de dentro dele. Se preferir, cole o conteúdo no campo de baixo. Cada post entra pelo texto na tela, que é o que liga o post ao roteiro.</p>' +
+        '<div class="ins-linha-arquivo"><label class="rotulo" for="arq-metricas">Arquivo</label>' +
+        '<input class="entrada ins-arquivo" id="arq-metricas" type="file" accept=".docx,.txt,.csv,.tsv">' +
+        '<span class="rotulo">Quando o arquivo não disser a rede</span>' +
+        '<span class="filtros">' + REDES.map(function (r) {
+          return '<button type="button" class="filtro filtro-mini" data-rede-padrao="' + r.chave + '" aria-pressed="' + (redePadrao === r.chave) + '">' + r.nome + "</button>";
+        }).join("") + "</span></div>" +
+        '<label class="rotulo" for="metricas-texto">Ou cole o conteúdo aqui</label>' +
+        '<textarea class="area ins-area" id="metricas-texto" placeholder="Uma tabela separada por tabulação ou por ponto e vírgula, ou linhas do tipo Texto na tela: ... / Visualizações: ..."></textarea>' +
+        '<div class="ins-importar-acoes"><button type="button" class="btn" id="ler-metricas-texto">Ler o texto colado</button></div>';
+      if (erroImportar) h += '<p class="ins-erro">' + esc(erroImportar) + "</p>";
+      if (prevMetricas) {
+        var quantasUsar = prevMetricas.linhas.filter(function (l) { return l.usar; }).length;
+        h += '<div class="ins-previa"><h3 class="cal-fila-titulo">Prévia de ' + prevMetricas.linhas.length + " " +
+          plural(prevMetricas.linhas.length, "post", "posts") + (prevMetricas.origem ? " de " + esc(prevMetricas.origem) : "") + "</h3>";
+        h += prevMetricas.linhas.map(function (l, i) {
+          var p = l.post;
+          var numeros = REDES.filter(function (r) { return p.redes[r.chave]; }).map(function (r) {
+            var b = p.redes[r.chave];
+            return '<span class="ins-previa-rede" style="--cor: ' + r.cor + '">' + r.nome + ": " +
+              METRICAS.filter(function (mt) { return b[mt.chave] != null; }).map(function (mt) {
+                return numeroBonito(b[mt.chave]) + " " + mt.curto.toLowerCase();
+              }).join(", ") + (b.pago ? " · tráfego pago" : "") + "</span>";
+          }).join("");
+          return '<div class="ins-previa-linha' + (l.usar ? "" : " fora") + '">' +
+            '<label class="marcar"><input type="checkbox" data-previa="' + i + '"' + (l.usar ? " checked" : "") + ' aria-label="Importar este post"></label>' +
+            '<span class="ins-previa-nome"><b>' + esc(p.titulo) + "</b>" + numeros + "</span>" +
+            '<span class="ins-previa-lado">' + (l.id ? '<span class="tag-virou">atualiza o que já existe</span>' : '<span class="tag-pronto">novo</span>') +
+            (l.roteiroId ? '<span class="aviso">Roteiro: ' + esc(nomeDoRoteiro(l.roteiroId)) + "</span>" : '<span class="aviso">Sem roteiro achado</span>') + "</span></div>";
+        }).join("");
+        h += '<div class="ins-importar-acoes"><button type="button" class="btn" id="cancelar-metricas">Cancelar</button>' +
+          '<button type="button" class="btn btn-laranja" id="confirmar-metricas"' + (quantasUsar ? "" : " disabled") + ">Guardar " + quantasUsar + " " +
+          plural(quantasUsar, "post", "posts") + "</button></div></div>";
+      }
+      h += "</section>";
+    }
+
+    h += '<div class="filtros" role="group" aria-label="Filtrar por rede">' +
+      '<span class="rotulo">Rede</span>' +
+      [["", "Todas"]].concat(REDES.map(function (r) { return [r.chave, r.nome]; })).map(function (f) {
+        return '<button type="button" class="filtro filtro-mini" data-rede="' + f[0] + '" aria-pressed="' + (filtroRede === f[0]) + '">' + f[1] + "</button>";
+      }).join("") + "</div>" +
+      '<div class="filtros" role="group" aria-label="Filtrar por origem">' +
+      '<span class="rotulo">Origem</span>' +
+      [["", "Todas"], ["organico", "Orgânico"], ["pago", "Tráfego pago"]].map(function (f) {
+        return '<button type="button" class="filtro filtro-mini" data-origem="' + f[0] + '" aria-pressed="' + (filtroPago === f[0]) + '">' + f[1] + "</button>";
+      }).join("") + "</div>" +
+      '<div class="filtros" role="group" aria-label="Ordenar">' +
+      '<span class="rotulo">Ordenar por</span>' +
+      METRICAS.map(function (mt) { return [mt.chave, mt.curto]; }).concat([["data", "Data"], ["titulo", "Texto na tela"]]).map(function (f) {
+        return '<button type="button" class="filtro filtro-mini" data-ordem="' + f[0] + '" aria-pressed="' + (ordemInsights === f[0]) + '">' + f[1] + "</button>";
+      }).join("") + "</div>";
+
+    if (!lista.length) {
+      h += '<p class="aviso">' + (total ? "Nenhum post com esse filtro." :
+        "Nenhuma métrica guardada ainda. Clique em Importar métricas e escolha o docx da pesquisa.") + "</p></div>";
+      return h;
+    }
+
+    var somas = {}, quantosPostos = 0, quantosPagos = 0, investido = 0;
+    METRICAS.forEach(function (mt) { somas[mt.chave] = 0; });
+    lista.forEach(function (m) {
+      var redes = redesDoPost(m);
+      if (redes.length) quantosPostos++;
+      redes.forEach(function (rd) {
+        var b = m[rd];
+        METRICAS.forEach(function (mt) { if (b[mt.chave] != null) somas[mt.chave] += b[mt.chave]; });
+        if (b.pago) quantosPagos++;
+        if (b.investido != null) investido += b.investido;
+      });
+    });
+    h += '<div class="ins-cartoes">' + METRICAS.map(function (mt) {
+      var media = quantosPostos ? Math.round(somas[mt.chave] / quantosPostos) : 0;
+      return '<div class="ins-cartao"><span class="ins-cartao-nome">' + mt.nome + "</span>" +
+        '<strong class="ins-cartao-numero">' + numeroBonito(somas[mt.chave]) + "</strong>" +
+        '<span class="aviso">média de ' + numeroBonito(media) + " por post</span></div>";
+    }).join("") +
+      '<div class="ins-cartao"><span class="ins-cartao-nome">Posts na conta</span>' +
+      '<strong class="ins-cartao-numero">' + quantosPostos + "</strong>" +
+      '<span class="aviso">' + quantosPagos + " " + plural(quantosPagos, "com tráfego pago", "com tráfego pago") +
+      (investido ? " · R$ " + numeroBonito(investido) + " investidos" : "") + "</span></div></div>";
+
+    var opcoes = todosOsRoteiros();
+    h += '<div class="ins-tabela">' +
+      '<span class="ins-cab">Rede</span>' +
+      METRICAS.map(function (mt) { return '<span class="ins-cab ins-cab-num">' + mt.curto + "</span>"; }).join("") +
+      '<span class="ins-cab">Origem</span><span class="ins-cab"></span>';
+    lista.forEach(function (m, n) {
+      var redes = redesDoPost(m);
+      h += '<div class="ins-post">' +
+        '<span class="ins-post-num" aria-hidden="true">' + (n + 1) + "</span>" +
+        '<input class="entrada ins-titulo" type="text" data-met-titulo="' + m.id + '" value="' + esc(m.titulo) + '" aria-label="Texto na tela do post" placeholder="Texto na tela">' +
+        '<label class="ins-rotulo" for="met-rot-' + m.id + '">Roteiro</label>' +
+        '<select class="entrada ins-select" id="met-rot-' + m.id + '" data-met-roteiro="' + m.id + '">' +
+        '<option value=""' + (m.roteiroId ? "" : " selected") + ">Sem roteiro ligado</option>" +
+        opcoes.map(function (r) {
+          return '<option value="' + r.id + '"' + (m.roteiroId === r.id ? " selected" : "") + ">" +
+            esc((r.titulo || "Sem título") + " · " + TIPOS[r.tipo].nome) + "</option>";
+        }).join("") + "</select>" +
+        '<input class="entrada ins-data" type="date" data-met-data="' + m.id + '" value="' + esc(m.data || "") + '" aria-label="Data da publicação">' +
+        (m.roteiroId && acervo[m.roteiroId] ? '<button type="button" class="btn btn-mini" data-abrir="' + m.roteiroId + '">Abrir o roteiro</button>' : "") +
+        '<button type="button" class="apagar ins-excluir" data-met-apagar="' + m.id + '">Excluir</button>' +
+        "</div>";
+      redes.forEach(function (rd) {
+        var b = m[rd];
+        h += '<span class="ins-rede" style="--cor: ' + corDaRede(rd) + '">' + nomeDaRede(rd) + "</span>" +
+          METRICAS.map(function (mt) {
+            return '<span class="ins-cel" data-metrica="' + esc(mt.curto) + '"><input class="ins-num" type="text" inputmode="numeric" data-met-num="' + m.id + "|" + rd + "|" + mt.chave +
+              '" value="' + esc(b[mt.chave] == null ? "" : numeroBonito(b[mt.chave])) + '" aria-label="' + mt.nome + " no " + nomeDaRede(rd) + '"></span>';
+          }).join("") +
+          '<span class="ins-cel"><button type="button" class="btn btn-mini ins-pago" data-met-pago="' + m.id + "|" + rd + '" aria-pressed="' + (!!b.pago) + '">' +
+          (b.pago ? "Tráfego pago" : "Orgânico") + "</button></span>" +
+          '<span class="ins-cel ins-invest">' + (b.pago ?
+            '<input class="ins-num" type="text" inputmode="numeric" data-met-invest="' + m.id + "|" + rd + '" value="' + esc(b.investido == null ? "" : numeroBonito(b.investido)) + '" aria-label="Valor investido em reais" placeholder="R$">' : "") + "</span>";
+      });
+    });
+    h += "</div>";
+    h += resumoPorGrupo(lista);
+    h += "</div>";
+    return h;
+  }
+  // O que cada tema e cada formato andou rendendo, a partir dos roteiros ligados aos posts.
+  function resumoPorGrupo(lista) {
+    var porTema = {}, porFormato = {};
+    lista.forEach(function (m) {
+      var vistas = somaDoPost(m, "visualizacoes");
+      var r = acervo[m.roteiroId];
+      var junta = function (mapa, nome) {
+        var g = mapa[nome] = mapa[nome] || { posts: 0, vistas: 0 };
+        g.posts++;
+        if (vistas != null) g.vistas += vistas;
+      };
+      if (r) {
+        junta(porFormato, TIPOS[r.tipo].nome);
+        var temas = emOrdem(r.etiquetas || [], ETIQUETAS_ROTEIRO);
+        if (temas.length) temas.forEach(function (t) { junta(porTema, t); });
+        else junta(porTema, "Sem tema");
+      } else junta(porFormato, "Sem roteiro ligado");
+    });
+    function tabela(titulo, mapa, nota) {
+      var nomes = Object.keys(mapa).sort(function (a, b) {
+        var ma = mapa[a].posts ? mapa[a].vistas / mapa[a].posts : 0, mb = mapa[b].posts ? mapa[b].vistas / mapa[b].posts : 0;
+        return mb - ma;
+      });
+      if (!nomes.length) return "";
+      return '<section class="ins-grupo"><h3 class="cal-fila-titulo">' + titulo + "</h3>" +
+        '<div class="ins-grupo-tabela"><span class="ins-cab">' + nota + '</span><span class="ins-cab ins-cab-num">Posts</span>' +
+        '<span class="ins-cab ins-cab-num">Visualizações</span><span class="ins-cab ins-cab-num">Média</span>' +
+        nomes.map(function (n) {
+          var g = mapa[n];
+          return '<span class="ins-grupo-nome">' + esc(n) + "</span>" +
+            '<span class="ins-grupo-num">' + g.posts + "</span>" +
+            '<span class="ins-grupo-num">' + numeroBonito(g.vistas) + "</span>" +
+            '<span class="ins-grupo-num">' + numeroBonito(g.posts ? Math.round(g.vistas / g.posts) : 0) + "</span>";
+        }).join("") + "</div></section>";
+    }
+    var h = tabela("Por tema", porTema, "Tema") + tabela("Por formato", porFormato, "Formato");
+    return h ? '<div class="ins-grupos">' + h + "</div>" : "";
+  }
+
   function renderTodos() {
     var total = todosOsRoteiros().length, lista = visiveisDaLista();
     var revisar = todosOsRoteiros().filter(function (r) { return r.revisar; }).length;
@@ -1832,11 +2571,22 @@
     var nomeSituacao = { pronto: "Pronto", rascunho: "Não pronto", publicar: "A publicar", revisar: "A revisar" };
     var h = '<div class="ideias-wrap lista-wrap todos-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
       '<span class="aviso">' + total + " " + plural(total, "roteiro guardado", "roteiros guardados") +
-      (vistaTodos === "lista" ? " · em ordem de título" : " · " + quantosEm("publicar") + " a publicar") + "</span></div>" +
+      (vistaTodos === "lista" ? " · em ordem de título"
+        : vistaTodos === "insights" ? " · " + Object.keys(metricas).length + " " + plural(Object.keys(metricas).length, "post com métricas", "posts com métricas")
+        : " · " + quantosEm("publicar") + " a publicar") + "</span></div>" +
       (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
       '<div class="vistas" role="tablist" aria-label="Como ver os roteiros">' +
       '<button type="button" class="vista" role="tab" data-vista="lista" aria-selected="' + (vistaTodos === "lista") + '">Lista</button>' +
-      '<button type="button" class="vista" role="tab" data-vista="calendario" aria-selected="' + (vistaTodos === "calendario") + '">Calendário</button></div>';
+      '<button type="button" class="vista" role="tab" data-vista="calendario" aria-selected="' + (vistaTodos === "calendario") + '">Calendário</button>' +
+      '<button type="button" class="vista" role="tab" data-vista="insights" aria-selected="' + (vistaTodos === "insights") + '">Insights</button></div>';
+    if (vistaTodos === "insights") {
+      h += htmlInsights() + "</div>";
+      $("editor").innerHTML = h;
+      atualizarContagens();
+      var campoBusca = $("busca-insights");
+      if (campoBusca && buscaInsights) { campoBusca.focus(); try { campoBusca.setSelectionRange(9999, 9999); } catch (err) {} }
+      return;
+    }
     if (vistaTodos === "calendario") {
       h += htmlCalendario() + "</div>";
       $("editor").innerHTML = h;
@@ -3367,6 +4117,20 @@
   ed.addEventListener("input", function (e) {
     var el = e.target;
     if (el.id === "importar-texto") { contarLinhas(); crescer(el); return; }
+    if (el.id === "metricas-texto") { crescer(el); return; }
+    if (el.id === "busca-insights") {
+      buscaInsights = el.value.trim();
+      var posIns = el.selectionStart;
+      renderTodos();
+      var novoIns = $("busca-insights");
+      if (novoIns) { novoIns.focus(); try { novoIns.setSelectionRange(posIns, posIns); } catch (err) {} }
+      return;
+    }
+    if (el.dataset && el.dataset.metTitulo) {
+      var tituloNovo = el.value;
+      alterarMetrica(el.dataset.metTitulo, function (c) { c.titulo = tituloNovo; }, "esperar");
+      return;
+    }
     if (el.id === "busca-todos") {
       buscaTodos = el.value.trim();
       var pos = el.selectionStart;
@@ -3419,6 +4183,37 @@
   ed.addEventListener("change", function (e) {
     var el = e.target;
     if (el.id === "cal-data" && calAberto) { marcarData(calAberto, el.value); return; }
+    if (el.id === "arq-metricas") { lerArquivoMetricas(el.files && el.files[0]); el.value = ""; return; }
+    if (el.dataset && el.dataset.previa != null && prevMetricas) {
+      var linhaPrev = prevMetricas.linhas[+el.dataset.previa];
+      if (linhaPrev) linhaPrev.usar = el.checked;
+      renderTodos();
+      return;
+    }
+    if (el.dataset && el.dataset.metRoteiro) {
+      var idRot = el.value;
+      alterarMetrica(el.dataset.metRoteiro, function (c) { c.roteiroId = idRot; });
+      renderTodos();
+      return;
+    }
+    if (el.dataset && el.dataset.metData) {
+      var dataPost = el.value;
+      alterarMetrica(el.dataset.metData, function (c) { c.data = dataPost; });
+      renderTodos();
+      return;
+    }
+    if (el.dataset && el.dataset.metNum) {
+      var pn = el.dataset.metNum.split("|"), lidoN = el.value.trim() ? numeroDoTexto(el.value) : null;
+      alterarMetrica(pn[0], function (c) { c[pn[1]] = c[pn[1]] || redeVazia(); c[pn[1]][pn[2]] = lidoN; });
+      renderTodos();
+      return;
+    }
+    if (el.dataset && el.dataset.metInvest) {
+      var pi = el.dataset.metInvest.split("|"), lidoI = el.value.trim() ? numeroDoTexto(el.value) : null;
+      alterarMetrica(pi[0], function (c) { c[pi[1]] = c[pi[1]] || redeVazia(); c[pi[1]].investido = lidoI; });
+      renderTodos();
+      return;
+    }
     if (el.dataset && el.dataset.marcarIdeia) {
       ideiasMarcadas[el.dataset.marcarIdeia] = el.checked;
       renderIdeias();
@@ -3523,6 +4318,40 @@
     }
     var bvista = e.target.closest("[data-vista]");
     if (bvista) { vistaTodos = bvista.dataset.vista; gravarLocal(CHAVE_VISTA, vistaTodos); renderTodos(); return; }
+    if (e.target.id === "abrir-metricas") {
+      importarMetricas = !importarMetricas;
+      if (!importarMetricas) { prevMetricas = null; erroImportar = ""; }
+      renderTodos();
+      return;
+    }
+    if (e.target.id === "ler-metricas-texto") { lerTextoMetricas(); return; }
+    if (e.target.id === "cancelar-metricas") { prevMetricas = null; erroImportar = ""; renderTodos(); return; }
+    if (e.target.id === "confirmar-metricas") { confirmarMetricas(); return; }
+    var brp = e.target.closest("[data-rede-padrao]");
+    if (brp) { redePadrao = brp.dataset.redePadrao; renderTodos(); return; }
+    var brede = e.target.closest("[data-rede]");
+    if (brede) { filtroRede = brede.dataset.rede; renderTodos(); return; }
+    var borigem = e.target.closest("[data-origem]");
+    if (borigem) { filtroPago = borigem.dataset.origem; renderTodos(); return; }
+    var bordem = e.target.closest("[data-ordem]");
+    if (bordem) { ordemInsights = bordem.dataset.ordem; renderTodos(); return; }
+    var bpago = e.target.closest("[data-met-pago]");
+    if (bpago) {
+      var pp = bpago.dataset.metPago.split("|");
+      alterarMetrica(pp[0], function (c) {
+        c[pp[1]] = c[pp[1]] || redeVazia();
+        c[pp[1]].pago = !c[pp[1]].pago;
+        if (!c[pp[1]].pago) c[pp[1]].investido = null;
+      });
+      renderTodos();
+      return;
+    }
+    var bapm = e.target.closest("[data-met-apagar]");
+    if (bapm) {
+      if (!confirmarDuasVezes(bapm, "Clique de novo para excluir", "Excluir")) return;
+      apagarMetrica(bapm.dataset.metApagar);
+      return;
+    }
     var bmes = e.target.closest("[data-mes]");
     if (bmes) {
       var passo = +bmes.dataset.mes, agoraCal = new Date();
