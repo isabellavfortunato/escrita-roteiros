@@ -446,6 +446,7 @@
   .mudar-situacao .btn[disabled] { opacity: .4; cursor: default; }
 
   /* Lista e calendário em todos os roteiros */
+  .btn-depois[disabled] { opacity: .45; }
   .vistas-cartoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .vista-cartao { height: 84px; padding: 0 20px; }
   .vista-cartao .nav-ideias-nome b { font-size: 34px; }
@@ -946,12 +947,12 @@
     "Joana": "#9c3773", "Lista": "#0b6e99",
     "Financeiro": "#6b4a2b", "Cliente & Vendas": "#0f7a8c", "Precificação": "#4b5563",
     "Marketing": "#c0266d", "Cobrança & Inadimplência": "#7f1d1d", "RH": "#6b7a1f",
-    "Minha história": "#4338a0", "DPS": "#134e4a"
+    "Minha história": "#4338a0", "DPS": "#134e4a", "Depois": "#5a5470"
   };
   function comCor(nomes) { return nomes.map(function (n) { return { nome: n, cor: COR_ETIQUETA[n] }; }); }
   var ETIQUETAS = comCor(["POV", "TDAH", "Claude", "Empresa", "Mentalidade", "Produtividade", "Posicionamento", "Joana", "Lista", "DPS"]);
   var ETIQUETAS_ROTEIRO = comCor(["Financeiro", "Cliente & Vendas", "Precificação", "Marketing", "Cobrança & Inadimplência",
-    "RH", "Produtividade", "Posicionamento", "Minha história", "Mentalidade", "Claude", "POV", "TDAH", "Empresa", "Joana", "Lista", "DPS"]);
+    "RH", "Produtividade", "Posicionamento", "Minha história", "Mentalidade", "Claude", "POV", "TDAH", "Empresa", "Joana", "Lista", "DPS", "Depois"]);
   var LIMITE_IDEIA = 100;
   var LIMITE_IMPORTACAO = 300;
   var CHAVE_ABA = "caderno-roteiros-aba";
@@ -1875,6 +1876,26 @@
     } else salvarRoteiro(c, false);
     return c;
   }
+  function escolhidosDaLista() {
+    return Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; });
+  }
+  // Depois é uma etiqueta comum, então o botão da lista só põe e tira o nome no roteiro escolhido.
+  function todosJaDepois() {
+    var ids = escolhidosDaLista();
+    return ids.length > 0 && ids.every(function (id) { return temEtiqueta(acervo[id], "Depois"); });
+  }
+  function marcarDepois(ids) {
+    var tirar = todosJaDepois();
+    ids.forEach(function (id) {
+      alterarRoteiro(id, function (c) {
+        var lista = (c.etiquetas || []).filter(function (n) { return n !== "Depois"; });
+        if (!tirar) lista.push("Depois");
+        c.etiquetas = lista;
+      });
+    });
+    renderTodos();
+    mostrarEstado("salvando", ids.length + " " + plural(ids.length, "roteiro", "roteiros") + (tirar ? " sem o Depois" : " marcados como Depois"));
+  }
   function mudarSituacao(ids, sit) {
     ids.forEach(function (id) {
       alterarRoteiro(id, function (c) {
@@ -2663,6 +2684,8 @@
       '<button type="button" class="btn" id="limpar-marcas"' + (escolhidos ? "" : " disabled") + ">Limpar</button>" +
       '<button type="button" class="btn btn-laranja" id="baixar-escolhidos"' + (escolhidos ? "" : " disabled") + ">Baixar em docx</button>" +
       '<button type="button" class="btn" id="voltar-lote"' + (escolhidos ? "" : " disabled") + ' title="Devolve o assunto para as ideias e apaga os roteiros escolhidos">Voltar para ideias</button>' +
+      '<button type="button" class="btn btn-depois" id="marcar-depois"' + (escolhidos ? "" : " disabled") +
+        ' title="Põe ou tira a etiqueta Depois nos roteiros escolhidos">' + (todosJaDepois() ? "Tirar o Depois" : "Depois") + "</button>" +
       '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
       [["rascunho", "Não pronto"], ["pronto", "Pronto"], ["publicar", "A publicar"]].map(function (f) {
         return '<button type="button" class="btn btn-mini" data-mudar-situacao="' + f[0] + '"' + (escolhidos ? "" : " disabled") + ">" + f[1] + "</button>";
@@ -4339,6 +4362,11 @@
       return;
     }
     if (e.target.id === "limpar-marcas") { marcados = {}; renderTodos(); return; }
+    if (e.target.id === "marcar-depois") {
+      var idsDepois = escolhidosDaLista();
+      if (idsDepois.length) marcarDepois(idsDepois);
+      return;
+    }
     if (e.target.id === "voltar-lote") {
       var idsVolta = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; });
       if (!idsVolta.length) return;
