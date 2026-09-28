@@ -447,6 +447,11 @@
 
   /* Lista e calendário em todos os roteiros */
   .btn-depois[disabled] { opacity: .45; }
+  .tag-depois {
+    align-self: center; justify-self: start; font-size: 11.5px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; color: #ffffff; background: #5a5470; border-radius: 999px; padding: 2px 10px;
+  }
+  .item .tag-depois { align-self: flex-start; margin-top: 2px; }
   .vistas-cartoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .vista-cartao { height: 84px; padding: 0 20px; }
   .vista-cartao .nav-ideias-nome b { font-size: 34px; }
@@ -952,7 +957,7 @@
   function comCor(nomes) { return nomes.map(function (n) { return { nome: n, cor: COR_ETIQUETA[n] }; }); }
   var ETIQUETAS = comCor(["POV", "TDAH", "Claude", "Empresa", "Mentalidade", "Produtividade", "Posicionamento", "Joana", "Lista", "DPS"]);
   var ETIQUETAS_ROTEIRO = comCor(["Financeiro", "Cliente & Vendas", "Precificação", "Marketing", "Cobrança & Inadimplência",
-    "RH", "Produtividade", "Posicionamento", "Minha história", "Mentalidade", "Claude", "POV", "TDAH", "Empresa", "Joana", "Lista", "DPS", "Depois"]);
+    "RH", "Produtividade", "Posicionamento", "Minha história", "Mentalidade", "Claude", "POV", "TDAH", "Empresa", "Joana", "Lista", "DPS"]);
   var LIMITE_IDEIA = 100;
   var LIMITE_IMPORTACAO = 300;
   var CHAVE_ABA = "caderno-roteiros-aba";
@@ -991,6 +996,7 @@
   var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
   var filtroSituacao = "";
   var verArquivadas = false;
+  var verDepois = false;
   var filtroEtiquetaRoteiro = {};
   var abrirFiltros = lerLocal(CHAVE_FILTROS) === "1";
   var abrirEtiquetar = lerLocal(CHAVE_ETIQUETAR) === "1";
@@ -1810,6 +1816,10 @@
   }
 
   /* ---------- Abas e lista ---------- */
+  // Roteiro no depois sai das listas normais e só aparece pelo botão Depois.
+  function noDepois(r) { return !!r.depois || temEtiqueta(r, "Depois"); }
+  function roteirosVivos() { return todosOsRoteiros().filter(function (r) { return !noDepois(r); }); }
+  function roteirosNoDepois() { return todosOsRoteiros().filter(noDepois); }
   function todosOsRoteiros() {
     return Object.keys(acervo).map(function (k) { return acervo[k]; })
       .sort(function (a, b) {
@@ -1820,7 +1830,7 @@
       });
   }
   function visiveisDaLista() {
-    var lista = todosOsRoteiros();
+    var lista = verDepois ? roteirosNoDepois() : roteirosVivos();
     // a situação combina com o formato ou com o tema escolhido
     if (situacaoTodos) lista = lista.filter(function (r) { return situacaoTodos === "revisar" ? r.revisar : situacaoDe(r) === situacaoTodos; });
     var temas = Object.keys(temasTodos);
@@ -1879,22 +1889,22 @@
   function escolhidosDaLista() {
     return Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; });
   }
-  // Depois é uma etiqueta comum, então o botão da lista só põe e tira o nome no roteiro escolhido.
   function todosJaDepois() {
     var ids = escolhidosDaLista();
-    return ids.length > 0 && ids.every(function (id) { return temEtiqueta(acervo[id], "Depois"); });
+    return ids.length > 0 && ids.every(function (id) { return noDepois(acervo[id]); });
   }
   function marcarDepois(ids) {
     var tirar = todosJaDepois();
     ids.forEach(function (id) {
       alterarRoteiro(id, function (c) {
-        var lista = (c.etiquetas || []).filter(function (n) { return n !== "Depois"; });
-        if (!tirar) lista.push("Depois");
-        c.etiquetas = lista;
+        c.etiquetas = (c.etiquetas || []).filter(function (n) { return n !== "Depois"; });
+        if (tirar) delete c.depois; else c.depois = true;
       });
     });
+    marcados = {};
     renderTodos();
-    mostrarEstado("salvando", ids.length + " " + plural(ids.length, "roteiro", "roteiros") + (tirar ? " sem o Depois" : " marcados como Depois"));
+    mostrarEstado("salvando", ids.length + " " + plural(ids.length, "roteiro", "roteiros") +
+      (tirar ? " de volta nas listas" : " no depois"));
   }
   function mudarSituacao(ids, sit) {
     ids.forEach(function (id) {
@@ -1929,7 +1939,7 @@
   function htmlCalendario() {
     var hoje = new Date();
     if (!mesCal) mesCal = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    var aPub = todosOsRoteiros().filter(function (r) { return r.aPublicar; });
+    var aPub = roteirosVivos().filter(function (r) { return r.aPublicar; });
     var semData = aPub.filter(function (r) { return !r.dataPublicacao; });
     var porDia = {};
     aPub.forEach(function (r) { if (r.dataPublicacao) (porDia[r.dataPublicacao] = porDia[r.dataPublicacao] || []).push(r); });
@@ -2621,21 +2631,23 @@
     }).join("") + "</div>";
   }
   function renderTodos() {
-    var total = todosOsRoteiros().length, lista = visiveisDaLista();
-    var revisar = todosOsRoteiros().filter(function (r) { return r.revisar; }).length;
+    var universo = verDepois ? roteirosNoDepois() : roteirosVivos();
+    var total = universo.length, lista = visiveisDaLista();
+    var noEspera = roteirosNoDepois().length;
+    var revisar = universo.filter(function (r) { return r.revisar; }).length;
     var filtros = [["", "Todos"]].concat(QUADRANTE.map(function (t) { return [t, TIPOS[t].nome]; }));
-    var quantosEm = function (sit) { return todosOsRoteiros().filter(function (r) { return situacaoDe(r) === sit; }).length; };
+    var quantosEm = function (sit) { return universo.filter(function (r) { return situacaoDe(r) === sit; }).length; };
     var situacoes = [["", "Todas (" + total + ")"], ["rascunho", "Não pronto (" + quantosEm("rascunho") + ")"],
       ["pronto", "Pronto (" + quantosEm("pronto") + ")"], ["publicar", "A publicar (" + quantosEm("publicar") + ")"],
       ["revisar", "A revisar (" + revisar + ")"]];
     var nomeSituacao = { pronto: "Pronto", rascunho: "Não pronto", publicar: "A publicar", revisar: "A revisar" };
     var h = '<div class="ideias-wrap lista-wrap todos-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
-      '<span class="aviso">' + total + " " + plural(total, "roteiro guardado", "roteiros guardados") +
+      '<span class="aviso">' + total + " " + plural(total, verDepois ? "roteiro no depois" : "roteiro guardado", verDepois ? "roteiros no depois" : "roteiros guardados") +
       (vistaTodos === "lista" ? " · em ordem de título"
         : vistaTodos === "insights" ? " · " + Object.keys(metricas).length + " " + plural(Object.keys(metricas).length, "post com métricas", "posts com métricas")
         : " · " + quantosEm("publicar") + " a publicar") + "</span></div>" +
       (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
-      htmlVistas(total, quantosEm("publicar"));
+      htmlVistas(roteirosVivos().length, roteirosVivos().filter(function (r) { return r.aPublicar; }).length);
     if (vistaTodos === "insights") {
       h += htmlInsights() + "</div>";
       $("editor").innerHTML = h;
@@ -2658,7 +2670,8 @@
       (!abrirSituacao && situacaoTodos ? " · " + nomeSituacao[situacaoTodos] : "") + "</button>" +
       (abrirSituacao ? situacoes.map(function (f) {
         return '<button type="button" class="filtro" data-situacao-todos="' + f[0] + '" aria-pressed="' + (situacaoTodos === f[0]) + '">' + f[1] + "</button>";
-      }).join("") : "") + "</div>" +
+      }).join("") : "") +
+      '<button type="button" class="filtro filtro-arquivadas" id="ver-depois" aria-pressed="' + verDepois + '">Depois (' + noEspera + ")</button></div>" +
       '<div class="filtros" role="group" aria-label="Filtrar por formato">' +
       '<button type="button" class="rotulo rotulo-abre" id="abrir-formato" aria-expanded="' + abrirFormato + '">' +
       '<span class="seta" aria-hidden="true">' + (abrirFormato ? "▾" : "▸") + "</span> Formato" +
@@ -2672,7 +2685,7 @@
       (!abrirTema && Object.keys(temasTodos).length ? " · " + esc(emOrdem(Object.keys(temasTodos), ETIQUETAS_ROTEIRO).join(", ")) : "") + "</button>" +
       (abrirTema ? botoesTodasNenhuma("tema") +
         ETIQUETAS_ROTEIRO.map(function (et) {
-        var quantos = todosOsRoteiros().filter(function (r) { return temEtiqueta(r, et.nome); }).length;
+        var quantos = universo.filter(function (r) { return temEtiqueta(r, et.nome); }).length;
         return '<button type="button" class="filtro filtro-etiqueta" data-tema-todos="' + esc(et.nome) + '" aria-pressed="' +
           (!!temasTodos[et.nome]) + '" style="--cor: ' + et.cor + '">' + esc(et.nome) + " (" + quantos + ")</button>";
       }).join("") : "") + "</div>";
@@ -2685,13 +2698,17 @@
       '<button type="button" class="btn btn-laranja" id="baixar-escolhidos"' + (escolhidos ? "" : " disabled") + ">Baixar em docx</button>" +
       '<button type="button" class="btn" id="voltar-lote"' + (escolhidos ? "" : " disabled") + ' title="Devolve o assunto para as ideias e apaga os roteiros escolhidos">Voltar para ideias</button>' +
       '<button type="button" class="btn btn-depois" id="marcar-depois"' + (escolhidos ? "" : " disabled") +
-        ' title="Põe ou tira a etiqueta Depois nos roteiros escolhidos">' + (todosJaDepois() ? "Tirar o Depois" : "Depois") + "</button>" +
+        ' title="Tira os roteiros escolhidos das listas normais e guarda no Depois">' +
+        (todosJaDepois() ? "Tirar do depois" : "Mandar para depois") + "</button>" +
       '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
       [["rascunho", "Não pronto"], ["pronto", "Pronto"], ["publicar", "A publicar"]].map(function (f) {
         return '<button type="button" class="btn btn-mini" data-mudar-situacao="' + f[0] + '"' + (escolhidos ? "" : " disabled") + ">" + f[1] + "</button>";
       }).join("") + "</span></div>";
+    if (verDepois) h += '<p class="aviso aviso-curto">No depois, fora das listas normais</p>';
     if (!carregou) h += '<p class="carregando">Abrindo o caderno.</p>';
-    else if (!lista.length) h += '<p class="aviso">Nenhum roteiro com esse filtro.</p>';
+    else if (!lista.length) h += '<p class="aviso">' +
+      (verDepois ? "Nenhum roteiro no depois. Marque os roteiros na lista e clique em Mandar para depois."
+        : "Nenhum roteiro com esse filtro.") + "</p>";
     else {
       h += '<div class="tabela">' + lista.map(function (r, n) {
         var medida = TIPOS[r.tipo].video
@@ -2703,7 +2720,8 @@
           '<button type="button" class="linha-abrir" data-abrir="' + r.id + '">' +
           '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
           '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
-          (r.aPublicar ? '<span class="tag-publicar">A publicar</span>'
+          (noDepois(r) ? '<span class="tag-depois">Depois</span>'
+            : r.aPublicar ? '<span class="tag-publicar">A publicar</span>'
             : r.pronto ? '<span class="tag-pronto">Pronto</span>'
             : r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
           (pilulasDoRoteiro(r) || '<span class="etiquetas-linha"></span>') +
@@ -2778,7 +2796,7 @@
     });
     var nt = $("n-todos"), ntr = $("n-todos-rotulo");
     if (nt) {
-      var quantosR = todosOsRoteiros().length;
+      var quantosR = roteirosVivos().length;
       nt.textContent = carregou ? quantosR : "";
       ntr.textContent = carregou ? plural(quantosR, "roteiro guardado", "roteiros guardados") : "";
     }
@@ -2806,7 +2824,7 @@
   }
   function doTipo(tipo) {
     return Object.keys(acervo).map(function (k) { return acervo[k]; })
-      .filter(function (r) { return r.tipo === tipo; })
+      .filter(function (r) { return r.tipo === tipo && !noDepois(r); })
       .sort(function (a, b) { return (b.atualizado || "").localeCompare(a.atualizado || ""); });
   }
   function abrirMaisRecente() {
@@ -4362,6 +4380,12 @@
       return;
     }
     if (e.target.id === "limpar-marcas") { marcados = {}; renderTodos(); return; }
+    if (e.target.id === "ver-depois") {
+      verDepois = !verDepois;
+      marcados = {};
+      renderTodos();
+      return;
+    }
     if (e.target.id === "marcar-depois") {
       var idsDepois = escolhidosDaLista();
       if (idsDepois.length) marcarDepois(idsDepois);
