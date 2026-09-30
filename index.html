@@ -669,6 +669,8 @@
   .barra-escolha .aviso { margin-right: auto; }
   .barra-escolha .aviso:empty { margin-right: auto; min-width: 0; }
   .barra-etiquetar { padding-block: 8px; }
+  .barra-escolha .btn { min-width: 140px; }
+  .barra-escolha .btn-mini { min-width: 0; }
   .barra-escolha .btn[disabled] { opacity: .45; cursor: default; }
   .barra-escolha .btn[disabled]:hover { background: var(--papel); color: var(--navy); }
   .barra-escolha .btn-laranja[disabled]:hover { background: var(--laranja); color: #ffffff; }
@@ -2721,12 +2723,12 @@
       '<button type="button" class="btn" id="voltar-lote"' + (escolhidos ? "" : " disabled") + ' title="Devolve o assunto para as ideias e apaga os roteiros escolhidos">Voltar para ideias</button>' +
       '<button type="button" class="btn btn-depois" data-mandar="depois"' + (escolhidos ? "" : " disabled") +
         ' title="Tira os roteiros escolhidos das listas normais e guarda no Depois">' +
-        (todosJaNoLugar("depois") ? "Tirar do depois" : "Mandar para depois") + "</button>" +
+        (todosJaNoLugar("depois") ? "Tirar do depois" : "Para depois") + "</button>" +
       '<button type="button" class="btn btn-publicado" data-mandar="publicados"' + (escolhidos ? "" : " disabled") +
         ' title="Tira os roteiros escolhidos das listas normais e guarda em Publicados">' +
-        (todosJaNoLugar("publicados") ? "Tirar dos publicados" : "Marcar como publicado") + "</button>" +
+        (todosJaNoLugar("publicados") ? "Tirar dos publicados" : "Publicado") + "</button>" +
       '<button type="button" class="btn btn-excluir" id="excluir-lote"' + (escolhidos ? "" : " disabled") +
-        ' title="Apaga de vez os roteiros escolhidos, sem guardar em lugar nenhum">Excluir de vez</button>' +
+        ' title="Apaga de vez os roteiros escolhidos, sem guardar em lugar nenhum">Excluir</button>' +
       '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
       [["rascunho", "Não pronto"], ["pronto", "Pronto"], ["publicar", "A publicar"]].map(function (f) {
         return '<button type="button" class="btn btn-mini" data-mudar-situacao="' + f[0] + '"' + (escolhidos ? "" : " disabled") + ">" + f[1] + "</button>";
@@ -3684,10 +3686,11 @@
         '<button type="button" class="btn" id="limpar-ideias-marcadas"' + (escolhidas.length ? "" : " disabled") + ">Limpar</button>" +
         '<button type="button" class="btn" id="virar-lote"' + (escolhidas.length ? "" : " disabled") +
         ' aria-expanded="' + virandoLote + '">Virar roteiro</button>' +
-        '<button type="button" class="btn" id="arquivar-escolhidas"' + (escolhidas.length ? "" : " disabled") + ">" +
-        (verArquivadas ? "Desarquivar as escolhidas" : "Arquivar as escolhidas") + "</button>" +
+        '<button type="button" class="btn" id="arquivar-escolhidas"' + (escolhidas.length ? "" : " disabled") +
+        ' title="' + (verArquivadas ? "Tira as ideias escolhidas do arquivo" : "Guarda as ideias escolhidas no arquivo") + '">' +
+        (verArquivadas ? "Desarquivar" : "Arquivar") + "</button>" +
         '<button type="button" class="btn btn-excluir" id="excluir-ideias-escolhidas"' + (escolhidas.length ? "" : " disabled") +
-        ' title="Apaga de vez as ideias escolhidas, sem passar pelo arquivo">Excluir de vez</button></div>' +
+        ' title="Apaga de vez as ideias escolhidas, sem passar pelo arquivo">Excluir</button></div>' +
         (virandoLote && escolhidas.length ? '<div class="destinos"><span class="aviso">Virar ' + escolhidas.length + " " +
           plural(escolhidas.length, "ideia escolhida em", "ideias escolhidas em") + "</span>" +
           QUADRANTE.map(function (t) {
@@ -4449,7 +4452,7 @@
     if (e.target.id === "excluir-lote") {
       var idsExcluir = escolhidosDaLista();
       if (!idsExcluir.length) return;
-      if (!confirmarDuasVezes(e.target, "Clique de novo: some para sempre", "Excluir de vez")) return;
+      if (!confirmarDuasVezes(e.target, "Clique de novo: some para sempre", "Excluir")) return;
       excluirRoteirosEmLote(idsExcluir);
       return;
     }
@@ -4565,7 +4568,7 @@
     if (e.target.id === "limpar-ideias-marcadas") { ideiasMarcadas = {}; renderIdeias(); return; }
     if (e.target.id === "arquivar-escolhidas") { arquivarEmLote(); return; }
     if (e.target.id === "excluir-ideias-escolhidas") {
-      if (!confirmarDuasVezes(e.target, "Clique de novo: some para sempre", "Excluir de vez")) return;
+      if (!confirmarDuasVezes(e.target, "Clique de novo: some para sempre", "Excluir")) return;
       excluirIdeiasEmLote();
       return;
     }
