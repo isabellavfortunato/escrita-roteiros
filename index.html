@@ -3652,6 +3652,7 @@
         '<label class="rotulo" for="importar-texto">Cole a lista, uma ideia por linha</label>' +
         '<textarea class="area importar-area" id="importar-texto" placeholder="Um título por linha. Linhas em branco são ignoradas."></textarea>' +
         '<label class="linha-opcao"><input type="checkbox" id="limpar-numeracao" checked> Tirar a numeração e os marcadores do começo de cada linha</label>' +
+        '<label class="linha-opcao"><input type="checkbox" id="importar-repetidas"> Importar também as linhas que já estão na lista</label>' +
         '<div class="importar-acoes"><span class="aviso" id="importar-conta">Nenhuma linha ainda</span>' +
         '<button class="btn" id="cancelar-importar" type="button">Cancelar</button>' +
         '<button class="btn btn-laranja" id="confirmar-importar" type="button">Importar</button></div></section>';
@@ -3784,11 +3785,25 @@
       return t;
     }).filter(function (t) { return t.length > 0; });
   }
+  function textosJaGuardados() {
+    var m = {};
+    Object.keys(ideias).forEach(function (k) { m[(ideias[k].texto || "").trim().toLowerCase()] = true; });
+    return m;
+  }
   function contarLinhas() {
     var el = $("importar-conta"); if (!el) return;
-    var n = linhasDaImportacao().length;
-    el.textContent = n === 0 ? "Nenhuma linha ainda"
-      : n + " " + plural(n, "ideia encontrada", "ideias encontradas") + (n > LIMITE_IMPORTACAO ? " (o limite por vez é " + LIMITE_IMPORTACAO + ")" : "");
+    var lista = linhasDaImportacao(), n = lista.length;
+    if (!n) { el.textContent = "Nenhuma linha ainda"; return; }
+    var jaTem = textosJaGuardados(), vistas = {}, repetidas = 0;
+    lista.forEach(function (x) {
+      var chave = x.toLowerCase();
+      if (jaTem[chave] || vistas[chave]) repetidas++;
+      vistas[chave] = true;
+    });
+    var deixarPassar = $("importar-repetidas") && $("importar-repetidas").checked;
+    el.textContent = n + " " + plural(n, "ideia encontrada", "ideias encontradas") +
+      (repetidas && !deixarPassar ? " · " + repetidas + " " + plural(repetidas, "já está na lista e não entra", "já estão na lista e não entram") : "") +
+      (n > LIMITE_IMPORTACAO ? " (o limite por vez é " + LIMITE_IMPORTACAO + ")" : "");
   }
   function importarIdeias() {
     var lista = linhasDaImportacao();
@@ -3797,13 +3812,13 @@
       mostrarEstado("erro", "São " + lista.length + " linhas. Importe no máximo " + LIMITE_IMPORTACAO + " por vez.");
       return;
     }
-    var jaTem = {};
-    Object.keys(ideias).forEach(function (k) { jaTem[(ideias[k].texto || "").trim().toLowerCase()] = true; });
+    var deixarPassar = $("importar-repetidas") && $("importar-repetidas").checked;
+    var jaTem = deixarPassar ? {} : textosJaGuardados();
     var novas = [], repetidas = 0, agora = Date.now();
     lista.forEach(function (t, i) {
       var chave = t.toLowerCase();
       if (jaTem[chave]) { repetidas++; return; }
-      jaTem[chave] = true;
+      if (!deixarPassar) jaTem[chave] = true;
       var quando = new Date(agora - i * 1000).toISOString();
       var item = { id: novoId(), texto: t, criado: quando, atualizado: quando };
       var base = menorOrdem();
@@ -3811,7 +3826,7 @@
       novas.push(item);
     });
     if (!novas.length) {
-      mostrarEstado("neutro", "Todas essas ideias já estavam na lista.");
+      mostrarEstado("neutro", "As " + lista.length + " linhas já estavam na lista. Marque a opção de importar as repetidas se quiser mesmo assim.");
       return;
     }
     novas.forEach(function (o) { ideias[o.id] = o; });
@@ -4364,7 +4379,7 @@
       renderTodos();
       return;
     }
-    if (el.id === "limpar-numeracao") { contarLinhas(); return; }
+    if (el.id === "limpar-numeracao" || el.id === "importar-repetidas") { contarLinhas(); return; }
     if (!atual || el.tagName !== "SELECT") return;
     if (el.dataset.parte === "formato" && el.dataset.tela != null) {
       atual.telas[+el.dataset.tela].formato = el.value;
