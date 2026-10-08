@@ -116,7 +116,18 @@
   .quad .contagem strong { font-size: 15px; color: var(--navy); }
 
   /* Corpo */
-  .corpo { display: grid; grid-template-columns: 290px minmax(0, 1fr); min-height: calc(100vh - 150px); }
+  .corpo { display: grid; grid-template-columns: var(--gaveta, 290px) 7px minmax(0, 1fr); min-height: calc(100vh - 150px); }
+  /* A linha entre a lista e o roteiro: arraste para mudar a largura, ou clique duas vezes para voltar ao normal. */
+  .puxador {
+    width: 7px; margin: 0; padding: 0; border: 0; background: transparent; cursor: col-resize;
+    position: relative; touch-action: none; align-self: stretch;
+  }
+  .puxador::before {
+    content: ""; position: absolute; inset: 0 3px; background: var(--linha); transition: background-color .15s ease;
+  }
+  .puxador:hover::before, .puxador:focus-visible::before, .puxador.puxando::before { background: var(--laranja); inset: 0 2px; }
+  .puxador:focus-visible { outline: none; }
+  body.redimensionando { cursor: col-resize; user-select: none; }
   .gaveta {
     background: var(--fundo-lateral); border-right: 1px solid var(--linha);
     padding: 20px 18px; display: flex; flex-direction: column; gap: 14px;
@@ -329,7 +340,7 @@
 
   /* Ideias */
   .corpo.sem-gaveta { grid-template-columns: minmax(0, 1fr); }
-  .corpo.sem-gaveta .gaveta { display: none; }
+  .corpo.sem-gaveta .gaveta, .corpo.sem-gaveta .puxador { display: none; }
   .ideias-wrap { width: 100%; max-width: 1080px; margin-inline: auto; display: flex; flex-direction: column; gap: 18px; }
   .ideias-topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding-bottom: 14px; border-bottom: 2px solid var(--navy); }
   .ideias-topo h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 40px; letter-spacing: 0.04em; line-height: 1; }
@@ -794,6 +805,7 @@
   @media (max-width: 1100px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 900px) {
     .corpo { grid-template-columns: minmax(0, 1fr); }
+    .puxador { display: none; }
     .gaveta {
       border-right: 0; border-bottom: 1px solid var(--linha);
       padding: 14px max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
@@ -873,6 +885,10 @@
         <ul class="lista" id="lista"></ul>
       </div>
     </aside>
+
+    <div class="puxador" id="puxador" role="separator" tabindex="0" aria-orientation="vertical"
+      aria-label="Largura da lista de roteiros. Arraste, ou use as setas para a esquerda e para a direita."
+      title="Arraste para mudar a largura. Clique duas vezes para voltar ao normal."></div>
 
     <main class="editor" id="editor">
       <p class="carregando">Abrindo o caderno.</p>
@@ -992,6 +1008,7 @@
   var CHAVE_ORD_GAVETA = "caderno-ordem-gaveta";
   var CHAVE_ORD_TODOS = "caderno-ordem-todos";
   var CHAVE_ORD_IDEIAS = "caderno-ordem-ideias";
+  var CHAVE_LARGURA = "caderno-largura-gaveta";
 
   /* ---------- Estado ---------- */
   var arm = null;           // armazenamento em uso
@@ -4170,6 +4187,57 @@
     var t = $("titulo"); if (t) t.focus();
   });
   $("busca").addEventListener("input", function (e) { busca = e.target.value.trim(); renderLista(); });
+  /* ---------- A largura da lista da esquerda ---------- */
+  var GAVETA_PADRAO = 290, GAVETA_MIN = 200, GAVETA_MAX = 560;
+  function aplicarLargura(px) {
+    var n = Math.round(Math.min(GAVETA_MAX, Math.max(GAVETA_MIN, px)));
+    document.querySelector(".corpo").style.setProperty("--gaveta", n + "px");
+    return n;
+  }
+  (function () {
+    var guardada = parseInt(lerLocal(CHAVE_LARGURA), 10);
+    if (guardada) aplicarLargura(guardada);
+    var puxador = $("puxador");
+    if (!puxador) return;
+    var arrastando = false, larguraAgora = guardada || GAVETA_PADRAO;
+    puxador.addEventListener("pointerdown", function (e) {
+      if (window.innerWidth <= 900) return;
+      arrastando = true;
+      puxador.setPointerCapture(e.pointerId);
+      puxador.classList.add("puxando");
+      document.body.classList.add("redimensionando");
+      e.preventDefault();
+    });
+    puxador.addEventListener("pointermove", function (e) {
+      if (!arrastando) return;
+      var esquerda = $("gaveta").getBoundingClientRect().left;
+      larguraAgora = aplicarLargura(e.clientX - esquerda);
+    });
+    function soltar(e) {
+      if (!arrastando) return;
+      arrastando = false;
+      try { puxador.releasePointerCapture(e.pointerId); } catch (err) {}
+      puxador.classList.remove("puxando");
+      document.body.classList.remove("redimensionando");
+      gravarLocal(CHAVE_LARGURA, String(larguraAgora));
+    }
+    puxador.addEventListener("pointerup", soltar);
+    puxador.addEventListener("pointercancel", soltar);
+    puxador.addEventListener("dblclick", function () {
+      larguraAgora = aplicarLargura(GAVETA_PADRAO);
+      gravarLocal(CHAVE_LARGURA, String(larguraAgora));
+    });
+    puxador.addEventListener("keydown", function (e) {
+      var passo = e.shiftKey ? 40 : 10;
+      if (e.key === "ArrowLeft") larguraAgora = aplicarLargura(larguraAgora - passo);
+      else if (e.key === "ArrowRight") larguraAgora = aplicarLargura(larguraAgora + passo);
+      else if (e.key === "Home") larguraAgora = aplicarLargura(GAVETA_PADRAO);
+      else return;
+      e.preventDefault();
+      gravarLocal(CHAVE_LARGURA, String(larguraAgora));
+    });
+  })();
+
   $("filtros-gaveta").addEventListener("click", function (e) {
     var bord = e.target.closest("[data-ordem-gaveta]");
     if (bord) {
