@@ -413,7 +413,7 @@
   .filtro-etiqueta[aria-pressed="true"] { background: var(--cor); border-color: var(--cor); color: #ffffff; }
   .pega.sem-arrasto { opacity: .3; cursor: default; }
 
-  .ideias-botoes { display: flex; gap: 10px; flex-wrap: wrap; }
+  .ideias-botoes { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: flex-end; }
   .importar {
     background: var(--papel); border: 1px dashed var(--linha-forte); border-radius: 12px;
     padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;
@@ -665,6 +665,7 @@
   .lista-wrap { max-width: 900px; }
   .lista-wrap.todos-wrap { max-width: 1080px; }
   .busca-todos { max-width: 280px; }
+  .busca-ideias { width: 220px; flex: 0 1 220px; }
   .filtros { display: flex; gap: 8px; flex-wrap: wrap; }
   .filtro {
     border-radius: 999px; border: 1px solid var(--linha-forte); background: var(--papel);
@@ -1022,7 +1023,7 @@
   if (!TIPOS[abaAtual]) abaAtual = "ideias";
   var timerSalvar = null, pendente = null;
   var timersIdeia = {};
-  var busca = "";
+  var busca = "", buscaIdeias = "";
   var importando = false;
   var virandoId = null;   // ideia que está escolhendo o destino
   var virandoLote = false; // as ideias escolhidas estão escolhendo o destino
@@ -3666,12 +3667,16 @@
   function etiquetasDoFiltro(estado) {
     return Object.keys(filtroEtiqueta).filter(function (n) { return filtroEtiqueta[n] === estado; });
   }
-  function haFiltroDeIdeias() { return !!filtroSem || Object.keys(filtroEtiqueta).length > 0; }
+  function haFiltroDeIdeias() { return !!filtroSem || !!buscaIdeias || Object.keys(filtroEtiqueta).length > 0; }
   function podeArrastarIdeias() { return !haFiltroDeIdeias() && ordemIdeias === "minha"; }
   function ideiasFiltradas() {
     var lista = listaIdeias().filter(function (i) {
       return verArquivadas ? !!i.arquivada : !i.arquivada;
     });
+    if (buscaIdeias) {
+      var procurado = chaveDoTexto(buscaIdeias);
+      lista = lista.filter(function (i) { return chaveDoTexto(i.texto).indexOf(procurado) !== -1; });
+    }
     if (!haFiltroDeIdeias()) return lista;
     var so = etiquetasDoFiltro("so"), fora = etiquetasDoFiltro("fora");
     return lista.filter(function (i) {
@@ -3706,6 +3711,10 @@
     return "";
   }
   function resumoIdeias() {
+    if (buscaIdeias) {
+      var achadas = ideiasFiltradas().length;
+      return achadas + " " + plural(achadas, "ideia encontrada", "ideias encontradas") + ' com "' + buscaIdeias + '"';
+    }
     var vivas = listaIdeias().filter(function (i) { return !i.arquivada && (!i._nova || (i.texto || "").trim()); }).length;
     var noArquivo = listaIdeias().filter(function (i) { return i.arquivada; }).length;
     return vivas + " " + plural(vivas, "ideia guardada", "ideias guardadas") +
@@ -3717,7 +3726,9 @@
     var focadoAntes = document.activeElement;
     var focoMarca = focadoAntes && focadoAntes.dataset ? focadoAntes.dataset.marcarIdeia : null;
     var h = '<div class="ideias-wrap"><div class="ideias-topo"><div><h2>Ideias</h2><span class="aviso" id="i-resumo"></span></div>' +
-      '<div class="ideias-botoes"><button class="btn" id="abrir-importar" type="button">Importar em lote</button>' +
+      '<div class="ideias-botoes">' +
+      '<input class="busca busca-ideias" id="busca-ideias" type="search" placeholder="Buscar pelo texto" aria-label="Buscar pelo texto da ideia" value="' + esc(buscaIdeias) + '">' +
+      '<button class="btn" id="abrir-importar" type="button">Importar em lote</button>' +
       '<button class="btn btn-laranja" id="nova-ideia" type="button">Nova ideia</button></div></div>';
     if (importando) {
       h += '<section class="importar" id="painel-importar">' +
@@ -3787,6 +3798,8 @@
       h += '<section class="ideias" id="ideias" aria-label="Ideias">';
       if (!lista.length) h += '<p class="aviso">' + (verArquivadas
         ? "Nenhuma ideia no arquivo ainda."
+        : buscaIdeias
+        ? "Nenhuma ideia com esse texto."
         : haFiltroDeIdeias()
         ? "Nenhuma ideia sobra com esse filtro."
         : "Nenhuma ideia guardada ainda. Clique em Nova ideia e escreva em poucas palavras o tema, o ângulo ou a frase que apareceu na sua cabeça.") + "</p>";
@@ -4418,6 +4431,14 @@
     if (el.dataset && el.dataset.metTitulo) {
       var tituloNovo = el.value;
       alterarMetrica(el.dataset.metTitulo, function (c) { c.titulo = tituloNovo; }, "esperar");
+      return;
+    }
+    if (el.id === "busca-ideias") {
+      buscaIdeias = el.value.trim();
+      var posIdeias = el.selectionStart;
+      renderIdeias();
+      var novoIdeias = $("busca-ideias");
+      if (novoIdeias) { novoIdeias.focus(); try { novoIdeias.setSelectionRange(posIdeias, posIdeias); } catch (err) {} }
       return;
     }
     if (el.id === "busca-todos") {
