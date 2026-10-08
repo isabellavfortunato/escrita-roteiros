@@ -989,6 +989,9 @@
   var CHAVE_ET_ROTEIRO = "caderno-abrir-etiquetas-roteiro";
   var CHAVE_ET_IDEIA = "caderno-abrir-etiquetas-ideia";
   var CHAVE_ET_GAVETA = "caderno-abrir-etiquetas-gaveta";
+  var CHAVE_ORD_GAVETA = "caderno-ordem-gaveta";
+  var CHAVE_ORD_TODOS = "caderno-ordem-todos";
+  var CHAVE_ORD_IDEIAS = "caderno-ordem-ideias";
 
   /* ---------- Estado ---------- */
   var arm = null;           // armazenamento em uso
@@ -1025,6 +1028,10 @@
   var abrirEtiquetasRoteiro = lerLocal(CHAVE_ET_ROTEIRO) !== "0";
   var abrirEtiquetasIdeia = lerLocal(CHAVE_ET_IDEIA) !== "0";
   var abrirEtiquetasGaveta = lerLocal(CHAVE_ET_GAVETA) !== "0";
+  // Ordem das listas: a da gaveta e a das ideias por data, a de Todos os roteiros também por título.
+  var ordemGaveta = lerLocal(CHAVE_ORD_GAVETA) === "antigos" ? "antigos" : "recentes";
+  var ordemTodos = { recentes: 1, antigos: 1 }[lerLocal(CHAVE_ORD_TODOS)] ? lerLocal(CHAVE_ORD_TODOS) : "titulo";
+  var ordemIdeias = { recentes: 1, antigos: 1 }[lerLocal(CHAVE_ORD_IDEIAS)] ? lerLocal(CHAVE_ORD_IDEIAS) : "minha";
   var ideiasMarcadas = {};
   var marcados = {};
 
@@ -1876,6 +1883,13 @@
       var b = buscaTodos.toLowerCase();
       lista = lista.filter(function (r) { return (r.titulo || "").toLowerCase().indexOf(b) !== -1; });
     }
+    if (ordemTodos !== "titulo") {
+      lista = lista.slice().sort(function (x, y) {
+        return ordemTodos === "antigos"
+          ? (x.atualizado || "").localeCompare(y.atualizado || "")
+          : (y.atualizado || "").localeCompare(x.atualizado || "");
+      });
+    }
     return lista;
   }
   function nomeDoFiltroTodos() {
@@ -2677,7 +2691,7 @@
     var h = '<div class="ideias-wrap lista-wrap todos-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
       '<span class="aviso">' + total + " " +
       (lugarTodos ? plural(total, "roteiro em " + nomeLugar, "roteiros em " + nomeLugar) : plural(total, "roteiro guardado", "roteiros guardados")) +
-      (vistaTodos === "lista" ? " · em ordem de título"
+      (vistaTodos === "lista" ? " · " + { titulo: "em ordem de título", recentes: "dos mais recentes para os mais antigos", antigos: "dos mais antigos para os mais recentes" }[ordemTodos]
         : vistaTodos === "insights" ? " · " + Object.keys(metricas).length + " " + plural(Object.keys(metricas).length, "post com métricas", "posts com métricas")
         : " · " + quantosEm("publicar") + " a publicar") + "</span></div>" +
       (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
@@ -2709,6 +2723,10 @@
         return '<button type="button" class="filtro filtro-arquivadas" data-lugar="' + l.chave +
           '" aria-pressed="' + (lugarTodos === l.chave) + '">' + l.nome + " (" + roteirosDoLugar(l.chave).length + ")</button>";
       }).join("") + "</span></div>" +
+      '<div class="filtros" role="group" aria-label="Ordenar a lista"><span class="rotulo">Ordem</span>' +
+      [["titulo", "Título"], ["recentes", "Mais recentes"], ["antigos", "Mais antigos"]].map(function (o) {
+        return '<button type="button" class="filtro" data-ordem-todos="' + o[0] + '" aria-pressed="' + (ordemTodos === o[0]) + '">' + o[1] + "</button>";
+      }).join("") + "</div>" +
       '<div class="filtros" role="group" aria-label="Filtrar por formato">' +
       '<button type="button" class="rotulo rotulo-abre" id="abrir-formato" aria-expanded="' + abrirFormato + '">' +
       '<span class="seta" aria-hidden="true">' + (abrirFormato ? "▾" : "▸") + "</span> Formato" +
@@ -2867,12 +2885,18 @@
     renderLista();
   }
   function doTipo(tipo) {
-    return Object.keys(acervo).map(function (k) { return acervo[k]; })
-      .filter(function (r) { return r.tipo === tipo && !lugarDe(r); })
-      .sort(function (a, b) { return (b.atualizado || "").localeCompare(a.atualizado || ""); });
+    var lista = Object.keys(acervo).map(function (k) { return acervo[k]; })
+      .filter(function (r) { return r.tipo === tipo && !lugarDe(r); });
+    return lista.sort(function (a, b) {
+      return ordemGaveta === "antigos"
+        ? (a.atualizado || "").localeCompare(b.atualizado || "")
+        : (b.atualizado || "").localeCompare(a.atualizado || "");
+    });
   }
   function abrirMaisRecente() {
-    var lista = doTipo(abaAtual);
+    var lista = doTipo(abaAtual).slice().sort(function (a, b) {
+      return (b.atualizado || "").localeCompare(a.atualizado || "");
+    });
     abrir(lista.length ? lista[0] : novoRoteiro(abaAtual));
   }
   function medidaDasTelas(tipo, q) {
@@ -2913,7 +2937,12 @@
           '" title="' + (estado === "so" ? "Clique para tirar da vista" : estado === "fora" ? "Clique para voltar ao normal" : "Clique para ver só estes") + '">' +
           (estado === "fora" ? "− " : "") + esc(e.nome) + " (" + e.quantos + ")</button>";
       }).join("");
+      var linhaOrdem = [["recentes", "Mais recentes"], ["antigos", "Mais antigos"]].map(function (o) {
+        return '<button type="button" class="filtro filtro-mini" data-ordem-gaveta="' + o[0] +
+          '" aria-pressed="' + (ordemGaveta === o[0]) + '">' + o[1] + "</button>";
+      }).join("");
       fg.innerHTML = '<div class="filtros linha-mini">' + linhaSituacao + "</div>" +
+        '<div class="filtros linha-mini linha-filtro"><span class="rotulo">Data</span>' + linhaOrdem + "</div>" +
         (usadas.length ? '<div class="filtros linha-mini linha-filtro">' +
           '<button type="button" class="rotulo rotulo-abre" id="abrir-etiquetas-gaveta" aria-expanded="' + abrirEtiquetasGaveta + '">' +
           '<span class="seta" aria-hidden="true">' + (abrirEtiquetasGaveta ? "▾" : "▸") + "</span> Etiquetas</button>" +
@@ -3530,6 +3559,13 @@
   /* ---------- Ideias ---------- */
   function listaIdeias() {
     var lista = Object.keys(ideias).map(function (k) { return ideias[k]; });
+    if (ordemIdeias !== "minha") {
+      return lista.sort(function (a, b) {
+        return ordemIdeias === "antigos"
+          ? (a.criado || "").localeCompare(b.criado || "")
+          : (b.criado || "").localeCompare(a.criado || "");
+      });
+    }
     var temOrdem = lista.some(function (i) { return typeof i.ordem === "number"; });
     return lista.sort(function (a, b) {
       if (temOrdem) {
@@ -3614,6 +3650,7 @@
     return Object.keys(filtroEtiqueta).filter(function (n) { return filtroEtiqueta[n] === estado; });
   }
   function haFiltroDeIdeias() { return !!filtroSem || Object.keys(filtroEtiqueta).length > 0; }
+  function podeArrastarIdeias() { return !haFiltroDeIdeias() && ordemIdeias === "minha"; }
   function ideiasFiltradas() {
     var lista = listaIdeias().filter(function (i) {
       return verArquivadas ? !!i.arquivada : !i.arquivada;
@@ -3694,7 +3731,11 @@
             }).join("") +
             botaoDeFiltro("sem", "Sem etiqueta (" + semEtiqueta + ")", filtroSem, "", "")
           : "") +
-        '<button type="button" class="filtro filtro-arquivadas" id="ver-arquivadas" aria-pressed="' + verArquivadas + '">Arquivadas (' + guardadas + ")</button></div>";
+        '<button type="button" class="filtro filtro-arquivadas" id="ver-arquivadas" aria-pressed="' + verArquivadas + '">Arquivadas (' + guardadas + ")</button></div>" +
+        '<div class="filtros linha-mini" role="group" aria-label="Ordenar as ideias"><span class="rotulo">Ordem</span>' +
+        [["minha", "A minha ordem"], ["recentes", "Mais recentes"], ["antigos", "Mais antigos"]].map(function (o) {
+          return '<button type="button" class="filtro filtro-mini" data-ordem-ideias="' + o[0] + '" aria-pressed="' + (ordemIdeias === o[0]) + '">' + o[1] + "</button>";
+        }).join("") + "</div>";
       if (verArquivadas) h += '<p class="aviso aviso-curto">No arquivo</p>';
       var escolhidas = lista.filter(function (i) { return ideiasMarcadas[i.id]; });
       h += '<div class="etiquetar-bloco' + (escolhidas.length ? " grudado" : "") + '">' +
@@ -3742,7 +3783,7 @@
         return '<article class="ideia' + (aberta ? " aberta" : "") + '" data-id="' + i.id + '">' +
           '<div class="ideia-topo">' +
           '<label class="marcar"><input type="checkbox" data-marcar-ideia="' + i.id + '"' + (ideiasMarcadas[i.id] ? " checked" : "") + ' aria-label="Escolher esta ideia"></label>' +
-          (haFiltroDeIdeias() ? '<span class="pega sem-arrasto" aria-hidden="true">⠿</span>'
+          (!podeArrastarIdeias() ? '<span class="pega sem-arrasto" aria-hidden="true">⠿</span>'
             : '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar para mudar a ordem" title="Arraste para mudar a ordem">⠿</span>') +
           '<button type="button" class="ideia-linha" data-abrir-ideia="' + i.id + '" aria-expanded="' + aberta + '">' +
           '<span class="ideia-resumo' + (resumo ? "" : " vazia") + '">' + (resumo ? esc(resumo) : "Ideia em branco") + "</span></button>" +
@@ -4130,6 +4171,13 @@
   });
   $("busca").addEventListener("input", function (e) { busca = e.target.value.trim(); renderLista(); });
   $("filtros-gaveta").addEventListener("click", function (e) {
+    var bord = e.target.closest("[data-ordem-gaveta]");
+    if (bord) {
+      ordemGaveta = bord.dataset.ordemGaveta;
+      gravarLocal(CHAVE_ORD_GAVETA, ordemGaveta);
+      renderLista();
+      return;
+    }
     var bg = e.target.closest("[data-todas], [data-nenhuma]");
     if (bg) {
       filtroEtiquetaRoteiro = {};
@@ -4600,6 +4648,10 @@
       return;
     }
     if (e.target.id === "limpar-ideias-marcadas") { ideiasMarcadas = {}; renderIdeias(); return; }
+    var bot = e.target.closest("[data-ordem-todos]");
+    if (bot) { ordemTodos = bot.dataset.ordemTodos; gravarLocal(CHAVE_ORD_TODOS, ordemTodos); renderTodos(); return; }
+    var boi = e.target.closest("[data-ordem-ideias]");
+    if (boi) { ordemIdeias = boi.dataset.ordemIdeias; gravarLocal(CHAVE_ORD_IDEIAS, ordemIdeias); renderIdeias(); return; }
     if (e.target.id === "arquivar-escolhidas") { arquivarEmLote(); return; }
     if (e.target.id === "excluir-ideias-escolhidas") {
       if (!confirmarDuasVezes(e.target, "Clique de novo: some para sempre", "Excluir")) return;
