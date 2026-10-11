@@ -170,6 +170,24 @@
     padding: 6px 0 10px; font-family: var(--texto); font-size: 28px; font-weight: 500; line-height: 1.3;
   }
   .titulo::placeholder { color: var(--navy-fraco); }
+  /* O código do vídeo gravado no celular, numa caixa própria antes do título. */
+  .linha-titulo { display: flex; align-items: stretch; gap: 10px; }
+  .codigo {
+    width: 128px; flex: 0 0 128px; align-self: end; margin-bottom: 2px;
+    font-family: var(--ui); font-size: 14px; font-variant-numeric: tabular-nums;
+    padding: 8px 10px; text-align: center;
+  }
+  .codigo::placeholder { color: var(--navy-fraco); letter-spacing: .04em; }
+  .codigo-pilula {
+    display: inline-block; margin-right: 8px; padding: 1px 7px; border-radius: 6px;
+    background: var(--creme); border: 1px solid var(--linha-forte); color: var(--navy-suave);
+    font-family: var(--ui); font-size: 11.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+    vertical-align: 1px; white-space: nowrap;
+  }
+  @media (max-width: 700px) {
+    .linha-titulo { flex-wrap: wrap; }
+    .codigo { width: 120px; flex: 0 0 120px; }
+  }
   .titulo:focus-visible { outline: none; border-bottom-color: var(--laranja); }
 
   .seletores { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
@@ -1899,7 +1917,9 @@
     else if (filtroTodos) lista = lista.filter(function (r) { return r.tipo === filtroTodos; });
     if (buscaTodos) {
       var b = buscaTodos.toLowerCase();
-      lista = lista.filter(function (r) { return (r.titulo || "").toLowerCase().indexOf(b) !== -1; });
+      lista = lista.filter(function (r) {
+        return ((r.titulo || "") + " " + (r.codigo || "")).toLowerCase().indexOf(b) !== -1;
+      });
     }
     if (ordemTodos !== "titulo") {
       lista = lista.slice().sort(function (x, y) {
@@ -2797,7 +2817,9 @@
           '<label class="marcar"><input type="checkbox" data-marcar="' + r.id + '"' + (marcados[r.id] ? " checked" : "") + ' aria-label="Escolher ' + esc(r.titulo || "Sem título") + '"></label>' +
           '<span class="linha-num" aria-hidden="true">' + (n + 1) + "</span>" +
           '<button type="button" class="linha-abrir" data-abrir="' + r.id + '">' +
-          '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
+          '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' +
+          (r.codigo ? '<span class="codigo-pilula">' + esc(r.codigo) + "</span>" : "") +
+          (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
           '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
           (foiPublicado(r) ? '<span class="tag-publicado">Publicado</span>'
             : noDepois(r) ? '<span class="tag-depois">Depois</span>'
@@ -2978,7 +3000,9 @@
     }
     if (busca) {
       var b = busca.toLowerCase();
-      lista = lista.filter(function (r) { return (r.titulo || "").toLowerCase().indexOf(b) !== -1; });
+      lista = lista.filter(function (r) {
+        return ((r.titulo || "") + " " + (r.codigo || "")).toLowerCase().indexOf(b) !== -1;
+      });
     }
     $("gaveta-titulo").textContent = TIPOS[abaAtual].nome + " (" + total + ")";
     var el = $("lista");
@@ -2993,6 +3017,7 @@
     }
     el.innerHTML = lista.map(function (r) {
       return '<li><button class="item" data-id="' + r.id + '" aria-current="' + (atual && atual.id === r.id) + '">' +
+        (r.codigo ? '<span class="codigo-pilula">' + esc(r.codigo) + "</span>" : "") +
         '<span class="item-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
         (r.aPublicar ? '<span class="tag-publicar">A publicar' + (r.dataPublicacao ? " · " + dataDoDia(r.dataPublicacao) : "") + "</span>"
           : r.pronto ? '<span class="tag-pronto">Pronto para publicar</span>' : "") +
@@ -3069,7 +3094,10 @@
 
   function renderEditor() {
     var r = atual, c = TIPOS[r.tipo];
-    var h = '<input class="titulo" id="titulo" type="text" placeholder="Título do roteiro" value="' + esc(r.titulo) + '" aria-label="Título do roteiro">';
+    var h = '<div class="linha-titulo">' +
+      '<input class="entrada codigo" id="codigo" type="text" placeholder="IMG_0000" value="' + esc(r.codigo || "") +
+      '" aria-label="Código do vídeo no celular" title="O código do arquivo gravado no celular, só para você achar o vídeo depois">' +
+      '<input class="titulo" id="titulo" type="text" placeholder="Título do roteiro" value="' + esc(r.titulo) + '" aria-label="Título do roteiro"></div>';
     h += '<section class="seletores">';
     if (c.video) h += seletorHtml("Formato", "formato", FORMATOS);
     else if (r.tipo === "stories") h += seletorHtml("Formato", "formato", FORMATOS_STORY);
@@ -4046,7 +4074,7 @@
     copia.id = novoId();
     copia.titulo = (r.titulo || "Sem título") + " (cópia)";
     copia.criado = copia.atualizado = new Date().toISOString();
-    delete copia.pronto; delete copia.aPublicar; delete copia.dataPublicacao;
+    delete copia.pronto; delete copia.aPublicar; delete copia.dataPublicacao; delete copia.codigo;
     delete copia.tituloPublicacao; delete copia.revisar; delete copia.corRoupa;
     (copia.blocos || []).forEach(function (b) { b.id = novoId(); });
     (copia.telas || []).forEach(function (t) { t.id = novoId(); });
@@ -4469,7 +4497,8 @@
       return;
     }
     if (!atual) return;
-    if (el.id === "titulo") { arrumarCampo(el, e); atual.titulo = el.value; }
+    if (el.id === "codigo") { atual.codigo = el.value.trim(); }
+    else if (el.id === "titulo") { arrumarCampo(el, e); atual.titulo = el.value; }
     else if (el.id === "textoTela") { arrumarCampo(el, e); atual.textoTela = el.value; }
     else if (el.id === "legenda") { arrumarCampo(el, e); atual.legenda = el.value; crescer(el); }
     else if (el.dataset.bloco != null) {
