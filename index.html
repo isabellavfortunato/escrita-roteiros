@@ -717,6 +717,14 @@
     display: grid; grid-template-columns: minmax(0, 1fr) 104px 84px 272px 148px; align-items: center; gap: 12px;
     padding: 11px 14px; text-align: left; color: var(--navy);
   }
+  .codigo-lista {
+    flex: 0 0 104px; width: 104px; align-self: center; margin: 0 10px 0 8px;
+    padding: 5px 6px; font-size: 12.5px; border-radius: 7px; background: var(--fundo);
+  }
+  .codigo-lista:focus { background: #ffffff; }
+  @media (max-width: 700px) {
+    .codigo-lista { flex: 0 0 88px; width: 88px; margin: 0 6px; }
+  }
   .linha-num { flex: 0 0 34px; display: flex; align-items: center; justify-content: flex-end; font-size: 13px; font-weight: 600; color: var(--navy-fraco); font-variant-numeric: tabular-nums; }
   .linha-titulo { font-weight: 600; font-size: 15px; overflow-wrap: anywhere; }
   .linha-titulo.vazio { color: var(--navy-fraco); font-style: italic; font-weight: 500; }
@@ -2816,9 +2824,11 @@
         return '<div class="linha' + (marcados[r.id] ? " marcada" : "") + '">' +
           '<label class="marcar"><input type="checkbox" data-marcar="' + r.id + '"' + (marcados[r.id] ? " checked" : "") + ' aria-label="Escolher ' + esc(r.titulo || "Sem título") + '"></label>' +
           '<span class="linha-num" aria-hidden="true">' + (n + 1) + "</span>" +
+          '<input class="codigo codigo-lista" type="text" data-codigo="' + r.id + '" value="' + esc(r.codigo || "") +
+          '" placeholder="IMG_0000" aria-label="Código do vídeo de ' + esc(r.titulo || "Sem título") +
+          '" title="O código do arquivo gravado no celular">' +
           '<button type="button" class="linha-abrir" data-abrir="' + r.id + '">' +
           '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' +
-          (r.codigo ? '<span class="codigo-pilula">' + esc(r.codigo) + "</span>" : "") +
           (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
           '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
           (foiPublicado(r) ? '<span class="tag-publicado">Publicado</span>'
@@ -4484,6 +4494,11 @@
       }, "esperar");
       var alvoNome = $("cal-nome-" + calAberto);
       if (alvoNome && cal) alvoNome.textContent = (cal.tituloPublicacao || "").trim() || cal.titulo || "Sem título";
+      return;
+    }
+    if (el.dataset && el.dataset.codigo) {
+      var textoCodigo = el.value.trim();
+      alterarRoteiro(el.dataset.codigo, function (c) { c.codigo = textoCodigo; }, "esperar");
       return;
     }
     if (el.dataset.ideia != null) {
