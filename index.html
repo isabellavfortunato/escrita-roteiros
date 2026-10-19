@@ -22,7 +22,7 @@
     --creme: #e6e8ec;
     --linha: #dde0e5;
     --linha-forte: #c3c8d0;
-    --navy: #0b121f;
+    --navy: #2F3A49;
     --navy-medio: #1c2a44;
     --navy-suave: #3d475a;
     --navy-fraco: #6a7284;
@@ -460,6 +460,8 @@
   .btn-todos { padding: 5px 12px; font-size: 13px; }
   .btn-todos[aria-pressed="true"] { background: var(--navy); color: var(--papel); }
   .btn-pronto[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); color: #ffffff; }
+  .btn-calendario[aria-pressed="true"] { background: var(--navy-medio); border-color: var(--navy-medio); color: #ffffff; }
+  .btn-calendario[aria-pressed="true"]:hover { background: var(--navy); border-color: var(--navy); color: #ffffff; }
   .btn-pronto[aria-pressed="true"]:hover { background: var(--verde-hover); border-color: var(--verde-hover); color: #ffffff; }
   .tag-pronto {
     justify-self: start; background: var(--verde); color: #ffffff; border-radius: 999px;
@@ -476,6 +478,10 @@
 
   /* Lista e calendário em todos os roteiros */
   .btn-depois[disabled] { opacity: .45; }
+  .btn-arquivado[disabled] { opacity: .45; }
+  .btn-virar { border-color: var(--verde); color: var(--verde); }
+  .btn-virar:hover:not([disabled]) { background: var(--verde); border-color: var(--verde); color: #ffffff; }
+  .btn-virar[disabled] { opacity: .45; }
   .btn-excluir { border-color: var(--vermelho); color: var(--vermelho); }
   .btn-excluir:hover { background: var(--vermelho); border-color: var(--vermelho); color: #ffffff; }
   .btn-excluir[disabled] { opacity: .45; }
@@ -489,7 +495,12 @@
     align-self: center; justify-self: start; font-size: 11.5px; font-weight: 700; letter-spacing: .04em;
     text-transform: uppercase; color: #ffffff; background: #14532d; border-radius: 999px; padding: 2px 10px;
   }
+  .tag-arquivado {
+    align-self: center; justify-self: start; font-size: 11.5px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; color: #ffffff; background: #6b5a3e; border-radius: 999px; padding: 2px 10px;
+  }
   .item .tag-publicado { align-self: flex-start; margin-top: 2px; }
+  .item .tag-arquivado { align-self: flex-start; margin-top: 2px; }
   .lugares { display: flex; gap: 8px; margin-left: auto; }
   .vistas-cartoes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .vista-cartao { height: 84px; padding: 0 20px; }
@@ -1062,7 +1073,7 @@
   var ideiaAberta = null, filtroEtiqueta = {}, filtroSem = "";
   var filtroSituacao = "";
   var verArquivadas = false;
-  var lugarTodos = "";   // "" nas listas normais, "depois" ou "publicados" nos lugares à parte
+  var lugarTodos = "";   // "" nas listas normais, "depois" ou "arquivo" nos lugares à parte
   var filtroEtiquetaRoteiro = {};
   var abrirFiltros = lerLocal(CHAVE_FILTROS) === "1";
   var abrirEtiquetar = lerLocal(CHAVE_ETIQUETAR) === "1";
@@ -1894,10 +1905,13 @@
 
   /* ---------- Abas e lista ---------- */
   // Roteiro no depois sai das listas normais e só aparece pelo botão Depois.
-  var LUGARES = [{ chave: "depois", nome: "Depois" }, { chave: "publicados", nome: "Publicados" }];
+  var LUGARES = [{ chave: "depois", nome: "Depois" }, { chave: "arquivo", nome: "Arquivados" }];
   function noDepois(r) { return !!r.depois || temEtiqueta(r, "Depois"); }
   function foiPublicado(r) { return !!r.publicado; }
-  function lugarDe(r) { return foiPublicado(r) ? "publicados" : noDepois(r) ? "depois" : ""; }
+  function foiArquivado(r) { return !!r.arquivado; }
+  // Publicado e arquivado moram no mesmo lugar, cada um com a sua etiqueta.
+  function noArquivo(r) { return foiPublicado(r) || foiArquivado(r); }
+  function lugarDe(r) { return noArquivo(r) ? "arquivo" : noDepois(r) ? "depois" : ""; }
   function roteirosVivos() { return todosOsRoteiros().filter(function (r) { return !lugarDe(r); }); }
   function roteirosDoLugar(lugar) { return todosOsRoteiros().filter(function (r) { return lugarDe(r) === lugar; }); }
   function todosOsRoteiros() {
@@ -1978,26 +1992,75 @@
   function escolhidosDaLista() {
     return Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; });
   }
-  function todosJaNoLugar(lugar) {
-    var ids = escolhidosDaLista();
-    return ids.length > 0 && ids.every(function (id) { return lugarDe(acervo[id]) === lugar; });
+  function temMarca(r, marca) {
+    return marca === "depois" ? noDepois(r)
+      : marca === "publicado" ? foiPublicado(r)
+      : marca === "arquivado" ? foiArquivado(r) : false;
   }
-  // Depois e Publicados são dois lugares fora das listas normais, e um roteiro fica em um só.
-  function mandarParaLugar(ids, lugar) {
-    var tirar = todosJaNoLugar(lugar);
+  function todosJaNoLugar(marca) {
+    var ids = escolhidosDaLista();
+    return ids.length > 0 && ids.every(function (id) { return temMarca(acervo[id], marca); });
+  }
+  // Fora das listas normais existem 2 lugares, Depois e Arquivados. Arquivados guarda
+  // tanto o que foi publicado quanto o que foi arquivado, cada um com a sua etiqueta.
+  function mandarParaLugar(ids, marca) {
+    var tirar = todosJaNoLugar(marca);
     ids.forEach(function (id) {
       alterarRoteiro(id, function (c) {
         c.etiquetas = (c.etiquetas || []).filter(function (n) { return n !== "Depois"; });
         delete c.depois;
         delete c.publicado;
-        if (!tirar) { if (lugar === "publicados") c.publicado = true; else c.depois = true; }
+        delete c.arquivado;
+        if (!tirar) {
+          if (marca === "publicado") c.publicado = true;
+          else if (marca === "arquivado") c.arquivado = true;
+          else c.depois = true;
+        }
       });
     });
     marcados = {};
     renderTodos();
-    var nome = lugar === "publicados" ? "publicados" : "depois";
+    var nome = { publicado: "publicados", arquivado: "arquivados", depois: "depois" }[marca] || "depois";
     mostrarEstado("salvando", ids.length + " " + plural(ids.length, "roteiro", "roteiros") +
       (tirar ? " de volta nas listas" : " em " + nome));
+  }
+  // De um roteiro guardado nasce uma ideia nova, e o roteiro continua onde está.
+  function ideiasDosRoteiros(ids) {
+    if (!ids.length || !arm) return;
+    var jaTem = textosJaGuardados(), novas = [], repetidas = 0, semTitulo = 0, agora = Date.now();
+    var base = menorOrdem();
+    ids.forEach(function (id, i) {
+      var r = acervo[id];
+      if (!r) return;
+      var texto = (r.titulo || "").trim();
+      if (!texto) { semTitulo++; return; }
+      var chave = texto.toLowerCase();
+      if (jaTem[chave]) { repetidas++; return; }
+      jaTem[chave] = true;
+      var quando = new Date(agora - i * 1000).toISOString();
+      var item = { id: novoId(), texto: texto, criado: quando, atualizado: quando };
+      var herdadas = (r.etiquetas || []).filter(function (n) {
+        return ETIQUETAS.some(function (e) { return e.nome === n; });
+      });
+      if (herdadas.length) item.etiquetas = herdadas;
+      if (base !== null) item.ordem = base - (ids.length - i) * 1000;
+      novas.push(item);
+    });
+    if (!novas.length) {
+      mostrarEstado("neutro", repetidas ? "Já existe ideia com esse mesmo texto."
+        : semTitulo ? "Roteiro sem título não vira ideia." : "Nada para virar ideia.");
+      return;
+    }
+    novas.forEach(function (o) {
+      ideias[o.id] = o;
+      arm.salvar("ideias", o.id, limpo(o)).then(avisarSalvo)
+        .catch(function () { mostrarEstado("erro", "Não foi possível criar a ideia. Confira a conexão."); });
+    });
+    marcados = {};
+    renderTodos();
+    atualizarContagens();
+    mostrarEstado("salvando", novas.length + " " + plural(novas.length, "ideia nova", "ideias novas") + " nas ideias" +
+      (repetidas ? " · " + repetidas + " " + plural(repetidas, "já existia", "já existiam") : ""));
   }
   function mudarSituacao(ids, sit) {
     ids.forEach(function (id) {
@@ -2057,7 +2120,7 @@
     }
     h += '<aside class="cal-fila cal-solta" data-soltar=""><h3 class="cal-fila-titulo">A publicar sem data (' + semData.length + ")</h3>" +
       (semData.length ? semData.map(cartaoCal).join("")
-        : '<p class="aviso">' + (aPub.length ? "Todos os roteiros a publicar já têm data." : "Nenhum roteiro a publicar ainda. Na lista, marque os roteiros e clique em A publicar.") + "</p>") +
+        : '<p class="aviso">' + (aPub.length ? "Todos os roteiros a publicar já têm data." : "Nenhum roteiro esperando data. Dentro do roteiro, clique em Mandar para o calendário, ou marque os roteiros na lista e clique em A publicar.") + "</p>") +
       '<p class="aviso cal-dica">Arraste um roteiro para o dia da publicação. Para tirar a data, arraste de volta para cá.</p></aside>';
     h += '</div>';
     h += '<section class="cal-mes">';
@@ -2726,7 +2789,7 @@
   function renderTodos() {
     var universo = lugarTodos ? roteirosDoLugar(lugarTodos) : roteirosVivos();
     var total = universo.length, lista = visiveisDaLista();
-    var nomeLugar = { depois: "depois", publicados: "publicados" }[lugarTodos] || "";
+    var nomeLugar = { depois: "depois", arquivo: "arquivados" }[lugarTodos] || "";
     var revisar = universo.filter(function (r) { return r.revisar; }).length;
     var filtros = [["", "Todos"]].concat(QUADRANTE.map(function (t) { return [t, TIPOS[t].nome]; }));
     var quantosEm = function (sit) { return universo.filter(function (r) { return situacaoDe(r) === sit; }).length; };
@@ -2801,9 +2864,16 @@
       '<button type="button" class="btn btn-depois" data-mandar="depois"' + (escolhidos ? "" : " disabled") +
         ' title="Tira os roteiros escolhidos das listas normais e guarda no Depois">' +
         (todosJaNoLugar("depois") ? "Tirar do depois" : "Para depois") + "</button>" +
-      '<button type="button" class="btn btn-publicado" data-mandar="publicados"' + (escolhidos ? "" : " disabled") +
-        ' title="Tira os roteiros escolhidos das listas normais e guarda em Publicados">' +
-        (todosJaNoLugar("publicados") ? "Tirar dos publicados" : "Publicado") + "</button>" +
+      '<button type="button" class="btn btn-publicado" data-mandar="publicado"' + (escolhidos ? "" : " disabled") +
+        ' title="Guarda os roteiros escolhidos em Arquivados, com a etiqueta Publicado">' +
+        (todosJaNoLugar("publicado") ? "Tirar dos publicados" : "Publicado") + "</button>" +
+      '<button type="button" class="btn btn-arquivado" data-mandar="arquivado"' + (escolhidos ? "" : " disabled") +
+        ' title="Guarda os roteiros escolhidos em Arquivados, com a etiqueta Arquivado">' +
+        (todosJaNoLugar("arquivado") ? "Tirar de arquivados" : "Arquivar") + "</button>" +
+      (lugarTodos === "arquivo"
+        ? '<button type="button" class="btn btn-virar" id="virar-ideia"' + (escolhidos ? "" : " disabled") +
+          ' title="Cria uma ideia nova a partir do título de cada roteiro escolhido, sem tirar nada de Arquivados">Virar ideia</button>'
+        : "") +
       '<button type="button" class="btn btn-excluir" id="excluir-lote"' + (escolhidos ? "" : " disabled") +
         ' title="Apaga de vez os roteiros escolhidos, sem guardar em lugar nenhum">Excluir</button>' +
       '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
@@ -2813,8 +2883,8 @@
     if (lugarTodos) h += '<p class="aviso aviso-curto">Em ' + nomeLugar + ", fora das listas normais</p>";
     if (!carregou) h += '<p class="carregando">Abrindo o caderno.</p>';
     else if (!lista.length) h += '<p class="aviso">' +
-      (lugarTodos === "depois" ? "Nenhum roteiro no depois. Marque os roteiros na lista e clique em Mandar para depois."
-        : lugarTodos === "publicados" ? "Nenhum roteiro publicado ainda. Marque os roteiros na lista e clique em Marcar como publicado."
+      (lugarTodos === "depois" ? "Nenhum roteiro no depois. Marque os roteiros na lista e clique em Para depois."
+        : lugarTodos === "arquivo" ? "Nada em arquivados ainda. Marque os roteiros na lista e clique em Publicado ou em Arquivar."
         : "Nenhum roteiro com esse filtro.") + "</p>";
     else {
       h += '<div class="tabela">' + lista.map(function (r, n) {
@@ -2832,6 +2902,7 @@
           (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
           '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
           (foiPublicado(r) ? '<span class="tag-publicado">Publicado</span>'
+            : foiArquivado(r) ? '<span class="tag-arquivado">Arquivado</span>'
             : noDepois(r) ? '<span class="tag-depois">Depois</span>'
             : r.aPublicar ? '<span class="tag-publicar">A publicar</span>'
             : r.pronto ? '<span class="tag-pronto">Pronto</span>'
@@ -3156,7 +3227,9 @@
       }).join("") + "</div>";
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
       '<button class="btn" id="baixar-docx" type="button">Baixar em docx</button>' +
-      '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.pronto ? "true" : "false") + '">' + (r.pronto ? "Pronto para publicar" : "Publicar") + "</button>" +
+      '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.pronto ? "true" : "false") +
+        '" title="Marca o roteiro como pronto. Depois, em Todos os roteiros, você marca os prontos e manda para A publicar.">' +
+        (r.pronto ? "Pronto" : "Marcar como pronto") + "</button>" +
       '<button class="btn" id="duplicar-roteiro" type="button" title="Cria uma cópia deste roteiro para você mudar sem perder o original">Duplicar</button>' +
       '<button class="btn" id="voltar-ideia" type="button" title="Devolve o assunto para as ideias e apaga este roteiro">Voltar para ideias</button>' +
       '<button class="btn btn-perigo" id="excluir" type="button">Excluir roteiro</button></div>';
@@ -4677,6 +4750,10 @@
       if (idsLugar.length) mandarParaLugar(idsLugar, bmandar.dataset.mandar);
       return;
     }
+    if (e.target.id === "virar-ideia") {
+      ideiasDosRoteiros(escolhidosDaLista());
+      return;
+    }
     if (e.target.id === "voltar-lote") {
       var idsVolta = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; });
       if (!idsVolta.length) return;
@@ -4978,12 +5055,11 @@
       atual.pronto = !atual.pronto;
       if (atual.pronto) atual.revisar = false;
       atual.aPublicar = false;
-      e.target.setAttribute("aria-pressed", String(!!atual.pronto));
-      e.target.textContent = atual.pronto ? "Pronto para publicar" : "Publicar";
       var br = $("marcar-revisar");
       if (br && atual.pronto) br.setAttribute("aria-pressed", "false");
-      mostrarEstado("salvando", atual.pronto ? "Marcado como pronto para publicar" : "Voltou para rascunho");
+      mostrarEstado("salvando", atual.pronto ? "Marcado como pronto" : "Voltou para não pronto");
       agendarSalvar();
+      renderEditor();
       renderListaDepois();
       return;
     }
