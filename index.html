@@ -81,10 +81,12 @@
     background: var(--papel); border-bottom: 1px solid var(--linha);
     padding: 16px 28px 18px; display: flex; flex-direction: column; gap: var(--vao);
   }
-  .nav-dupla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--vao); }
+  .nav-dupla { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--vao); }
   .nav-roteiros { background: var(--navy-medio); }
-  .nav-dupla .nav-ideias-nome b { font-size: 44px; }
-  .nav-dupla .nav-ideias-conta strong { font-size: 38px; }
+  .nav-calendario { background: var(--navy-suave); }
+  .nav-dupla .nav-ideias-nome b { font-size: 38px; }
+  .nav-dupla .nav-ideias-conta strong { font-size: 34px; }
+  @media (max-width: 1180px) { .nav-dupla { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   .nav-dupla .nav-ideias { padding: 0 22px; }
   .nav-ideias {
     width: 100%; height: calc(var(--celula) * 2 + var(--vao));
@@ -862,10 +864,13 @@
     input, textarea, select, .busca, .importar-area, .ins-area, .ins-titulo,
     .ins-select, .ins-data, .ins-num, .tela .area-design, .login-card input { font-size: 16px; }
     .ins-select { max-width: 100%; }
-    .nav-dupla { grid-template-columns: minmax(0, 1fr); }
-    .nav-ideias { padding: 0 20px; }
-    .nav-dupla .nav-ideias-nome b { font-size: 40px; }
-    .nav-dupla .nav-ideias-conta strong { font-size: 34px; }
+    .nav-dupla { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .nav-ideias { padding: 0 14px; }
+    .nav-dupla .nav-ideias { padding: 0 14px; }
+    .nav-dupla .nav-ideias { height: 78px; }
+    .nav-dupla .nav-ideias-nome b { font-size: 26px; }
+    .nav-dupla .nav-ideias-conta strong { font-size: 24px; }
+    .nav-dupla .nav-ideias .sub, .nav-dupla .nav-ideias-conta span { display: none; }
     .nav-ideias-nome b { font-size: 46px; }
     .nav-ideias-conta strong { font-size: 40px; }
     .quad { padding: 0 14px; }
@@ -964,6 +969,8 @@
     youtube:   { nome: "YouTube", sub: "Vídeo longo · 1.740 a 3.480 palavras", video: true, min: 1740, max: 3480, duracao: "10<small>a</small>20<small>min</small>", blocos: "youtube", tetoLegenda: 150, rotuloLegenda: "Descrição" },
     ideias:    { nome: "Ideias", sub: "Até 100 palavras por ideia", ideias: true },
     todos:     { nome: "Todos os roteiros", sub: "Lista por título", lista: true },
+    calendario: { nome: "Calendário", sub: "Prontos à espera da data", lista: true },
+    arquivo:   { nome: "Arquivo", sub: "Posts já publicados", lista: true },
     familias:  { nome: "Famílias de gancho", sub: "Consulta", consulta: true }
   };
   var QUADRANTE = ["instagram", "tiktok", "carrossel", "stories", "estatico", "youtube"];
@@ -1065,7 +1072,7 @@
   var virandoId = null;   // ideia que está escolhendo o destino
   var virandoLote = false; // as ideias escolhidas estão escolhendo o destino
   var buscaTodos = "", filtroTodos = "", situacaoTodos = "", temasTodos = {}, loteMarcadas = {};
-  var vistaTodos = { calendario: 1, insights: 1 }[lerLocal(CHAVE_VISTA)] ? lerLocal(CHAVE_VISTA) : "lista";
+  var vistaTodos = lerLocal(CHAVE_VISTA) === "insights" ? "insights" : "lista";
   var mesCal = null, calAberto = null, timerCal = null;
   var carregouMetricas = false, importarMetricas = false, prevMetricas = null, erroImportar = "", timerMetrica = null;
   var filtroRede = "", filtroPago = "", ordemInsights = "visualizacoes", redePadrao = "ig", buscaInsights = "";
@@ -1220,7 +1227,9 @@
       if (!carregou) {
         carregou = true;
         clearTimeout(timerDemora);
-        if (abaAtual !== "ideias") abrirMaisRecente();
+        if (TIPOS[abaAtual].lista) renderTodos();
+        else if (abaAtual === "familias") renderFamilias();
+        else if (abaAtual !== "ideias") abrirMaisRecente();
       }
       renderLista();
     }, erroEscuta));
@@ -1909,9 +1918,8 @@
   function noDepois(r) { return !!r.depois || temEtiqueta(r, "Depois"); }
   function foiPublicado(r) { return !!r.publicado; }
   function foiArquivado(r) { return !!r.arquivado; }
-  // Publicado e arquivado moram no mesmo lugar, cada um com a sua etiqueta.
-  function noArquivo(r) { return foiPublicado(r) || foiArquivado(r); }
-  function lugarDe(r) { return noArquivo(r) ? "arquivo" : noDepois(r) ? "depois" : ""; }
+  // Publicado vai para o Arquivo do topo; arquivado fica nos Arquivados de Roteiros.
+  function lugarDe(r) { return foiPublicado(r) ? "publicado" : foiArquivado(r) ? "arquivo" : noDepois(r) ? "depois" : ""; }
   function roteirosVivos() { return todosOsRoteiros().filter(function (r) { return !lugarDe(r); }); }
   function roteirosDoLugar(lugar) { return todosOsRoteiros().filter(function (r) { return lugarDe(r) === lugar; }); }
   function todosOsRoteiros() {
@@ -2012,17 +2020,17 @@
         delete c.publicado;
         delete c.arquivado;
         if (!tirar) {
-          if (marca === "publicado") c.publicado = true;
+          if (marca === "publicado") { c.publicado = true; c.aPublicar = false; c.pronto = true; }
           else if (marca === "arquivado") c.arquivado = true;
           else c.depois = true;
-        }
+        } else if (marca === "publicado") { c.aPublicar = true; c.pronto = true; }
       });
     });
     marcados = {};
     renderTodos();
-    var nome = { publicado: "publicados", arquivado: "arquivados", depois: "depois" }[marca] || "depois";
+    var nome = { publicado: "o Arquivo", arquivado: "arquivados", depois: "depois" }[marca] || "depois";
     mostrarEstado("salvando", ids.length + " " + plural(ids.length, "roteiro", "roteiros") +
-      (tirar ? " de volta nas listas" : " em " + nome));
+      (tirar ? (marca === "publicado" ? " de volta no Calendário" : " de volta nas listas") : " em " + nome));
   }
   // De um roteiro guardado nasce uma ideia nova, e o roteiro continua onde está.
   function ideiasDosRoteiros(ids) {
@@ -2066,13 +2074,13 @@
     ids.forEach(function (id) {
       alterarRoteiro(id, function (c) {
         c.aPublicar = sit === "publicar";
-        c.pronto = sit === "pronto";
+        c.pronto = sit !== "rascunho";
         if (sit !== "rascunho") c.revisar = false;
       });
     });
     marcados = {};
     renderTodos();
-    var nomes = { rascunho: "não pronto", pronto: "pronto", publicar: "a publicar" };
+    var nomes = { rascunho: "não pronto", pronto: "pronto", publicar: "pronto, no Calendário" };
     mostrarEstado("salvando", ids.length + " " + plural(ids.length, "roteiro passou", "roteiros passaram") + " para " + nomes[sit]);
   }
   function cartaoCal(r) {
@@ -2116,12 +2124,15 @@
         '<div class="cal-detalhe-linha"><label class="rotulo" for="cal-data">Data</label>' +
         '<input class="entrada cal-data" id="cal-data" type="date" value="' + esc(r.dataPublicacao || "") + '">' +
         '<button type="button" class="btn btn-mini" id="cal-tirar-data"' + (r.dataPublicacao ? "" : " disabled") + ">Tirar a data</button>" +
-        '<button type="button" class="btn btn-mini" data-abrir="' + r.id + '">Abrir o roteiro</button></div></div>';
+        '<button type="button" class="btn btn-mini" data-abrir="' + r.id + '">Abrir o roteiro</button></div>' +
+        '<div class="cal-detalhe-linha">' +
+        '<button type="button" class="btn btn-mini" data-cal-voltar="' + r.id + '" title="Tira o post do Calendário e devolve o roteiro para a escrita, marcado como a revisar">Voltar para o roteiro</button>' +
+        '<button type="button" class="btn btn-mini btn-laranja" data-cal-publicado="' + r.id + '" title="Guarda o post no Arquivo com todas as etiquetas">Publicado</button></div></div>';
     }
-    h += '<aside class="cal-fila cal-solta" data-soltar=""><h3 class="cal-fila-titulo">A publicar sem data (' + semData.length + ")</h3>" +
+    h += '<aside class="cal-fila cal-solta" data-soltar=""><h3 class="cal-fila-titulo">Prontos sem data (' + semData.length + ")</h3>" +
       (semData.length ? semData.map(cartaoCal).join("")
-        : '<p class="aviso">' + (aPub.length ? "Todos os roteiros a publicar já têm data." : "Nenhum roteiro esperando data. Dentro do roteiro, clique em Mandar para o calendário, ou marque os roteiros na lista e clique em A publicar.") + "</p>") +
-      '<p class="aviso cal-dica">Arraste um roteiro para o dia da publicação. Para tirar a data, arraste de volta para cá.</p></aside>';
+        : '<p class="aviso">' + (aPub.length ? "Todos os roteiros prontos já têm data." : "Nenhum roteiro esperando data. No fim do roteiro, clique em Pronto para ele aparecer aqui.") + "</p>") +
+      '<p class="aviso cal-dica">Arraste um roteiro para o dia da publicação e, para tirar a data, arraste de volta para cá. Clique no post para voltar com ele para o roteiro ou para marcar como publicado.</p></aside>';
     h += '</div>';
     h += '<section class="cal-mes">';
     h += '<div class="cal-topo"><button type="button" class="btn btn-mini" data-mes="-1" aria-label="Mês anterior">‹</button>' +
@@ -2772,11 +2783,10 @@
   // Os três modos de ver os roteiros, no mesmo feitio dos cartões de Ideias e de Roteiros.
   var VISTAS = [
     { chave: "lista", nome: "Lista", sub: "Em ordem de título", rotulo: ["roteiro", "roteiros"], cor: "var(--vinho)" },
-    { chave: "calendario", nome: "Calendário", sub: "Publicações marcadas", rotulo: ["a publicar", "a publicar"], cor: "var(--laranja)" },
     { chave: "insights", nome: "Insights", sub: "Métricas dos posts", rotulo: ["post", "posts"], cor: "var(--mostarda)" }
   ];
   function htmlVistas(total, aPublicar) {
-    var contas = { lista: total, calendario: aPublicar, insights: Object.keys(metricas).length };
+    var contas = { lista: total, insights: Object.keys(metricas).length };
     return '<div class="vistas-cartoes" role="tablist" aria-label="Como ver os roteiros">' + VISTAS.map(function (v) {
       var n = contas[v.chave];
       return '<button type="button" class="nav-ideias vista-cartao" role="tab" data-vista="' + v.chave +
@@ -2786,26 +2796,41 @@
         '<span class="nav-ideias-conta"><strong>' + n + "</strong><span>" + plural(n, v.rotulo[0], v.rotulo[1]) + "</span></span></button>";
     }).join("") + "</div>";
   }
+  // O Calendário do topo: os roteiros prontos na lista da esquerda e o mês para arrastar.
+  function renderCalendarioAba() {
+    var prontos = roteirosVivos().filter(function (r) { return r.aPublicar; });
+    var semData = prontos.filter(function (r) { return !r.dataPublicacao; }).length;
+    $("editor").innerHTML = '<div class="ideias-wrap lista-wrap todos-wrap"><div class="ideias-topo"><div><h2>Calendário</h2>' +
+      '<span class="aviso">' + prontos.length + " " + plural(prontos.length, "post pronto", "posts prontos") +
+      " · " + semData + " sem data</span></div></div>" + htmlCalendario() + "</div>";
+    atualizarContagens();
+    var campoCal = $("cal-titulo");
+    if (campoCal && calFoco) { campoCal.focus(); calFoco = false; }
+  }
   function renderTodos() {
+    if (abaAtual === "calendario") { renderCalendarioAba(); return; }
+    var emArquivo = abaAtual === "arquivo";
+    var vista = emArquivo ? "lista" : vistaTodos;
     var universo = lugarTodos ? roteirosDoLugar(lugarTodos) : roteirosVivos();
     var total = universo.length, lista = visiveisDaLista();
-    var nomeLugar = { depois: "depois", arquivo: "arquivados" }[lugarTodos] || "";
+    var nomeLugar = { depois: "depois", arquivo: "arquivados", publicado: "o Arquivo" }[lugarTodos] || "";
     var revisar = universo.filter(function (r) { return r.revisar; }).length;
     var filtros = [["", "Todos"]].concat(QUADRANTE.map(function (t) { return [t, TIPOS[t].nome]; }));
     var quantosEm = function (sit) { return universo.filter(function (r) { return situacaoDe(r) === sit; }).length; };
     var situacoes = [["", "Todas (" + total + ")"], ["rascunho", "Não pronto (" + quantosEm("rascunho") + ")"],
-      ["pronto", "Pronto (" + quantosEm("pronto") + ")"], ["publicar", "A publicar (" + quantosEm("publicar") + ")"],
+      ["pronto", "Pronto (" + quantosEm("pronto") + ")"], ["publicar", "No calendário (" + quantosEm("publicar") + ")"],
       ["revisar", "A revisar (" + revisar + ")"]];
-    var nomeSituacao = { pronto: "Pronto", rascunho: "Não pronto", publicar: "A publicar", revisar: "A revisar" };
-    var h = '<div class="ideias-wrap lista-wrap todos-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
+    var nomeSituacao = { pronto: "Pronto", rascunho: "Não pronto", publicar: "No calendário", revisar: "A revisar" };
+    var h = '<div class="ideias-wrap lista-wrap todos-wrap"><div class="ideias-topo"><div><h2>' + (emArquivo ? "Arquivo" : "Todos os roteiros") + '</h2>' +
       '<span class="aviso">' + total + " " +
-      (lugarTodos ? plural(total, "roteiro em " + nomeLugar, "roteiros em " + nomeLugar) : plural(total, "roteiro guardado", "roteiros guardados")) +
-      (vistaTodos === "lista" ? " · " + { titulo: "em ordem de título", recentes: "dos mais recentes para os mais antigos", antigos: "dos mais antigos para os mais recentes" }[ordemTodos]
-        : vistaTodos === "insights" ? " · " + Object.keys(metricas).length + " " + plural(Object.keys(metricas).length, "post com métricas", "posts com métricas")
+      (emArquivo ? plural(total, "post publicado", "posts publicados") : lugarTodos ? plural(total, "roteiro em " + nomeLugar, "roteiros em " + nomeLugar) : plural(total, "roteiro guardado", "roteiros guardados")) +
+      (vista === "lista" ? " · " + { titulo: "em ordem de título", recentes: "dos mais recentes para os mais antigos", antigos: "dos mais antigos para os mais recentes" }[ordemTodos]
+        : vista === "insights" ? " · " + Object.keys(metricas).length + " " + plural(Object.keys(metricas).length, "post com métricas", "posts com métricas")
         : " · " + quantosEm("publicar") + " a publicar") + "</span></div>" +
-      (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
-      htmlVistas(roteirosVivos().length, roteirosVivos().filter(function (r) { return r.aPublicar; }).length);
-    if (vistaTodos === "insights") {
+      (vista === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
+      (emArquivo ? '<p class="aviso">Os posts que você já publicou, com todas as etiquetas, para servir de inspiração para outros formatos.</p>'
+        : htmlVistas(roteirosVivos().length, roteirosVivos().filter(function (r) { return r.aPublicar; }).length));
+    if (vista === "insights") {
       h += htmlInsights() + "</div>";
       $("editor").innerHTML = h;
       atualizarContagens();
@@ -2813,25 +2838,17 @@
       if (campoBusca && buscaInsights) { campoBusca.focus(); try { campoBusca.setSelectionRange(9999, 9999); } catch (err) {} }
       return;
     }
-    if (vistaTodos === "calendario") {
-      h += htmlCalendario() + "</div>";
-      $("editor").innerHTML = h;
-      atualizarContagens();
-      var campoCal = $("cal-titulo");
-      if (campoCal && calFoco) { campoCal.focus(); calFoco = false; }
-      return;
-    }
-    h += '<div class="filtros" role="group" aria-label="Filtrar por situação">' +
+    h += (emArquivo ? "" : '<div class="filtros" role="group" aria-label="Filtrar por situação">' +
       '<button type="button" class="rotulo rotulo-abre" id="abrir-situacao" aria-expanded="' + abrirSituacao + '">' +
       '<span class="seta" aria-hidden="true">' + (abrirSituacao ? "▾" : "▸") + "</span> Situação" +
       (!abrirSituacao && situacaoTodos ? " · " + nomeSituacao[situacaoTodos] : "") + "</button>" +
       (abrirSituacao ? situacoes.map(function (f) {
         return '<button type="button" class="filtro" data-situacao-todos="' + f[0] + '" aria-pressed="' + (situacaoTodos === f[0]) + '">' + f[1] + "</button>";
       }).join("") : "") +
-      '<span class="lugares">' + LUGARES.map(function (l) {
+      (emArquivo ? "" : '<span class="lugares">' + LUGARES.map(function (l) {
         return '<button type="button" class="filtro filtro-arquivadas" data-lugar="' + l.chave +
           '" aria-pressed="' + (lugarTodos === l.chave) + '">' + l.nome + " (" + roteirosDoLugar(l.chave).length + ")</button>";
-      }).join("") + "</span></div>" +
+      }).join("") + "</span>") + "</div>") +
       '<div class="filtros" role="group" aria-label="Ordenar a lista"><span class="rotulo">Ordem</span>' +
       [["titulo", "Título"], ["recentes", "Mais recentes"], ["antigos", "Mais antigos"]].map(function (o) {
         return '<button type="button" class="filtro" data-ordem-todos="' + o[0] + '" aria-pressed="' + (ordemTodos === o[0]) + '">' + o[1] + "</button>";
@@ -2860,31 +2877,35 @@
         (lista.length && escolhidos >= lista.length ? "Desmarcar os " + lista.length : "Marcar os " + lista.length) + "</button>" +
       '<button type="button" class="btn" id="limpar-marcas"' + (escolhidos ? "" : " disabled") + ">Limpar</button>" +
       '<button type="button" class="btn btn-laranja" id="baixar-escolhidos"' + (escolhidos ? "" : " disabled") + ">Baixar em docx</button>" +
-      '<button type="button" class="btn" id="voltar-lote"' + (escolhidos ? "" : " disabled") + ' title="Devolve o assunto para as ideias e apaga os roteiros escolhidos">Voltar para ideias</button>' +
+      (emArquivo ? '<button type="button" class="btn btn-virar" id="virar-ideia"' + (escolhidos ? "" : " disabled") +
+          ' title="Cria uma ideia nova a partir do título de cada post escolhido, sem tirar nada do Arquivo">Virar ideia</button>' +
+        '<button type="button" class="btn btn-publicado" data-mandar="publicado"' + (escolhidos ? "" : " disabled") +
+          ' title="Tira os posts escolhidos do Arquivo e devolve para o Calendário">Voltar para o calendário</button>' : "") +
+      (emArquivo ? "" : '<button type="button" class="btn" id="voltar-lote"' + (escolhidos ? "" : " disabled") + ' title="Devolve o assunto para as ideias e apaga os roteiros escolhidos">Voltar para ideias</button>' +
       '<button type="button" class="btn btn-depois" data-mandar="depois"' + (escolhidos ? "" : " disabled") +
         ' title="Tira os roteiros escolhidos das listas normais e guarda no Depois">' +
         (todosJaNoLugar("depois") ? "Tirar do depois" : "Para depois") + "</button>" +
       '<button type="button" class="btn btn-publicado" data-mandar="publicado"' + (escolhidos ? "" : " disabled") +
-        ' title="Guarda os roteiros escolhidos em Arquivados, com a etiqueta Publicado">' +
-        (todosJaNoLugar("publicado") ? "Tirar dos publicados" : "Publicado") + "</button>" +
+        ' title="Guarda os roteiros escolhidos no Arquivo do topo, como publicados">Publicado</button>' +
       '<button type="button" class="btn btn-arquivado" data-mandar="arquivado"' + (escolhidos ? "" : " disabled") +
         ' title="Guarda os roteiros escolhidos em Arquivados, com a etiqueta Arquivado">' +
         (todosJaNoLugar("arquivado") ? "Tirar de arquivados" : "Arquivar") + "</button>" +
       (lugarTodos === "arquivo"
         ? '<button type="button" class="btn btn-virar" id="virar-ideia"' + (escolhidos ? "" : " disabled") +
           ' title="Cria uma ideia nova a partir do título de cada roteiro escolhido, sem tirar nada de Arquivados">Virar ideia</button>'
-        : "") +
+        : "")) +
       '<button type="button" class="btn btn-excluir" id="excluir-lote"' + (escolhidos ? "" : " disabled") +
         ' title="Apaga de vez os roteiros escolhidos, sem guardar em lugar nenhum">Excluir</button>' +
-      '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
-      [["rascunho", "Não pronto"], ["pronto", "Pronto"], ["publicar", "A publicar"]].map(function (f) {
+      (emArquivo ? "" : '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
+      [["rascunho", "Não pronto"], ["publicar", "Pronto, para o Calendário"]].map(function (f) {
         return '<button type="button" class="btn btn-mini" data-mudar-situacao="' + f[0] + '"' + (escolhidos ? "" : " disabled") + ">" + f[1] + "</button>";
-      }).join("") + "</span></div>";
-    if (lugarTodos) h += '<p class="aviso aviso-curto">Em ' + nomeLugar + ", fora das listas normais</p>";
+      }).join("") + "</span>") + "</div>";
+    if (lugarTodos && !emArquivo) h += '<p class="aviso aviso-curto">Em ' + nomeLugar + ", fora das listas normais</p>";
     if (!carregou) h += '<p class="carregando">Abrindo o caderno.</p>';
     else if (!lista.length) h += '<p class="aviso">' +
       (lugarTodos === "depois" ? "Nenhum roteiro no depois. Marque os roteiros na lista e clique em Para depois."
-        : lugarTodos === "arquivo" ? "Nada em arquivados ainda. Marque os roteiros na lista e clique em Publicado ou em Arquivar."
+        : lugarTodos === "arquivo" ? "Nada em arquivados ainda. Marque os roteiros na lista e clique em Arquivar."
+        : emArquivo ? "Nenhum post publicado ainda. No Calendário, clique no post e depois em Publicado."
         : "Nenhum roteiro com esse filtro.") + "</p>";
     else {
       h += '<div class="tabela">' + lista.map(function (r, n) {
@@ -2908,7 +2929,7 @@
             : r.pronto ? '<span class="tag-pronto">Pronto</span>'
             : r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
           (pilulasDoRoteiro(r) || '<span class="etiquetas-linha"></span>') +
-          '<span class="linha-meta">' + medida + " · " + dataCurta(r.atualizado) + "</span></button></div>";
+          '<span class="linha-meta">' + medida + " · " + (emArquivo && r.dataPublicacao ? "publicado em " + dataDoDia(r.dataPublicacao) : dataCurta(r.atualizado)) + "</span></button></div>";
       }).join("") + "</div>";
     }
     h += "</div>";
@@ -2960,7 +2981,13 @@
       '<span class="nav-ideias-conta"><strong id="n-ideias"></strong><span id="n-ideias-rotulo"></span></span></button>' +
       '<button class="nav-ideias nav-roteiros" role="tab" id="aba-todos" data-tipo="todos" aria-selected="' + (abaAtual === "todos") + '">' +
       '<span class="nav-ideias-nome"><b>Roteiros<i>.</i></b><span class="sub">Todos, em ordem de título</span></span>' +
-      '<span class="nav-ideias-conta"><strong id="n-todos"></strong><span id="n-todos-rotulo"></span></span></button></div>';
+      '<span class="nav-ideias-conta"><strong id="n-todos"></strong><span id="n-todos-rotulo"></span></span></button>' +
+      '<button class="nav-ideias nav-calendario" role="tab" id="aba-calendario" data-tipo="calendario" aria-selected="' + (abaAtual === "calendario") + '">' +
+      '<span class="nav-ideias-nome"><b>Calendário<i>.</i></b><span class="sub">Prontos à espera da data</span></span>' +
+      '<span class="nav-ideias-conta"><strong id="n-calendario"></strong><span id="n-calendario-rotulo"></span></span></button>' +
+      '<button class="nav-ideias nav-roteiros" role="tab" id="aba-arquivo" data-tipo="arquivo" aria-selected="' + (abaAtual === "arquivo") + '">' +
+      '<span class="nav-ideias-nome"><b>Arquivo<i>.</i></b><span class="sub">Posts já publicados</span></span>' +
+      '<span class="nav-ideias-conta"><strong id="n-arquivo"></strong><span id="n-arquivo-rotulo"></span></span></button></div>';
     h += '<div class="quadrante">' + QUADRANTE.map(function (t) {
       var c = TIPOS[t];
       return '<button class="quad" role="tab" id="aba-' + t + '" data-tipo="' + t + '" aria-selected="' + (t === abaAtual) + '">' +
@@ -2983,6 +3010,18 @@
       nt.textContent = carregou ? quantosR : "";
       ntr.textContent = carregou ? plural(quantosR, "roteiro guardado", "roteiros guardados") : "";
     }
+    var nc = $("n-calendario"), ncr = $("n-calendario-rotulo");
+    if (nc) {
+      var quantosC = roteirosVivos().filter(function (r) { return r.aPublicar; }).length;
+      nc.textContent = carregou ? quantosC : "";
+      ncr.textContent = carregou ? plural(quantosC, "post pronto", "posts prontos") : "";
+    }
+    var na = $("n-arquivo"), nar = $("n-arquivo-rotulo");
+    if (na) {
+      var quantosA = roteirosDoLugar("publicado").length;
+      na.textContent = carregou ? quantosA : "";
+      nar.textContent = carregou ? plural(quantosA, "post publicado", "posts publicados") : "";
+    }
     var ni = $("n-ideias"), nr = $("n-ideias-rotulo");
     if (!ni) return;
     if (!carregouIdeias) { ni.textContent = ""; nr.textContent = ""; return; }
@@ -2993,7 +3032,10 @@
   }
   function aplicarAba() {
     renderAbas();
-    var ehIdeias = abaAtual === "ideias", ehLista = abaAtual === "todos", ehConsulta = abaAtual === "familias";
+    var ehIdeias = abaAtual === "ideias", ehConsulta = abaAtual === "familias";
+    var ehLista = abaAtual === "todos" || abaAtual === "calendario" || abaAtual === "arquivo";
+    if (abaAtual === "arquivo") { if (lugarTodos !== "publicado") { lugarTodos = "publicado"; marcados = {}; } }
+    else if (lugarTodos === "publicado") { lugarTodos = ""; marcados = {}; }
     document.querySelector(".corpo").classList.toggle("sem-gaveta", ehIdeias || ehLista || ehConsulta);
     var bt = $("ver-todos"); if (bt) bt.setAttribute("aria-pressed", String(ehLista));
     var bf2 = $("ver-familias"); if (bf2) bf2.setAttribute("aria-pressed", String(ehConsulta));
@@ -3037,7 +3079,7 @@
   }
   function renderLista() {
     atualizarContagens();
-    if (abaAtual === "ideias" || abaAtual === "todos" || abaAtual === "familias") return;
+    if (abaAtual === "ideias" || TIPOS[abaAtual].lista || abaAtual === "familias") return;
     var lista = doTipo(abaAtual), total = lista.length;
     var prontos = lista.filter(function (r) { return situacaoDe(r) === "pronto"; }).length;
     var aPublicar = lista.filter(function (r) { return r.aPublicar; }).length;
@@ -3227,9 +3269,10 @@
       }).join("") + "</div>";
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
       '<button class="btn" id="baixar-docx" type="button">Baixar em docx</button>' +
-      '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.pronto ? "true" : "false") +
-        '" title="Marca o roteiro como pronto. Depois, em Todos os roteiros, você marca os prontos e manda para A publicar.">' +
-        (r.pronto ? "Pronto" : "Marcar como pronto") + "</button>" +
+      '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.aPublicar ? "true" : "false") +
+        '" title="' + (r.aPublicar ? "Este roteiro está no Calendário. Clique para tirar de lá e voltar a escrever."
+          : "Manda o roteiro para o Calendário, na lista da esquerda, à espera da data") + '">' +
+        (r.aPublicar ? "No calendário" : "Pronto") + "</button>" +
       '<button class="btn" id="duplicar-roteiro" type="button" title="Cria uma cópia deste roteiro para você mudar sem perder o original">Duplicar</button>' +
       '<button class="btn" id="voltar-ideia" type="button" title="Devolve o assunto para as ideias e apaga este roteiro">Voltar para ideias</button>' +
       '<button class="btn btn-perigo" id="excluir" type="button">Excluir roteiro</button></div>';
@@ -4813,6 +4856,28 @@
     var bcal = e.target.closest("[data-cal]");
     if (bcal) { calAberto = calAberto === bcal.dataset.cal ? null : bcal.dataset.cal; calFoco = !!calAberto; renderTodos(); return; }
     if (e.target.id === "cal-fechar") { calAberto = null; renderTodos(); return; }
+    var bcv = e.target.closest("[data-cal-voltar]");
+    if (bcv) {
+      var idVolta = bcv.dataset.calVoltar;
+      var voltou = alterarRoteiro(idVolta, function (c) { c.aPublicar = false; c.pronto = false; c.revisar = true; });
+      calAberto = null;
+      if (!voltou) { renderTodos(); return; }
+      abaAtual = voltou.tipo;
+      gravarLocal(CHAVE_ABA, abaAtual);
+      aplicarAba();
+      abrir(voltou);
+      mostrarEstado("salvando", "Saiu do Calendário e voltou para o roteiro, marcado como a revisar");
+      window.scrollTo(0, 0);
+      return;
+    }
+    var bcp = e.target.closest("[data-cal-publicado]");
+    if (bcp) {
+      alterarRoteiro(bcp.dataset.calPublicado, function (c) { c.publicado = true; c.aPublicar = false; c.pronto = true; delete c.arquivado; });
+      calAberto = null;
+      renderTodos();
+      mostrarEstado("salvando", "Publicado e guardado no Arquivo");
+      return;
+    }
     var broupa = e.target.closest("[data-roupa]");
     if (broupa && calAberto) {
       var escolha = broupa.dataset.roupa;
@@ -5052,12 +5117,13 @@
       return;
     }
     if (e.target.id === "marcar-pronto") {
-      atual.pronto = !atual.pronto;
-      if (atual.pronto) atual.revisar = false;
-      atual.aPublicar = false;
+      var irParaCal = !atual.aPublicar;
+      atual.aPublicar = irParaCal;
+      atual.pronto = irParaCal;
+      if (irParaCal) atual.revisar = false;
       var br = $("marcar-revisar");
-      if (br && atual.pronto) br.setAttribute("aria-pressed", "false");
-      mostrarEstado("salvando", atual.pronto ? "Marcado como pronto" : "Voltou para não pronto");
+      if (br && irParaCal) br.setAttribute("aria-pressed", "false");
+      mostrarEstado("salvando", irParaCal ? "Pronto e no Calendário, à espera da data" : "Saiu do Calendário e voltou para a escrita");
       agendarSalvar();
       renderEditor();
       renderListaDepois();
@@ -5069,7 +5135,7 @@
       if (atual.revisar && atual.pronto) {
         atual.pronto = false;
         var bp = $("marcar-pronto");
-        if (bp) { bp.setAttribute("aria-pressed", "false"); bp.textContent = "Publicar"; }
+        if (bp) { bp.setAttribute("aria-pressed", "false"); bp.textContent = "Pronto"; }
       }
       e.target.setAttribute("aria-pressed", String(!!atual.revisar));
       mostrarEstado("salvando", atual.revisar ? "Marcado como a revisar" : "Marca de revisão tirada");
