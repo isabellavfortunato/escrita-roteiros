@@ -709,13 +709,23 @@
   .filtro[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: var(--creme); font-weight: 600; }
   .tabela { display: flex; flex-direction: column; gap: 2px; }
   .barra-escolha {
-    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    display: flex; flex-direction: column; align-items: stretch; gap: 12px;
     padding: 12px 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px;
+  }
+  .barra-linha { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  /* Em baixo, a mudança de situação fica à esquerda e os destinos em blocos de 3. */
+  .barra-acoes { align-items: flex-start; justify-content: space-between; gap: 16px; }
+  .barra-acoes .mudar-situacao { align-items: flex-start; align-content: flex-start; flex: 0 1 auto; }
+  .destinos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: 0 1 auto; }
+  @media (max-width: 900px) {
+    .barra-acoes { flex-direction: column; }
+    .destinos { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   }
   .barra-escolha .aviso { margin-right: auto; }
   .barra-escolha .aviso:empty { margin-right: auto; min-width: 0; }
   .barra-etiquetar { padding-block: 8px; }
   .barra-escolha .btn { min-width: 140px; }
+  .destinos .btn { min-width: 0; width: 100%; }
   .barra-escolha .btn-mini { min-width: 0; }
   .barra-escolha .btn[disabled] { opacity: .45; cursor: default; }
   .barra-escolha .btn[disabled]:hover { background: var(--papel); color: var(--navy); }
@@ -2868,32 +2878,39 @@
           (!!temasTodos[et.nome]) + '" style="--cor: ' + et.cor + '">' + esc(et.nome) + " (" + quantos + ")</button>";
       }).join("") : "") + "</div>";
     var escolhidos = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; }).length;
-    h += '<div class="barra-escolha"><span class="aviso">' +
+    var trava = escolhidos ? "" : " disabled";
+    h += '<div class="barra-escolha">' +
+      '<div class="barra-linha"><span class="aviso">' +
       (escolhidos ? escolhidos + " " + plural(escolhidos, "roteiro escolhido", "roteiros escolhidos") : "Marque os roteiros para baixar ou para mudar a situação") + "</span>" +
       '<button type="button" class="btn" id="marcar-todos">' +
         (lista.length && escolhidos >= lista.length ? "Desmarcar os " + lista.length : "Marcar os " + lista.length) + "</button>" +
-      '<button type="button" class="btn" id="limpar-marcas"' + (escolhidos ? "" : " disabled") + ">Limpar</button>" +
-      '<button type="button" class="btn btn-laranja" id="baixar-escolhidos"' + (escolhidos ? "" : " disabled") + ">Baixar em docx</button>" +
-      '<button type="button" class="btn" id="voltar-lote"' + (escolhidos ? "" : " disabled") + ' title="Devolve o assunto para as ideias e apaga os roteiros escolhidos">Voltar para ideias</button>' +
-      '<button type="button" class="btn btn-depois" data-mandar="depois"' + (escolhidos ? "" : " disabled") +
-        ' title="Tira os roteiros escolhidos das listas normais e guarda no Depois">' +
-        (todosJaNoLugar("depois") ? "Tirar do depois" : "Para depois") + "</button>" +
-      '<button type="button" class="btn btn-publicado" data-mandar="publicado"' + (escolhidos ? "" : " disabled") +
-        ' title="Tira os roteiros escolhidos das listas normais e guarda em Publicados">' +
-        (todosJaNoLugar("publicado") ? "Tirar dos publicados" : "Publicado") + "</button>" +
-      '<button type="button" class="btn btn-arquivado" data-mandar="arquivado"' + (escolhidos ? "" : " disabled") +
-        ' title="Tira os roteiros escolhidos das listas normais e guarda no Arquivo">' +
-        (todosJaNoLugar("arquivado") ? "Tirar do arquivo" : "Arquivar") + "</button>" +
-      (lugarTodos === "arquivo" || lugarTodos === "publicados"
-        ? '<button type="button" class="btn btn-virar" id="virar-ideia"' + (escolhidos ? "" : " disabled") +
-          ' title="Cria uma ideia nova a partir do título de cada roteiro escolhido, sem tirar o roteiro de onde ele está">Virar ideia</button>'
-        : "") +
-      '<button type="button" class="btn btn-excluir" id="excluir-lote"' + (escolhidos ? "" : " disabled") +
-        ' title="Apaga de vez os roteiros escolhidos, sem guardar em lugar nenhum">Excluir</button>' +
+      '<button type="button" class="btn" id="limpar-marcas"' + trava + ">Limpar</button>" +
+      '<button type="button" class="btn btn-laranja" id="baixar-escolhidos"' + trava + ">Baixar em docx</button></div>" +
+      '<div class="barra-linha barra-acoes">' +
       '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
       [["rascunho", "Não pronto"], ["pronto", "Pronto"], ["publicar", "A publicar"]].map(function (f) {
-        return '<button type="button" class="btn btn-mini" data-mudar-situacao="' + f[0] + '"' + (escolhidos ? "" : " disabled") + ">" + f[1] + "</button>";
-      }).join("") + "</span></div>";
+        return '<button type="button" class="btn btn-mini" data-mudar-situacao="' + f[0] + '"' + trava + ">" + f[1] + "</button>";
+      }).join("") + "</span>" +
+      '<div class="destinos">' +
+      '<button type="button" class="btn" id="voltar-lote"' + trava + ' title="Devolve o assunto para as ideias e apaga os roteiros escolhidos">Voltar para ideias</button>' +
+      '<button type="button" class="btn btn-calendario" id="mandar-calendario"' + trava +
+        ' title="Manda os roteiros escolhidos para a fila do calendário e abre o calendário para você marcar o dia">Calendário</button>' +
+      '<button type="button" class="btn btn-depois" data-mandar="depois"' + trava +
+        ' title="Tira os roteiros escolhidos das listas normais e guarda no Depois">' +
+        (todosJaNoLugar("depois") ? "Tirar do depois" : "Para depois") + "</button>" +
+      '<button type="button" class="btn btn-publicado" data-mandar="publicado"' + trava +
+        ' title="Tira os roteiros escolhidos das listas normais e guarda em Publicados">' +
+        (todosJaNoLugar("publicado") ? "Tirar dos publicados" : "Publicado") + "</button>" +
+      '<button type="button" class="btn btn-arquivado" data-mandar="arquivado"' + trava +
+        ' title="Tira os roteiros escolhidos das listas normais e guarda no Arquivo">' +
+        (todosJaNoLugar("arquivado") ? "Tirar do arquivo" : "Arquivar") + "</button>" +
+      '<button type="button" class="btn btn-excluir" id="excluir-lote"' + trava +
+        ' title="Apaga de vez os roteiros escolhidos, sem guardar em lugar nenhum">Excluir</button>' +
+      (lugarTodos === "arquivo" || lugarTodos === "publicados"
+        ? '<button type="button" class="btn btn-virar" id="virar-ideia"' + trava +
+          ' title="Cria uma ideia nova a partir do título de cada roteiro escolhido, sem tirar o roteiro de onde ele está">Virar ideia</button>'
+        : "") +
+      "</div></div></div>";
     if (lugarTodos) h += '<p class="aviso aviso-curto">Em ' + nomeLugar + ", fora das listas normais</p>";
     if (!carregou) h += '<p class="carregando">Abrindo o caderno.</p>';
     else if (!lista.length) h += '<p class="aviso">' +
@@ -4768,6 +4785,16 @@
     if (bmandar) {
       var idsLugar = escolhidosDaLista();
       if (idsLugar.length) mandarParaLugar(idsLugar, bmandar.dataset.mandar);
+      return;
+    }
+    if (e.target.id === "mandar-calendario") {
+      var idsCal = escolhidosDaLista();
+      if (!idsCal.length) return;
+      mudarSituacao(idsCal, "publicar");
+      lugarTodos = "";
+      vistaTodos = "calendario";
+      gravarLocal(CHAVE_VISTA, vistaTodos);
+      renderTodos();
       return;
     }
     if (e.target.id === "virar-ideia") {
