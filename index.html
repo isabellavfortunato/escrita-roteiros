@@ -979,7 +979,7 @@
     instagram: { nome: "Instagram", sub: "Vídeo curto · 280 a 300 palavras", video: true, min: 280, max: 300, duracao: "1:40<small>min</small>" },
     tiktok:    { nome: "TikTok", sub: "Vídeo longo · 350 a 435 palavras", video: true, min: 350, max: 435, duracao: "2:00<small>a</small>2:30<small>min</small>" },
     carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, porTela: 25 },
-    stories:   { nome: "Stories", sub: "Até 10 telas · 174 palavras por tela, 1 minuto cada", video: false, telas: 10, telasMax: 24, porTela: 174 },
+    stories:   { nome: "Stories", sub: "10 telas ideais, sem limite · 174 palavras por tela, 1 minuto cada", video: false, telas: 10, telasMax: Infinity, porTela: 174 },
     estatico:  { nome: "Post estático", sub: "Uma arte · até 100 palavras", video: false, telas: 1, porTela: 100, legenda: true },
     caixinha:  { nome: "Caixinha de perguntas", sub: "Até 10 respostas · 45 palavras cada", video: false, telas: 10, porTela: 45, perguntas: true },
     youtube:   { nome: "YouTube", sub: "Vídeo longo · 1.740 a 3.480 palavras", video: true, min: 1740, max: 3480, duracao: "10<small>a</small>20<small>min</small>", blocos: "youtube", tetoLegenda: 150, rotuloLegenda: "Descrição" },
@@ -1030,7 +1030,8 @@
   var PADRAO_YOUTUBE = BLOCOS.filter(function (b) { return b.casa === "youtube"; }).map(function (b) { return b.tipo; });
   // no YouTube o fechamento e o produto entram antes do encerramento
   PADRAO_YOUTUBE.splice(PADRAO_YOUTUBE.indexOf("yt-encerramento"), 0, "fechamento", "produto");
-  function blocosDoTipo(tipo) { return TIPOS[tipo] && TIPOS[tipo].blocos === "youtube" ? PADRAO_YOUTUBE : PADRAO_BLOCOS; }
+  // O YouTube nasce com os mesmos 6 blocos dos vídeos curtos. Os blocos próprios dele ficam no seletor de acrescentar.
+  function blocosDoTipo(tipo) { return PADRAO_BLOCOS; }
   function milhar(n) { return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, "."); }
   var LIMITE_TEXTO_TELA = 9;
   var LIMITE_LEGENDA = 80;
@@ -1424,20 +1425,17 @@
       vazios.forEach(function (b) { if (b.tipo === "yt-canal") b.texto = APRESENTACAO_CANAL; });
       return vazios;
     }
-    var primeiro = dYT ? "yt-gancho" : "gancho";
-    var meio = dYT ? "yt-ensino" : "desenvolvimento";
-    var ultimo = dYT ? "yt-encerramento" : "cta";
+    var primeiro = "gancho", meio = "desenvolvimento", ultimo = "cta";
     var saida = textos.map(function (t, i) {
       if (i === 0) return blocoDeTexto(primeiro, t);
       if (i === textos.length - 1) return blocoDeTexto(ultimo, t);
       return blocoDeTexto(meio, t);
     });
     if (textos.length === 1) {
-      saida.push(blocoVazio(dYT ? "yt-objecao" : "contexto"));
+      saida.push(blocoVazio("contexto"));
       saida.push(blocoVazio(meio));
       saida.push(blocoVazio(ultimo));
     }
-    if (dYT) saida.splice(1, 0, blocoDoCanal());
     return saida;
   }
   // Muda o tipo mantendo o mesmo roteiro: título, etiquetas, legenda e texto continuam os mesmos.
@@ -1447,15 +1445,11 @@
     var oVideo = !!TIPOS[origem].video, dVideo = !!TIPOS[destino].video;
     var oYT = TIPOS[origem].blocos === "youtube", dYT = TIPOS[destino].blocos === "youtube";
     if (oVideo && dVideo) {
-      if (dYT && !oYT) {
-        r.blocos = (r.blocos || []).map(function (b) { b.tipo = PARA_YOUTUBE[b.tipo] || "livre"; return b; });
-        if (!r.blocos.some(function (b) { return b.tipo === "yt-canal"; })) {
-          r.blocos.splice(Math.min(1, r.blocos.length), 0, blocoDoCanal());
-        }
-      } else if (oYT && !dYT) {
+      // de vídeo curto para o YouTube os blocos ficam como estão, porque a estrutura agora é a mesma
+      if (oYT && !dYT) {
         r.blocos = (r.blocos || []).filter(function (b) {
           return !(b.tipo === "yt-canal" && textoLimpo(b.texto) === textoLimpo(APRESENTACAO_CANAL));
-        }).map(function (b) { b.tipo = DO_YOUTUBE[b.tipo] || "livre"; return b; });
+        }).map(function (b) { b.tipo = DO_YOUTUBE[b.tipo] || (BLOCO[b.tipo] && BLOCO[b.tipo].casa !== "youtube" ? b.tipo : "livre"); return b; });
       }
       if (!r.blocos.length) r.blocos = blocosDeTextos([], destino);
       r.telas = [];
@@ -3261,9 +3255,10 @@
       h += barraDeFormato();
       h += '<section class="blocos" id="blocos" aria-label="Blocos do roteiro"></section>';
       h += '<div class="acrescentar"><label for="novo-bloco">Acrescentar bloco</label>' +
-        '<select class="caixa" id="novo-bloco">' + BLOCOS.filter(function (b) {
-          return b.tipo === "livre" || b.tipo === "fechamento" || b.tipo === "produto" || (c.blocos === "youtube" ? b.casa === "youtube" : b.casa !== "youtube");
-        }).map(function (b) { return '<option value="' + b.tipo + '">' + b.nome + "</option>"; }).join("") + "</select>" +
+        '<select class="caixa" id="novo-bloco">' + (c.blocos === "youtube" ?
+          '<optgroup label="Blocos do YouTube">' + BLOCOS.filter(function (b) { return b.casa === "youtube"; }).map(opcaoDeBloco).join("") + "</optgroup>" +
+          '<optgroup label="Outros blocos">' + BLOCOS.filter(function (b) { return b.casa !== "youtube"; }).map(opcaoDeBloco).join("") + "</optgroup>"
+          : BLOCOS.filter(function (b) { return b.casa !== "youtube"; }).map(opcaoDeBloco).join("")) + "</select>" +
         '<button class="btn" id="add-bloco" type="button">Acrescentar</button></div>';
       h += campoDaLegenda(r, c);
     } else {
@@ -3496,19 +3491,23 @@
     }
   }
 
+  function opcaoDeBloco(b) { return '<option value="' + b.tipo + '">' + b.nome + "</option>"; }
   function acrescentarBloco(tipo) {
     var novo = blocoVazio(tipo), ordem = BLOCO[tipo].ordem, pos = atual.blocos.length;
-    var ehYT = TIPOS[atual.tipo] && TIPOS[atual.tipo].blocos === "youtube";
-    if (ehYT && (tipo === "fechamento" || tipo === "produto")) {
-      // no YouTube estes dois moram antes do encerramento
-      var ondeAcaba = atual.blocos.map(function (b) { return b.tipo; }).indexOf("yt-encerramento");
-      pos = ondeAcaba === -1 ? atual.blocos.length : ondeAcaba;
+    var tipos = atual.blocos.map(function (b) { return b.tipo; });
+    if (tipo === "yt-canal") novo.texto = APRESENTACAO_CANAL;
+    var ondeAcaba = tipos.indexOf("yt-encerramento");
+    if ((tipo === "fechamento" || tipo === "produto") && ondeAcaba !== -1) {
+      // nos roteiros antigos do YouTube estes dois moram antes do encerramento
+      pos = ondeAcaba;
     } else if (tipo !== "livre") {
       // entra no lugar dele na estrutura: antes do primeiro bloco que vem depois na ordem
       for (var i = 0; i < atual.blocos.length; i++) {
         var o = (BLOCO[atual.blocos[i].tipo] || BLOCO.livre).ordem;
         if (atual.blocos[i].tipo !== "livre" && o > ordem) { pos = i; break; }
       }
+      // um bloco do YouTube sem vizinho dele depois entra antes do CTA, e não depois
+      if (BLOCO[tipo].casa === "youtube" && pos === atual.blocos.length && tipos.indexOf("cta") !== -1) pos = tipos.indexOf("cta");
     }
     atual.blocos.splice(pos, 0, novo);
     renderBlocos(); atualizarMedidas(); agendarSalvar();
