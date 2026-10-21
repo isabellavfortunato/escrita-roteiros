@@ -328,6 +328,27 @@
     padding: 14px 16px; border: 1px dashed var(--linha-forte); border-radius: 12px;
   }
   .acrescentar label { font-size: 13.5px; color: var(--navy-suave); font-weight: 600; }
+  .gancho-rodape { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 16px; border: 1px solid var(--laranja); border-radius: 12px; }
+  .btn-gancho-ia { border-color: var(--laranja); color: var(--laranja); }
+  .painel-gancho { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding: 14px; background: var(--fundo); border: 1px solid var(--laranja); border-radius: 10px; }
+  .gia-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .gia-topo b { font-size: 15px; }
+  .gia-linha { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .gia-linha .entrada { flex: 1 1 240px; width: auto; }
+  .gia-espera { margin: 0; font-size: 14px; color: var(--navy-suave); }
+  .gia-opcoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
+  .gia-cartao { display: flex; flex-direction: column; gap: 6px; padding: 12px; background: var(--papel); border: 1px solid var(--linha); border-radius: 8px; }
+  .gia-cartao.escolhido { border-color: var(--verde); box-shadow: 0 0 0 2px rgba(31, 122, 77, .15); }
+  .gia-cartao h4 { margin: 0; font-size: 14px; }
+  .gia-cartao p { margin: 0; font-size: 14px; line-height: 1.5; }
+  .gia-cartao .btn { align-self: flex-start; margin-top: auto; }
+  .gia-rec { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--laranja); }
+  .gia-rot { display: block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--navy-fraco); }
+  .gia-conta { font-size: 12px; color: var(--navy-fraco); }
+  .gia-conta.passou { color: var(--vermelho); font-weight: 700; }
+  .gia-verdade { color: var(--vinho); font-weight: 600; }
+  .gia-pedido { min-height: 64px; font-size: 14px; margin: 0; width: 100%; }
+  .gia-opcoes { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
   .acrescentar .caixa { width: auto; min-width: 0; padding-block: 8px; font-size: 14px; }
 
   .mudar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-top: 16px; border-top: 1px solid var(--linha); }
@@ -1160,7 +1181,7 @@
      Três lugares possíveis, com a mesma interface:
      o banco do artefato no Claude, o Firebase (versão do GitHub, com login) e o próprio navegador. */
   function adaptadorLocal() {
-    var chaves = { roteiros: "caderno-roteiros-v1", ideias: "caderno-ideias-v1", metricas: "caderno-metricas-v1" };
+    var chaves = { roteiros: "caderno-roteiros-v1", ideias: "caderno-ideias-v1", metricas: "caderno-metricas-v1", ajustes: "caderno-ajustes-v1" };
     var mapas = {};
     function ler(n) {
       if (!mapas[n]) { try { mapas[n] = JSON.parse(lerLocal(chaves[n]) || "{}") || {}; } catch (e) { mapas[n] = {}; } }
@@ -1267,6 +1288,7 @@
       else if (abaAtual === "ideias" && mudou && !focoNasIdeias) renderIdeias();
       atualizarContagens();
     }, erroEscuta));
+    ouvirAjustes();
     desligar.push(arm.ouvir("metricas", function (m) {
       metricas = m || {};
       var primeira = !carregouMetricas;
@@ -3531,6 +3553,8 @@
           '<optgroup label="Outros blocos">' + BLOCOS.filter(function (b) { return b.casa !== "youtube"; }).map(opcaoDeBloco).join("") + "</optgroup>"
           : BLOCOS.filter(function (b) { return b.casa !== "youtube"; }).map(opcaoDeBloco).join("")) + "</select>" +
         '<button class="btn" id="add-bloco" type="button">Acrescentar</button></div>';
+      h += '<div class="gancho-rodape"><button type="button" class="btn btn-laranja" data-pedir-gancho="1">Gancho</button>' +
+        '<span class="aviso">Com o roteiro pronto, o Claude lê o texto inteiro e sugere 3 ganchos com texto na tela, família e tipo.</span></div>';
       h += campoDaLegenda(r, c);
     } else {
       h += '<section class="resumo"><span class="aviso" id="t-resumo"></span><button class="btn" id="add-tela" type="button">Adicionar tela</button></section>';
@@ -3565,6 +3589,247 @@
         '<textarea class="area" id="legenda" placeholder="Texto da legenda seguido das hashtags">' + esc(r.legenda) + "</textarea></div>";
   }
 
+  /* ---------- Ganchos com o Claude ----------
+     O botão Gancho manda o roteiro para a API da Anthropic, com as famílias do banco e as regras de escolha,
+     e recebe 3 ganchos com texto na tela. A chave da API fica guardada só na conta de quem usa o caderno. */
+  var MODELO_GANCHO = "claude-sonnet-5-5";
+  var CHAVE_LOCAL_CLAUDE = "caderno-chave-claude";
+  var chaveClaude = lerLocal(CHAVE_LOCAL_CLAUDE) || "";
+  var ganchoIA = { rid: "", aberto: false, carregando: false, opcoes: [], historico: [], erro: "", trocarChave: false };
+  function guardarChaveClaude(chave) {
+    chaveClaude = chave;
+    gravarLocal(CHAVE_LOCAL_CLAUDE, chave);
+    if (arm && arm.tipo === "firebase") {
+      arm.salvar("ajustes", "claude", { chave: chave, atualizado: new Date().toISOString() }).catch(function () {});
+    }
+  }
+  function ouvirAjustes() {
+    if (!arm || arm.tipo !== "firebase") return;
+    // se as regras do Firestore não liberarem os ajustes, a chave continua só neste aparelho, sem aviso de erro
+    desligar.push(arm.ouvir("ajustes", function (m) {
+      var c = m && m.claude && m.claude.chave;
+      if (c && c !== chaveClaude) { chaveClaude = c; gravarLocal(CHAVE_LOCAL_CLAUDE, c); atualizarPainelGancho(); }
+    }, function () {}));
+  }
+  function blocoDoGancho() {
+    if (!atual || !atual.blocos) return null;
+    return atual.blocos.filter(function (b) { return b.tipo === "gancho" || b.tipo === "yt-gancho"; })[0] || null;
+  }
+  var REGRAS_GANCHO = [
+    "Você escreve ganchos para os vídeos curtos da Isabella Fortunato, que ensina donas de pequenos negócios a usar o Claude e a inteligência artificial no trabalho.",
+    "Leia o roteiro inteiro e devolva exatamente 3 ganchos, cada um com a família e o tipo tirados do banco de ganchos abaixo, escritos exatamente como no banco.",
+    "Regras, todas ao mesmo tempo:",
+    "1. O gancho resume o vídeo inteiro. Nunca fale de uma parte só do roteiro, como um único item de uma lista, e nunca liste os tópicos. Ache a ideia que une todas as partes: o resultado final, o motivo ou o problema que o vídeo resolve.",
+    "2. O gancho para a rolagem. Ele não repete o que o roteiro diz logo em seguida. Traz um ângulo inesperado, uma contradição ou uma cena concreta.",
+    "3. O gancho complementa o contexto. Leia o começo do contexto e escreva o gancho para que o contexto entre como continuação natural da frase. Quando o roteiro não tem contexto, o gancho emenda no desenvolvimento. Quando a primeira frase do contexto já diz algo que o gancho diria, deixe essa frase para o contexto e não repita.",
+    "4. Linguagem literal e simples. Nada de metáfora, imagem poética ou frase com cara de aforismo.",
+    "5. O Claude ou o ensino aparece. O gancho não fala só da dor: mostra que o vídeo ensina a usar o Claude para resolver aquilo, de preferência com o Claude no texto na tela.",
+    "6. Fidelidade ao público do roteiro. Gancho genérico que serviria para qualquer vídeo é recusado.",
+    "7. Primeira pessoa quando for verdade. Os vídeos que mais renderam citam o Claude no texto na tela e contam algo que ela fez. Quando o gancho afirmar algo sobre a vida dela que o roteiro não confirma, marque so_se_for_verdade.",
+    "8. Nada de repetição. Não repita os ganchos já usados nem os já sugeridos listados na mensagem e use 3 famílias diferentes.",
+    "9. O texto na tela é uma afirmação, nunca uma pergunta, com no máximo 9 palavras. Pode repetir a fala de forma comprimida.",
+    "10. Os ganchos de Curiosidade só servem quando a pergunta aberta é respondida dentro do próprio vídeo.",
+    "11. O primeiro gancho é a recomendação. Se o objetivo do vídeo for interação, prefira o que mais puxa comentário.",
+    "12. Quando a Isabella fizer um pedido para o gancho, os 3 ganchos seguem o pedido, ainda resumindo o vídeo inteiro. Quando ela proibir uma palavra, a palavra some da fala, do texto na tela e da emenda.",
+    "Um formato que ela aprovou, da família Humor, tipo Autocrítica: \"Eu nunca tive paciência para olhar extrato. Agora quem olha é o Claude.\" Use quando couber, sem forçar.",
+    "Ela recusa ganchos que falam só da dor, generalistas, com metáfora ou linguagem rebuscada, que repetem o que o roteiro diz em seguida, que pegam um item só ou que listam os tópicos.",
+    "Escrita: português brasileiro correto, com acentos e cedilhas. Sem travessão, sem emoji, sem vírgula antes de \"e\" e de \"ou\", sem \"pra\", \"pro\" e \"tá\", números em algarismo menos um e uma. Nunca use a construção \"não é X, é Y\" nem analogias de aviação, marinha, exército ou Fórmula 1. Palavras proibidas: prompt, processo, estratégia, fórmula, segredo, gargalo, faturamento, fluxo de caixa, travar, no chute, no escuro, quebrar empresa, régua. Diga \"eu sou TDAH\", \"quem é TDAH\", nunca \"ter TDAH\". Corrija Cloud ou Claudio para Claude.",
+    "No banco existem trechos que ela não usa, como \"trava\", \"antes de quebrar\" e \"você não tem empresa, você tem rotina\". Use o banco como modelo de estrutura e nunca copie esses trechos."
+  ].join("\n");
+  function bancoResumido() {
+    return FAMILIAS.map(function (f) {
+      return "Família " + f.nome + " (" + f.faz + ")\n" + f.categorias.map(function (c) {
+        var info = CATEGORIAS[c] || {}, ex = (BANCO_GANCHOS[c] || []).slice(0, 3).map(function (par) { return "   - " + par[1]; }).join("\n");
+        return "  Tipo " + c + (info.faz ? ": " + info.faz : "") + (ex ? "\n" + ex : "");
+      }).join("\n");
+    }).join("\n\n");
+  }
+  function ganchosJaUsados() {
+    return todosOsRoteiros().filter(function (r) { return atual && r.id !== atual.id; })
+      .sort(function (a, b) { return String(b.atualizado || "").localeCompare(String(a.atualizado || "")); })
+      .map(function (r) {
+        var g = (r.blocos || []).filter(function (b) { return b.tipo === "gancho" || b.tipo === "yt-gancho"; })[0];
+        return g ? textoLimpo(g.texto).replace(/\n/g, " ").slice(0, 220) : "";
+      }).filter(Boolean).slice(0, 30);
+  }
+  function mensagemDoRoteiro() {
+    var r = atual, c = TIPOS[r.tipo], g = blocoDoGancho();
+    var partes = ["Título: " + (r.titulo || "(sem título)"), "Rede: " + c.nome];
+    var linha = [r.formato, r.modalidade, r.objetivo].filter(Boolean).join(" | ");
+    if (linha) partes.push("Formato, modalidade e objetivo: " + linha);
+    if (r.textoTela) partes.push("Texto na tela atual: " + r.textoTela);
+    partes.push("", "Roteiro, bloco por bloco:");
+    r.blocos.forEach(function (b) {
+      var t = textoLimpo(b.texto);
+      if (!t) return;
+      var nome = (BLOCO[b.tipo] || BLOCO.livre).nome;
+      partes.push(nome + (b === g ? " (o gancho atual, que vai ser substituído)" : "") + ":\n" + t);
+    });
+    var usados = ganchosJaUsados();
+    if (usados.length) partes.push("", "Ganchos já usados em outros roteiros, que não podem se repetir:", usados.map(function (u) { return "- " + u; }).join("\n"));
+    if (ganchoIA.historico.length) partes.push("", "Ganchos já sugeridos para este roteiro, que não podem se repetir nem na base:", ganchoIA.historico.map(function (h) { return "- " + h; }).join("\n"));
+    if ((r.pedidoGancho || "").trim()) partes.push("", "Pedido da Isabella para este gancho, que vale para os 3: " + r.pedidoGancho.trim());
+    return partes.join("\n");
+  }
+  var FERRAMENTA_GANCHOS = {
+    name: "entregar_ganchos",
+    description: "Entrega os 3 ganchos sugeridos para o roteiro, o primeiro sendo a recomendação.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ganchos: {
+          type: "array", minItems: 3, maxItems: 3,
+          items: {
+            type: "object",
+            properties: {
+              familia: { type: "string", description: "Nome da família, exatamente como no banco" },
+              tipo: { type: "string", description: "Nome do tipo, exatamente como no banco" },
+              falado: { type: "string", description: "A frase que ela vai dizer" },
+              tela: { type: "string", description: "O texto na tela, afirmação de até 9 palavras" },
+              emenda: { type: "string", description: "O fim do gancho seguido das primeiras palavras do contexto, mostrando como os 2 se juntam" },
+              porque: { type: "string", description: "2 ou 3 frases: por que resume o vídeo, por que para a rolagem e como se liga ao contexto" },
+              so_se_for_verdade: { type: "boolean", description: "Verdadeiro quando o gancho afirma algo sobre a vida dela que o roteiro não confirma" }
+            },
+            required: ["familia", "tipo", "falado", "tela", "emenda", "porque"]
+          }
+        }
+      },
+      required: ["ganchos"]
+    }
+  };
+  // Acerta a família pelo tipo quando a resposta vier com o nome um pouco diferente do banco.
+  function ganchoConferido(g) {
+    var tipo = String(g.tipo || "").trim(), familia = String(g.familia || "").trim();
+    var achado = null;
+    GANCHOS.forEach(function (f) {
+      f.tipos.forEach(function (t) { if (!achado && chaveDoTexto(t) === chaveDoTexto(tipo)) achado = { familia: f.familia, tipo: t }; });
+    });
+    if (achado) { familia = achado.familia; tipo = achado.tipo; }
+    return {
+      familia: familia, tipo: tipo, doBanco: !!achado,
+      falado: String(g.falado || "").trim(), tela: String(g.tela || "").trim(),
+      emenda: String(g.emenda || "").trim(), porque: String(g.porque || "").trim(), verdade: !!g.so_se_for_verdade
+    };
+  }
+  function pedirGanchos() {
+    if (!atual || !atual.blocos) return;
+    if (ganchoIA.rid !== atual.id) ganchoIA = { rid: atual.id, aberto: true, carregando: false, opcoes: [], historico: [], erro: "", trocarChave: false };
+    ganchoIA.aberto = true;
+    ganchoIA.erro = "";
+    if (!chaveClaude) { atualizarPainelGancho(); return; }
+    var temTexto = atual.blocos.some(function (b) { return textoLimpo(b.texto); });
+    if (!temTexto) { ganchoIA.erro = "Escreva o roteiro antes de pedir o gancho. O Claude parte do texto dos blocos."; atualizarPainelGancho(); return; }
+    ganchoIA.carregando = true;
+    atualizarPainelGancho();
+    var rid = atual.id;
+    fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": chaveClaude,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: MODELO_GANCHO,
+        max_tokens: 3000,
+        system: REGRAS_GANCHO + "\n\nBanco de ganchos, com famílias, tipos e exemplos de estrutura:\n\n" + bancoResumido(),
+        tools: [FERRAMENTA_GANCHOS],
+        tool_choice: { type: "tool", name: "entregar_ganchos" },
+        messages: [{ role: "user", content: mensagemDoRoteiro() }]
+      })
+    }).then(function (resp) {
+      return resp.json().catch(function () { return {}; }).then(function (corpo) { return { status: resp.status, corpo: corpo }; });
+    }).then(function (res) {
+      if (ganchoIA.rid !== rid) return;
+      ganchoIA.carregando = false;
+      if (res.status !== 200) {
+        var msg = res.corpo && res.corpo.error && res.corpo.error.message;
+        ganchoIA.erro = res.status === 401 ? "A chave da API não foi aceita. Confira se ela foi copiada inteira ou cadastre outra." :
+          res.status === 429 ? "Muitos pedidos seguidos. Espere 1 minuto e clique de novo." :
+          res.status === 529 || res.status === 503 ? "O Claude está sobrecarregado agora. Tente de novo em alguns minutos." :
+          res.status === 400 && /credit/i.test(msg || "") ? "A conta da API está sem crédito. Coloque crédito no Claude Console e tente de novo." :
+          "O Claude não respondeu como esperado" + (msg ? ": " + msg : ".");
+        atualizarPainelGancho();
+        return;
+      }
+      var bloco = (res.corpo.content || []).filter(function (c) { return c.type === "tool_use"; })[0];
+      var lista = bloco && bloco.input && bloco.input.ganchos;
+      if (!lista || !lista.length) { ganchoIA.erro = "A resposta veio sem ganchos. Clique de novo."; atualizarPainelGancho(); return; }
+      ganchoIA.opcoes = lista.slice(0, 3).map(ganchoConferido);
+      ganchoIA.escolhido = null;
+      ganchoIA.opcoes.forEach(function (g) { ganchoIA.historico.push(g.familia + " · " + g.tipo + ": " + g.falado); });
+      atualizarPainelGancho();
+    }).catch(function () {
+      if (ganchoIA.rid !== rid) return;
+      ganchoIA.carregando = false;
+      ganchoIA.erro = "Não consegui falar com o Claude. Confira a internet e tente de novo.";
+      atualizarPainelGancho();
+    });
+  }
+  function usarGancho(i) {
+    var g = ganchoIA.opcoes[i];
+    if (!g || !atual) return;
+    var b = blocoDoGancho();
+    if (!b) { b = blocoVazio("gancho"); atual.blocos.unshift(b); }
+    b.texto = g.falado;
+    if (g.doBanco) { b.familia = g.familia; b.gancho = g.tipo; b.modelo = ""; }
+    atual.textoTela = g.tela;
+    var campo = $("textoTela");
+    if (campo) campo.value = g.tela;
+    ganchoIA.escolhido = i;
+    renderBlocos(); atualizarMedidas(); agendarSalvar();
+    mostrarEstado("salvando", "Gancho " + (i + 1) + " colocado no roteiro");
+  }
+  function htmlPainelGancho() {
+    if (!atual || ganchoIA.rid !== atual.id || !ganchoIA.aberto) return "";
+    var h = '<div class="gia-topo"><b>Ganchos do Claude</b>' +
+      '<button type="button" class="apagar" id="gia-fechar">Fechar</button></div>';
+    if (!chaveClaude || ganchoIA.trocarChave) {
+      return h + '<div class="gia-chave"><p class="aviso">Para o Claude escrever os ganchos, o caderno precisa de uma chave da API da Anthropic. ' +
+        'Ela é criada no Claude Console (console.anthropic.com), em API Keys, e cada pedido é cobrado na conta da Anthropic, separado da assinatura do Claude. ' +
+        'A chave fica guardada só na sua conta do caderno.</p>' +
+        '<div class="gia-linha"><input class="entrada" id="gia-chave" type="password" autocomplete="off" placeholder="sk-ant-..." aria-label="Chave da API da Anthropic">' +
+        '<button type="button" class="btn btn-laranja" id="gia-guardar-chave">Guardar a chave</button>' +
+        (chaveClaude ? '<button type="button" class="btn" id="gia-cancelar-chave">Cancelar</button>' : "") + "</div></div>";
+    }
+    if (ganchoIA.carregando) h += '<p class="gia-espera">O Claude está lendo o roteiro e escrevendo 3 ganchos. Leva uns 20 segundos.</p>';
+    if (ganchoIA.erro) h += '<p class="ins-erro">' + esc(ganchoIA.erro) + "</p>";
+    if (ganchoIA.opcoes.length) {
+      h += '<div class="gia-opcoes">' + ganchoIA.opcoes.map(function (g, i) {
+        var palavras = contar(g.tela);
+        return '<article class="gia-cartao' + (ganchoIA.escolhido === i ? " escolhido" : "") + '">' +
+          '<h4>' + (i + 1) + ". " + esc(g.familia) + " · " + esc(g.tipo) + (i === 0 ? ' <span class="gia-rec">recomendação</span>' : "") + "</h4>" +
+          (g.doBanco ? "" : '<p class="aviso">Este tipo não existe no banco, então a família e o tipo não vão para o seletor.</p>') +
+          '<p><span class="gia-rot">Falado</span>' + esc(g.falado) + "</p>" +
+          '<p><span class="gia-rot">Texto na tela</span>' + esc(g.tela) + ' <span class="gia-conta' + (palavras > 9 ? " passou" : "") + '">' + palavras + " " + plural(palavras, "palavra", "palavras") + "</span></p>" +
+          '<p><span class="gia-rot">Como emenda</span>' + esc(g.emenda) + "</p>" +
+          '<p><span class="gia-rot">Por que funciona</span>' + esc(g.porque) + "</p>" +
+          (g.verdade ? '<p class="gia-verdade">Use só se for verdade.</p>' : "") +
+          '<button type="button" class="btn' + (i === 0 ? " btn-laranja" : "") + '" data-usar-gancho="' + i + '">' + (ganchoIA.escolhido === i ? "Colocado no roteiro" : "Usar este") + "</button></article>";
+      }).join("") + "</div>";
+    }
+    h += '<label class="gia-rot" for="gia-pedido">O que você quer no gancho</label>' +
+      '<textarea class="area gia-pedido" id="gia-pedido" placeholder="Por exemplo: fala de quem é TDAH, sem a palavra controle, usa o ditado do almoço e do jantar">' + esc(atual.pedidoGancho || "") + "</textarea>" +
+      '<div class="gia-linha"><button type="button" class="btn btn-laranja" id="gia-mais"' + (ganchoIA.carregando ? " disabled" : "") + ">" +
+      (ganchoIA.opcoes.length ? "Mais 3 opções" : "Pedir 3 ganchos") + "</button>" +
+      '<button type="button" class="btn btn-mini" id="gia-trocar-chave">Trocar a chave da API</button></div>';
+    return h;
+  }
+  function atualizarPainelGancho() {
+    var el = $("painel-gancho");
+    if (!el) return;
+    var h = htmlPainelGancho();
+    el.innerHTML = h;
+    el.hidden = !h;
+  }
+  function abrirPainelGancho() {
+    if (!atual || !atual.blocos) return;
+    if (!blocoDoGancho()) { atual.blocos.unshift(blocoVazio("gancho")); renderBlocos(); atualizarMedidas(); agendarSalvar(); }
+    pedirGanchos();
+    var el = $("painel-gancho");
+    if (el) el.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
   function renderBlocos() {
     var r = atual, total = r.blocos.length;
     var el = $("blocos");
@@ -3578,12 +3843,15 @@
         '<span class="bloco-pos">' + (i + 1) + " de " + total + "</span>" +
         '<span class="contador" id="c-bloco-' + i + '"></span>' +
 
+        (b === blocoDoGancho() ? '<button type="button" class="btn btn-mini btn-gancho-ia" data-pedir-gancho="1">Gancho</button>' : "") +
         '<button type="button" class="apagar" data-apagar="' + i + '" aria-label="Apagar o bloco ' + def.nome + '">Apagar</button></div>' +
         (b.tipo === "gancho" ? seletorGanchoHtml(b) : "") +
         campoRico("bx-" + b.id, 'data-bloco="' + i + '" aria-labelledby="bn-' + b.id + '"', "Escreva aqui") +
+        (b === blocoDoGancho() ? '<div class="painel-gancho" id="painel-gancho" hidden></div>' : "") +
         "</article>";
     }).join("");
     r.blocos.forEach(function (b) { preencherRico($("bx-" + b.id), b.texto); });
+    atualizarPainelGancho();
     ligarArrasto(el, ".bloco", function (ids) {
       var antes = r.blocos.map(function (b) { return b.id; }).join(",");
       if (antes === ids.join(",")) return;
@@ -4857,6 +5125,8 @@
     var el = e.target;
     if (el.id === "importar-texto") { contarLinhas(); crescer(el); return; }
     if (el.id === "metricas-texto") { crescer(el); return; }
+    if (el.id === "gia-chave") return;
+    if (el.id === "gia-pedido") { if (atual) { atual.pedidoGancho = el.value; agendarSalvar(); } crescer(el); return; }
     if (el.id === "busca-insights") {
       buscaInsights = el.value.trim();
       var posIns = el.selectionStart;
@@ -5402,6 +5672,22 @@
       return;
     }
     if (e.target.id === "add-bloco") { acrescentarBloco($("novo-bloco").value); return; }
+    if (e.target.closest("[data-pedir-gancho]")) { abrirPainelGancho(); return; }
+    if (e.target.id === "gia-mais") { pedirGanchos(); return; }
+    if (e.target.id === "gia-fechar") { ganchoIA.aberto = false; atualizarPainelGancho(); return; }
+    if (e.target.id === "gia-trocar-chave") { ganchoIA.trocarChave = true; atualizarPainelGancho(); return; }
+    if (e.target.id === "gia-cancelar-chave") { ganchoIA.trocarChave = false; atualizarPainelGancho(); return; }
+    if (e.target.id === "gia-guardar-chave") {
+      var nova = ($("gia-chave").value || "").trim();
+      if (!nova) return;
+      guardarChaveClaude(nova);
+      ganchoIA.trocarChave = false;
+      mostrarEstado("salvo", "Chave da API guardada");
+      pedirGanchos();
+      return;
+    }
+    var bug = e.target.closest("[data-usar-gancho]");
+    if (bug) { usarGancho(+bug.dataset.usarGancho); return; }
     var ex = e.target.closest("[data-excluir]");
     if (ex) {
       atual.telas.splice(+ex.dataset.excluir, 1);
