@@ -595,6 +595,12 @@
     padding: 8px; background: var(--fundo); border: 1px solid var(--linha); border-radius: 8px;
   }
   .ins-previa-linha.fora { opacity: .5; }
+  .ins-previa-titulo { font-size: 14px; font-weight: 600; padding: 6px 8px; }
+  .ins-previa-titulo.falta { border-color: var(--laranja); box-shadow: 0 0 0 2px rgba(201, 90, 30, .15); }
+  .ins-previa-escolhas { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ins-previa-numeros { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .ins-previa-num { display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--navy-fraco); }
+  .ins-previa-num .ins-num { width: 100%; }
   .ins-previa-nome { display: flex; flex-direction: column; gap: 3px; font-size: 14px; overflow-wrap: anywhere; }
   .ins-previa-rede { font-size: 12.5px; color: var(--navy-suave); border-left: 3px solid var(--cor); padding-left: 8px; }
   .ins-previa-lado { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; text-align: right; }
@@ -655,6 +661,7 @@
     .ins-cel.ins-invest { justify-content: flex-start; }
     .ins-cel:has(.ins-pago) { grid-column: 1 / -1; justify-content: flex-start; }
     .ins-previa-linha { grid-template-columns: 28px minmax(0, 1fr); }
+    .ins-previa-numeros { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .ins-previa-lado { grid-column: 2; align-items: flex-start; text-align: left; }
     .busca-insights { margin-left: 0; max-width: 100%; }
     .ins-select, .ins-titulo { max-width: 100%; }
@@ -2522,6 +2529,184 @@
       renderTodos();
     });
   }
+  /* ---------- Leitura de prints ----------
+     O leitor de texto em imagem só é baixado quando um print é escolhido, para o aplicativo continuar leve.
+     Tudo roda no próprio navegador: o print não sai do aparelho. */
+  var LEITOR_JS = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+  var LEITOR_OPCOES = {
+    workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js",
+    corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1",
+    langPath: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/por@1.0.0/4.0.0_best_int"
+  };
+  var leitorPronto = null;
+  function carregarLeitor() {
+    if (leitorPronto) return leitorPronto;
+    leitorPronto = new Promise(function (ok, falha) {
+      if (window.Tesseract) return ok();
+      var s = document.createElement("script");
+      s.src = LEITOR_JS;
+      s.onload = function () { ok(); };
+      s.onerror = function () { falha(new Error("Não consegui baixar o leitor de prints. Confira a conexão.")); };
+      document.head.appendChild(s);
+    }).then(function () { return window.Tesseract.createWorker("por", 1, LEITOR_OPCOES); });
+    leitorPronto.catch(function () { leitorPronto = null; });
+    return leitorPronto;
+  }
+  // O print é ampliado 2 vezes antes da leitura, porque o texto miúdo sobre a capa do vídeo sai melhor assim.
+  function imagemAmpliada(arquivo) {
+    if (typeof createImageBitmap !== "function") return Promise.resolve(arquivo);
+    return createImageBitmap(arquivo).then(function (img) {
+      var c = document.createElement("canvas");
+      c.width = img.width * 2; c.height = img.height * 2;
+      var g = c.getContext("2d");
+      g.imageSmoothingQuality = "high";
+      g.drawImage(img, 0, 0, c.width, c.height);
+      return c;
+    }).catch(function () { return arquivo; });
+  }
+  var RX_METRICA_PRINT = [
+    ["visualizacoes", /visualizac(oes|ao)|\bviews\b|reproduc/],
+    ["seguidores", /seguidores|seguidor|follows?\b/],
+    ["salvamentos", /salvament|\bsalvos\b|favorit/],
+    ["compartilhamentos", /compartilhament/],
+    ["comentarios", /comentario/]
+  ];
+  function metricasDaLinha(l) {
+    var s = chaveDoTexto(l), achadas = [];
+    RX_METRICA_PRINT.forEach(function (par) {
+      var m = s.match(par[1]);
+      if (m) achadas.push({ campo: par[0], pos: m.index / Math.max(1, s.length) });
+    });
+    return achadas;
+  }
+  // Junta "12,5" e "mil" num pedaço só e devolve os pedaços da linha quando ela é só de valores.
+  function valoresDaLinha(l, estrito) {
+    var pedacos = String(l).trim().split(/\s+/), saida = [];
+    for (var i = 0; i < pedacos.length; i++) {
+      var p = pedacos[i];
+      if (/^(mil|k|mi)$/i.test(pedacos[i + 1] || "") && /\d/.test(p)) { p += " " + pedacos[i + 1]; i++; }
+      saida.push(p);
+    }
+    var ehValor = function (p) { return /^(\d[\d.,]*(\s?(mil|k|mi))?|[oO]|\d+\s?s|\d+:\d+|\d+(,\d+)?%)$/i.test(p); };
+    // o leitor às vezes troca um número por 2 letras maiúsculas ou por um símbolo; esse pedaço segura a coluna sem valor
+    var ehRuido = function (p) { return /^[A-Z]{1,2}$/.test(p) || /^[^A-Za-zÀ-ÿ\d]+$/.test(p); };
+    var ok = saida.some(ehValor) && saida.every(function (p) { return ehValor(p) || (!estrito && ehRuido(p)); });
+    return ok ? saida : null;
+  }
+  function valorDoPedaco(p) {
+    if (/^[oO]$/.test(p)) return 0;
+    if (!/\d/.test(p)) return null;
+    if (/%|:|\ds$|\d\ss$/i.test(p)) return null;
+    return numeroDoTexto(p);
+  }
+  // Monta o post a partir do texto lido no print. O que não for reconhecido com segurança fica de fora.
+  function postDoPrint(texto, padrao) {
+    var linhas = String(texto).split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
+    var tudo = chaveDoTexto(texto);
+    var rede = /\bteste\b|trial/.test(tudo) ? "rt" : /tiktok/.test(tudo) ? "tt" : padrao;
+    var b = {}, titulo = "";
+    // só lê tela de métricas: perfil, grade de posts e outras telas ficam de fora
+    if (!/insights|visao geral|estatistica|analise|visualizac/.test(tudo)) return { titulo: "", data: "", redes: {}, doPrint: true };
+    function por(campo, v) { if (v != null && b[campo] == null) b[campo] = v; }
+    var iInsights = -1, iIcones = -1;
+    linhas.forEach(function (l, i) { if (iInsights < 0 && /insights do (reel|post|video)/.test(chaveDoTexto(l))) iInsights = i; });
+    if (iInsights >= 0) {
+      // a fileira de ícones do Instagram: curtidas, comentários, repostagens, compartilhamentos e salvamentos
+      for (var k = iInsights + 1; k < linhas.length; k++) {
+        if (/visao geral|engajamento|publico/.test(chaveDoTexto(linhas[k]))) break;
+        var v5 = valoresDaLinha(linhas[k], true);
+        if (v5 && v5.length === 5) {
+          iIcones = k;
+          por("comentarios", valorDoPedaco(v5[1]));
+          por("compartilhamentos", valorDoPedaco(v5[3]));
+          por("salvamentos", valorDoPedaco(v5[4]));
+          break;
+        }
+      }
+      // o texto na tela do vídeo, que aparece na capa, em letra maiúscula
+      // só a capa do topo, acima da fileira de ícones; a capa que aparece mais abaixo é do mesmo post
+      var partes = (iIcones < 0 ? [] : linhas.slice(iInsights + 1, iIcones)).filter(function (l) {
+        var palavras = l.split(/\s+/).filter(function (w) { return /^[A-ZÀ-Ý]{2,}[.,!?]?$/.test(w); });
+        var letras = l.replace(/[^A-Za-zÀ-ÿ]/g, "");
+        return palavras.length >= 3 && letras.length && letras.replace(/[^A-ZÀ-Ý]/g, "").length / letras.length > 0.85;
+      });
+      if (partes.length) {
+        titulo = partes.join(" ").replace(/\s+/g, " ").trim().toLowerCase();
+        titulo = titulo.charAt(0).toUpperCase() + titulo.slice(1);
+      }
+    }
+    linhas.forEach(function (l, i) {
+      var s = chaveDoTexto(l);
+      if (i === iIcones || /taxa|nao seguidores|tipico|%/.test(s) || l.indexOf("%") !== -1) return;
+      // rótulo e número na mesma linha, como "Visualizações 71"
+      var m = l.match(/^(.*[A-Za-zÀ-ÿ].*?)\s+(\d[\d.,]*(?:\s?(?:mil|k|mi))?|[oO])$/i);
+      if (m) {
+        var achadas = metricasDaLinha(m[1]);
+        if (achadas.length === 1 && m[1].split(/\s+/).length <= 3) { por(achadas[0].campo, valorDoPedaco(m[2])); return; }
+      }
+      // rótulos numa linha e números na de baixo, como nos cartões lado a lado
+      if (/\d/.test(l)) return;
+      var abaixo = valoresDaLinha(linhas[i + 1] || "");
+      if (!abaixo) return;
+      metricasDaLinha(l).forEach(function (a) {
+        var col = abaixo.length === 1 ? 0 : Math.min(abaixo.length - 1, Math.floor(a.pos * abaixo.length));
+        por(a.campo, valorDoPedaco(abaixo[col]));
+      });
+    });
+    var redes = {};
+    if (Object.keys(b).length) redes[rede] = b;
+    return { titulo: titulo, data: "", redes: redes, doPrint: true };
+  }
+  function lerPrints(arquivos) {
+    erroImportar = "";
+    var lidos = [], semNada = 0;
+    var corrente = Promise.resolve();
+    mostrarEstado("salvando", "Preparando o leitor de prints");
+    return carregarLeitor().then(function (leitor) {
+      arquivos.forEach(function (arq, n) {
+        corrente = corrente.then(function () {
+          mostrarEstado("salvando", "Lendo o print " + (n + 1) + " de " + arquivos.length);
+          return imagemAmpliada(arq).then(function (img) { return leitor.recognize(img); }).then(function (r) {
+            var p = postDoPrint(r.data.text || "", redePadrao);
+            var temNumero = Object.keys(p.redes).length > 0;
+            var anterior = lidos[lidos.length - 1];
+            // um print sem o texto na tela continua o post do print anterior, porque é o mesmo post rolado para baixo
+            if (!p.titulo && anterior && temNumero) {
+              Object.keys(p.redes).forEach(function (rd) {
+                var para = anterior.redes[rd] = anterior.redes[rd] || {};
+                Object.keys(p.redes[rd]).forEach(function (c) { if (para[c] == null) para[c] = p.redes[rd][c]; });
+              });
+              return;
+            }
+            if (!temNumero) { semNada++; return; }
+            if (!p.titulo) { p.titulo = "Post sem texto na tela " + (lidos.length + 1); p.semTitulo = true; }
+            lidos.push(p);
+          });
+        });
+      });
+      return corrente;
+    }).then(function () {
+      var origem = arquivos.length + " " + plural(arquivos.length, "print", "prints");
+      montarPrevia(lidos, origem);
+      if (lidos.length && semNada) {
+        erroImportar = semNada + " " + plural(semNada, "print não tinha", "prints não tinham") + " métricas reconhecíveis e " +
+          plural(semNada, "foi ignorado", "foram ignorados") + ". Isso é normal na tela do perfil, na grade de posts e nos trechos só de gráfico.";
+        renderTodos();
+      }
+    }).catch(function (e) {
+      erroImportar = (e && e.message) || "Não consegui ler os prints";
+      prevMetricas = null;
+      mostrarEstado("erro", erroImportar);
+      renderTodos();
+    });
+  }
+  function lerArquivosMetricas(lista) {
+    var arquivos = Array.prototype.slice.call(lista || []);
+    if (!arquivos.length) return;
+    var imagens = arquivos.filter(function (a) { return /^image\//.test(a.type) || /\.(png|jpe?g|webp|heic)$/i.test(a.name || ""); });
+    if (imagens.length) lerPrints(imagens);
+    else lerArquivoMetricas(arquivos[0]);
+  }
   function lerTextoMetricas() {
     var campo = $("metricas-texto");
     var t = campo ? campo.value : "";
@@ -2545,17 +2730,25 @@
         return {
           post: p,
           id: existente ? existente.id : "",
-          roteiroId: existente && existente.roteiroId ? existente.roteiroId : acharRoteiroPorTexto(p.titulo),
+          roteiroId: existente && existente.roteiroId ? existente.roteiroId : (p.semTitulo ? "" : acharRoteiroPorTexto(p.titulo)),
+          print: !!p.doPrint,
           usar: true
         };
       })
     };
     importarMetricas = true;
-    mostrarEstado("salvo", posts.length + " " + plural(posts.length, "post lido", "posts lidos"));
+    mostrarEstado("salvo", posts.length + " " + plural(posts.length, "post lido", "posts lidos") +
+      (posts.some(function (p) { return p.doPrint; }) ? ". Confira os números antes de guardar" : ""));
     renderTodos();
   }
   function confirmarMetricas() {
     if (!prevMetricas) return;
+    var semTexto = prevMetricas.linhas.filter(function (l) { return l.usar && l.post.semTitulo; }).length;
+    if (semTexto) {
+      erroImportar = "Escreva o texto na tela " + plural(semTexto, "do post marcado em laranja", "dos " + semTexto + " posts marcados em laranja") + " antes de guardar.";
+      renderTodos();
+      return;
+    }
     var escolhidas = prevMetricas.linhas.filter(function (l) { return l.usar; });
     escolhidas.forEach(function (l) {
       var base = l.id && metricas[l.id] ? clonar(metricas[l.id]) : metricaNova(l.post.titulo);
@@ -2615,6 +2808,22 @@
     });
     return total;
   }
+  // No print, o texto na tela, a rede, o roteiro e cada número podem ser corrigidos antes de guardar.
+  function htmlPreviaDoPrint(l, i) {
+    var p = l.post, rd = Object.keys(p.redes)[0] || redePadrao, b = p.redes[rd] || {};
+    return '<input class="entrada ins-previa-titulo' + (p.semTitulo ? " falta" : "") + '" type="text" data-previa-titulo="' + i + '" value="' +
+      esc(p.semTitulo ? "" : p.titulo) + '" placeholder="Escreva o texto na tela deste post" aria-label="Texto na tela do post">' +
+      '<span class="ins-previa-escolhas"><select class="entrada ins-select" data-previa-rede="' + i + '" aria-label="Rede">' +
+      REDES.map(function (r) { return '<option value="' + r.chave + '"' + (r.chave === rd ? " selected" : "") + ">" + r.nome + "</option>"; }).join("") +
+      '</select><select class="entrada ins-select" data-previa-roteiro="' + i + '" aria-label="Roteiro ligado">' +
+      '<option value="">Sem roteiro ligado</option>' + todosOsRoteiros().map(function (r) {
+        return '<option value="' + r.id + '"' + (l.roteiroId === r.id ? " selected" : "") + ">" + esc((r.titulo || "Sem título") + " · " + TIPOS[r.tipo].nome) + "</option>";
+      }).join("") + "</select></span>" +
+      '<span class="ins-previa-numeros">' + METRICAS.map(function (mt) {
+        return '<label class="ins-previa-num"><span>' + mt.curto + '</span><input class="ins-num" type="text" inputmode="numeric" data-previa-num="' + i + "|" + mt.chave +
+          '" value="' + esc(b[mt.chave] == null ? "" : numeroBonito(b[mt.chave])) + '"></label>';
+      }).join("") + "</span>";
+  }
   function htmlInsights() {
     var lista = metricasVisiveis();
     var total = Object.keys(metricas).length;
@@ -2627,9 +2836,9 @@
 
     if (importarMetricas) {
       h += '<section class="ins-importar">' +
-        '<p class="aviso">Escolha o docx que veio da pesquisa e eu leio as tabelas e as linhas de dentro dele. Se preferir, cole o conteúdo no campo de baixo. Cada post entra pelo texto na tela, que é o que liga o post ao roteiro.</p>' +
+        '<p class="aviso">Escolha o docx que veio da pesquisa ou os prints dos insights, vários de uma vez. Os prints de um mesmo post, rolados para baixo, viram um post só, desde que fiquem em sequência e o primeiro mostre a capa do vídeo. Se preferir, cole o conteúdo no campo de baixo. Cada post entra pelo texto na tela, que é o que liga o post ao roteiro.</p>' +
         '<div class="ins-linha-arquivo"><label class="rotulo" for="arq-metricas">Arquivo</label>' +
-        '<input class="entrada ins-arquivo" id="arq-metricas" type="file" accept=".docx,.txt,.csv,.tsv">' +
+        '<input class="entrada ins-arquivo" id="arq-metricas" type="file" multiple accept=".docx,.txt,.csv,.tsv,image/*">' +
         '<span class="rotulo">Quando o arquivo não disser a rede</span>' +
         '<span class="filtros">' + REDES.map(function (r) {
           return '<button type="button" class="filtro filtro-mini" data-rede-padrao="' + r.chave + '" aria-pressed="' + (redePadrao === r.chave) + '">' + r.nome + "</button>";
@@ -2653,9 +2862,9 @@
           }).join("");
           return '<div class="ins-previa-linha' + (l.usar ? "" : " fora") + '">' +
             '<label class="marcar"><input type="checkbox" data-previa="' + i + '"' + (l.usar ? " checked" : "") + ' aria-label="Importar este post"></label>' +
-            '<span class="ins-previa-nome"><b>' + esc(p.titulo) + "</b>" + numeros + "</span>" +
+            '<span class="ins-previa-nome">' + (l.print ? htmlPreviaDoPrint(l, i) : "<b>" + esc(p.titulo) + "</b>" + numeros) + "</span>" +
             '<span class="ins-previa-lado">' + (l.id ? '<span class="tag-virou">atualiza o que já existe</span>' : '<span class="tag-pronto">novo</span>') +
-            (l.roteiroId ? '<span class="aviso">Roteiro: ' + esc(nomeDoRoteiro(l.roteiroId)) + "</span>" : '<span class="aviso">Sem roteiro achado</span>') + "</span></div>";
+            (l.print ? "" : l.roteiroId ? '<span class="aviso">Roteiro: ' + esc(nomeDoRoteiro(l.roteiroId)) + "</span>" : '<span class="aviso">Sem roteiro achado</span>') + "</span></div>";
         }).join("");
         h += '<div class="ins-importar-acoes"><button type="button" class="btn" id="cancelar-metricas">Cancelar</button>' +
           '<button type="button" class="btn btn-laranja" id="confirmar-metricas"' + (quantasUsar ? "" : " disabled") + ">Guardar " + quantasUsar + " " +
@@ -4665,11 +4874,48 @@
   ed.addEventListener("change", function (e) {
     var el = e.target;
     if (el.id === "cal-data" && calAberto) { marcarData(calAberto, el.value); return; }
-    if (el.id === "arq-metricas") { lerArquivoMetricas(el.files && el.files[0]); el.value = ""; return; }
+    if (el.id === "arq-metricas") { lerArquivosMetricas(el.files); el.value = ""; return; }
+    if (el.dataset && el.dataset.previaRede != null && prevMetricas) {
+      var lr = prevMetricas.linhas[+el.dataset.previaRede];
+      if (lr) { var antes = Object.keys(lr.post.redes)[0]; var dados = antes ? lr.post.redes[antes] : {}; lr.post.redes = {}; lr.post.redes[el.value] = dados; }
+      // espera o campo perder o foco antes de redesenhar a prévia
+      setTimeout(renderTodos, 0);
+      return;
+    }
+    if (el.dataset && el.dataset.previaRoteiro != null && prevMetricas) {
+      var lo = prevMetricas.linhas[+el.dataset.previaRoteiro];
+      if (lo) lo.roteiroId = el.value;
+      return;
+    }
+    if (el.dataset && el.dataset.previaTitulo != null && prevMetricas) {
+      var lt = prevMetricas.linhas[+el.dataset.previaTitulo];
+      if (lt) {
+        lt.post.titulo = el.value.trim() || lt.post.titulo;
+        lt.post.semTitulo = !el.value.trim();
+        var ex = el.value.trim() ? acharMetricaPorTitulo(el.value) : null;
+        lt.id = ex ? ex.id : "";
+        if (!lt.roteiroId && el.value.trim()) lt.roteiroId = (ex && ex.roteiroId) || acharRoteiroPorTexto(el.value);
+      }
+      // espera o campo perder o foco antes de redesenhar a prévia
+      setTimeout(renderTodos, 0);
+      return;
+    }
+    if (el.dataset && el.dataset.previaNum != null && prevMetricas) {
+      var pn2 = el.dataset.previaNum.split("|"), ln2 = prevMetricas.linhas[+pn2[0]];
+      if (ln2) {
+        var rd2 = Object.keys(ln2.post.redes)[0] || redePadrao;
+        var bb = ln2.post.redes[rd2] = ln2.post.redes[rd2] || {};
+        bb[pn2[1]] = el.value.trim() ? numeroDoTexto(el.value) : null;
+      }
+      // espera o campo perder o foco antes de redesenhar a prévia
+      setTimeout(renderTodos, 0);
+      return;
+    }
     if (el.dataset && el.dataset.previa != null && prevMetricas) {
       var linhaPrev = prevMetricas.linhas[+el.dataset.previa];
       if (linhaPrev) linhaPrev.usar = el.checked;
-      renderTodos();
+      // espera o campo perder o foco antes de redesenhar a prévia
+      setTimeout(renderTodos, 0);
       return;
     }
     if (el.dataset && el.dataset.metRoteiro) {
