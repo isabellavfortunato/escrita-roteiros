@@ -347,7 +347,7 @@
   .gia-conta { font-size: 12px; color: var(--navy-fraco); }
   .gia-conta.passou { color: var(--vermelho); font-weight: 700; }
   .gia-verdade { color: var(--vinho); font-weight: 600; }
-  .gia-pedido { min-height: 64px; font-size: 14px; margin: 0; width: 100%; }
+  .painel-gancho .gia-pedido { min-height: 64px; font-size: 14px; margin: 0; width: 100%; font-family: var(--ui); }
   .gia-opcoes { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
   .acrescentar .caixa { width: auto; min-width: 0; padding-block: 8px; font-size: 14px; }
 
@@ -3735,8 +3735,9 @@
         max_tokens: 3000,
         system: REGRAS_GANCHO + "\n\nBanco de ganchos, com famílias, tipos e exemplos de estrutura:\n\n" + bancoResumido(),
         tools: [FERRAMENTA_GANCHOS],
-        tool_choice: { type: "tool", name: "entregar_ganchos" },
-        messages: [{ role: "user", content: mensagemDoRoteiro() }]
+        // este modelo não aceita obrigar o uso da ferramenta, então o pedido diz para usá-la e o texto puro serve de reserva
+        tool_choice: { type: "auto" },
+        messages: [{ role: "user", content: mensagemDoRoteiro() + "\n\nEntregue os 3 ganchos chamando a ferramenta entregar_ganchos. Se não conseguir usar a ferramenta, responda só com o JSON {\"ganchos\": [...]}, nos mesmos campos, sem nenhum texto antes ou depois." }]
       })
     }).then(function (resp) {
       return resp.json().catch(function () { return {}; }).then(function (corpo) { return { status: resp.status, corpo: corpo }; });
@@ -3755,6 +3756,12 @@
       }
       var bloco = (res.corpo.content || []).filter(function (c) { return c.type === "tool_use"; })[0];
       var lista = bloco && bloco.input && bloco.input.ganchos;
+      if (!lista) {
+        // reserva: a resposta veio em texto, com o JSON dentro
+        var texto = (res.corpo.content || []).filter(function (c) { return c.type === "text"; }).map(function (c) { return c.text; }).join("\n");
+        var ini = texto.indexOf("{"), fim = texto.lastIndexOf("}");
+        try { lista = JSON.parse(texto.slice(ini, fim + 1)).ganchos; } catch (err) { lista = null; }
+      }
       if (!lista || !lista.length) { ganchoIA.erro = "A resposta veio sem ganchos. Clique de novo."; atualizarPainelGancho(); return; }
       ganchoIA.opcoes = lista.slice(0, 3).map(ganchoConferido);
       ganchoIA.escolhido = null;
