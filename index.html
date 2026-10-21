@@ -598,6 +598,8 @@
   .ins-previa-titulo { font-size: 14px; font-weight: 600; padding: 6px 8px; }
   .ins-previa-titulo.falta { border-color: var(--laranja); box-shadow: 0 0 0 2px rgba(201, 90, 30, .15); }
   .ins-previa-escolhas { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ins-previa-bloco { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 2px 10px; border-left: 3px solid var(--cor); }
+  .ins-previa-bloco > .ins-select { align-self: flex-start; }
   .ins-previa-numeros { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
   .ins-previa-num { display: flex; flex-direction: column; gap: 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--navy-fraco); }
   .ins-previa-num .ins-num { width: 100%; }
@@ -2599,45 +2601,62 @@
     if (/%|:|\ds$|\d\ss$/i.test(p)) return null;
     return numeroDoTexto(p);
   }
+  var MESES_CURTOS = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
+  // "Publicado em 20 de out de 2026", como aparece no TikTok
+  function dataDoPrint(texto) {
+    var m = chaveDoTexto(texto).match(/publicado em (\d{1,2}) de ([a-z]{3})[a-z]* (?:de )?(\d{4})?/);
+    if (!m || !MESES_CURTOS[m[2]]) return "";
+    var ano = m[3] || String(new Date().getFullYear());
+    return ano + "-" + String(MESES_CURTOS[m[2]]).padStart(2, "0") + "-" + String(m[1]).padStart(2, "0");
+  }
   // Monta o post a partir do texto lido no print. O que não for reconhecido com segurança fica de fora.
   function postDoPrint(texto, padrao) {
     var linhas = String(texto).split("\n").map(function (l) { return l.trim(); }).filter(Boolean);
     var tudo = chaveDoTexto(texto);
-    var rede = /\bteste\b|trial/.test(tudo) ? "rt" : /tiktok/.test(tudo) ? "tt" : padrao;
+    var vazio = { titulo: "", data: "", redes: {}, doPrint: true, temIcones: false };
+    // só lê tela de métricas: perfil, grade de posts e o próprio vídeo ficam de fora
+    if (!/insights|visao geral|estatistica|analise|visualizac/.test(tudo)) return vazio;
+    var tiktok = /tiktok|analise de video/.test(tudo);
+    var rede = /\bteste\b|trial/.test(tudo) ? "rt" : tiktok ? "tt" : padrao;
     var b = {}, titulo = "";
-    // só lê tela de métricas: perfil, grade de posts e outras telas ficam de fora
-    if (!/insights|visao geral|estatistica|analise|visualizac/.test(tudo)) return { titulo: "", data: "", redes: {}, doPrint: true };
     function por(campo, v) { if (v != null && b[campo] == null) b[campo] = v; }
-    var iInsights = -1, iIcones = -1;
-    linhas.forEach(function (l, i) { if (iInsights < 0 && /insights do (reel|post|video)/.test(chaveDoTexto(l))) iInsights = i; });
-    if (iInsights >= 0) {
-      // a fileira de ícones do Instagram: curtidas, comentários, repostagens, compartilhamentos e salvamentos
-      for (var k = iInsights + 1; k < linhas.length; k++) {
-        if (/visao geral|engajamento|publico/.test(chaveDoTexto(linhas[k]))) break;
+    var iTopo = -1, iIcones = -1;
+    linhas.forEach(function (l, i) { if (iTopo < 0 && /insights do (reel|post|video)|analise de video/.test(chaveDoTexto(l))) iTopo = i; });
+    if (iTopo >= 0) {
+      // a fileira de números embaixo da capa
+      for (var k = iTopo + 1; k < linhas.length; k++) {
+        if (/visao geral|engajamento|publico|espectadores/.test(chaveDoTexto(linhas[k]))) break;
         var v5 = valoresDaLinha(linhas[k], true);
         if (v5 && v5.length === 5) {
           iIcones = k;
-          por("comentarios", valorDoPedaco(v5[1]));
+          if (tiktok) {
+            // TikTok: visualizações, curtidas, comentários, compartilhamentos e salvamentos
+            por("visualizacoes", valorDoPedaco(v5[0]));
+          }
+          // Instagram: curtidas, comentários, repostagens, compartilhamentos e salvamentos
+          por("comentarios", valorDoPedaco(v5[tiktok ? 2 : 1]));
           por("compartilhamentos", valorDoPedaco(v5[3]));
           por("salvamentos", valorDoPedaco(v5[4]));
           break;
         }
       }
-      // o texto na tela do vídeo, que aparece na capa, em letra maiúscula
-      // só a capa do topo, acima da fileira de ícones; a capa que aparece mais abaixo é do mesmo post
-      var partes = (iIcones < 0 ? [] : linhas.slice(iInsights + 1, iIcones)).filter(function (l) {
+      // o texto na tela do vídeo, que aparece na capa, em letra maiúscula. No Instagram vale só a capa do topo,
+      // acima dos números, porque a capa de baixo corta o texto; no TikTok vale a capa de qualquer parte da tela.
+      var ate = tiktok ? linhas.length : iIcones;
+      var partes = (ate < 0 ? [] : linhas.slice(iTopo + 1, ate)).filter(function (l, j) {
+        if (iTopo + 1 + j === iIcones) return false;
         var palavras = l.split(/\s+/).filter(function (w) { return /^[A-ZÀ-Ý]{2,}[.,!?]?$/.test(w); });
         var letras = l.replace(/[^A-Za-zÀ-ÿ]/g, "");
         return palavras.length >= 3 && letras.length && letras.replace(/[^A-ZÀ-Ý]/g, "").length / letras.length > 0.85;
       });
       if (partes.length) {
-        titulo = partes.join(" ").replace(/\s+/g, " ").trim().toLowerCase();
+        titulo = partes.slice(0, 2).join(" ").replace(/\s+/g, " ").trim().toLowerCase();
         titulo = titulo.charAt(0).toUpperCase() + titulo.slice(1);
       }
     }
     linhas.forEach(function (l, i) {
       var s = chaveDoTexto(l);
-      if (i === iIcones || /taxa|nao seguidores|tipico|%/.test(s) || l.indexOf("%") !== -1) return;
+      if (i === iIcones || /taxa|nao seguidores|tipico|aumentaram|dispararam/.test(s) || l.indexOf("%") !== -1) return;
       // rótulo e número na mesma linha, como "Visualizações 71"
       var m = l.match(/^(.*[A-Za-zÀ-ÿ].*?)\s+(\d[\d.,]*(?:\s?(?:mil|k|mi))?|[oO])$/i);
       if (m) {
@@ -2655,39 +2674,77 @@
     });
     var redes = {};
     if (Object.keys(b).length) redes[rede] = b;
-    return { titulo: titulo, data: "", redes: redes, doPrint: true };
+    return { titulo: titulo, data: dataDoPrint(texto), redes: redes, doPrint: true, temIcones: iIcones >= 0, rede: rede };
+  }
+  // Preenche no primeiro post o que faltou nele e existe no segundo.
+  function completarPost(alvo, de) {
+    if (!alvo.titulo && de.titulo) alvo.titulo = de.titulo;
+    if (!alvo.data && de.data) alvo.data = de.data;
+    if (de.temIcones) alvo.temIcones = true;
+    Object.keys(de.redes).forEach(function (rd) {
+      var para = alvo.redes[rd] = alvo.redes[rd] || {};
+      Object.keys(de.redes[rd]).forEach(function (c) { if (para[c] == null) para[c] = de.redes[rd][c]; });
+    });
+    return alvo;
+  }
+  function mesmoTitulo(a, b) {
+    var x = chaveDoTexto(a), y = chaveDoTexto(b);
+    if (!x || !y) return true;
+    if (x.indexOf(y) !== -1 || y.indexOf(x) !== -1) return true;
+    var px = x.split(" ").filter(function (w) { return w.length > 3; });
+    var comuns = px.filter(function (w) { return y.indexOf(w) !== -1; }).length;
+    return px.length ? comuns / px.length >= 0.5 : false;
   }
   function lerPrints(arquivos) {
     erroImportar = "";
-    var lidos = [], semNada = 0;
+    var lidos = [], semNada = 0, atual = null;
     var corrente = Promise.resolve();
     mostrarEstado("salvando", "Preparando o leitor de prints");
     return carregarLeitor().then(function (leitor) {
       arquivos.forEach(function (arq, n) {
         corrente = corrente.then(function () {
           mostrarEstado("salvando", "Lendo o print " + (n + 1) + " de " + arquivos.length);
+          // cada print é lido 2 vezes, ampliado e no tamanho original, porque cada leitura acerta números diferentes
+          var ampliada;
           return imagemAmpliada(arq).then(function (img) { return leitor.recognize(img); }).then(function (r) {
-            var p = postDoPrint(r.data.text || "", redePadrao);
+            ampliada = postDoPrint(r.data.text || "", redePadrao);
+            return leitor.recognize(arq);
+          }).then(function (r) {
+            var p = completarPost(ampliada, postDoPrint(r.data.text || "", redePadrao));
             var temNumero = Object.keys(p.redes).length > 0;
-            var anterior = lidos[lidos.length - 1];
-            // um print sem o texto na tela continua o post do print anterior, porque é o mesmo post rolado para baixo
-            if (!p.titulo && anterior && temNumero) {
-              Object.keys(p.redes).forEach(function (rd) {
-                var para = anterior.redes[rd] = anterior.redes[rd] || {};
-                Object.keys(p.redes[rd]).forEach(function (c) { if (para[c] == null) para[c] = p.redes[rd][c]; });
-              });
-              return;
-            }
-            if (!temNumero) { semNada++; return; }
-            if (!p.titulo) { p.titulo = "Post sem texto na tela " + (lidos.length + 1); p.semTitulo = true; }
-            lidos.push(p);
+            if (!temNumero && !p.titulo) { semNada++; return; }
+            // os prints de um mesmo post, rolados para cima ou para baixo, se juntam num só;
+            // começa outro post quando aparece uma segunda fileira de números ou um texto na tela diferente
+            var novo = !atual || (p.temIcones && atual.temIcones) || (p.rede && atual.rede && p.rede !== atual.rede) ||
+              (p.titulo && atual.titulo && atual.temIcones && !mesmoTitulo(p.titulo, atual.titulo));
+            if (novo) { atual = p; lidos.push(p); }
+            else completarPost(atual, p);
           });
         });
       });
       return corrente;
     }).then(function () {
+      lidos = lidos.filter(function (p, i) {
+        if (Object.keys(p.redes).length) {
+          if (!p.titulo) { p.titulo = "Post sem texto na tela " + (i + 1); p.semTitulo = true; }
+          return true;
+        }
+        semNada++;
+        return false;
+      });
+      // o mesmo vídeo em redes diferentes vira um post só, com uma linha para cada rede
+      var juntos = [];
+      lidos.forEach(function (p) {
+        var par = p.semTitulo ? null : juntos.filter(function (q) {
+          return !q.semTitulo && mesmoTitulo(p.titulo, q.titulo) && !Object.keys(p.redes).some(function (rd) { return q.redes[rd]; });
+        })[0];
+        if (par) {
+          if (p.titulo.length > par.titulo.length) par.titulo = p.titulo;
+          completarPost(par, p);
+        } else juntos.push(p);
+      });
       var origem = arquivos.length + " " + plural(arquivos.length, "print", "prints");
-      montarPrevia(lidos, origem);
+      montarPrevia(juntos, origem);
       if (lidos.length && semNada) {
         erroImportar = semNada + " " + plural(semNada, "print não tinha", "prints não tinham") + " métricas reconhecíveis e " +
           plural(semNada, "foi ignorado", "foram ignorados") + ". Isso é normal na tela do perfil, na grade de posts e nos trechos só de gráfico.";
@@ -2810,19 +2867,24 @@
   }
   // No print, o texto na tela, a rede, o roteiro e cada número podem ser corrigidos antes de guardar.
   function htmlPreviaDoPrint(l, i) {
-    var p = l.post, rd = Object.keys(p.redes)[0] || redePadrao, b = p.redes[rd] || {};
+    var p = l.post, redes = Object.keys(p.redes);
+    if (!redes.length) redes = [redePadrao];
     return '<input class="entrada ins-previa-titulo' + (p.semTitulo ? " falta" : "") + '" type="text" data-previa-titulo="' + i + '" value="' +
       esc(p.semTitulo ? "" : p.titulo) + '" placeholder="Escreva o texto na tela deste post" aria-label="Texto na tela do post">' +
-      '<span class="ins-previa-escolhas"><select class="entrada ins-select" data-previa-rede="' + i + '" aria-label="Rede">' +
-      REDES.map(function (r) { return '<option value="' + r.chave + '"' + (r.chave === rd ? " selected" : "") + ">" + r.nome + "</option>"; }).join("") +
-      '</select><select class="entrada ins-select" data-previa-roteiro="' + i + '" aria-label="Roteiro ligado">' +
+      '<span class="ins-previa-escolhas"><select class="entrada ins-select" data-previa-roteiro="' + i + '" aria-label="Roteiro ligado">' +
       '<option value="">Sem roteiro ligado</option>' + todosOsRoteiros().map(function (r) {
         return '<option value="' + r.id + '"' + (l.roteiroId === r.id ? " selected" : "") + ">" + esc((r.titulo || "Sem título") + " · " + TIPOS[r.tipo].nome) + "</option>";
       }).join("") + "</select></span>" +
-      '<span class="ins-previa-numeros">' + METRICAS.map(function (mt) {
-        return '<label class="ins-previa-num"><span>' + mt.curto + '</span><input class="ins-num" type="text" inputmode="numeric" data-previa-num="' + i + "|" + mt.chave +
-          '" value="' + esc(b[mt.chave] == null ? "" : numeroBonito(b[mt.chave])) + '"></label>';
-      }).join("") + "</span>";
+      redes.map(function (rd) {
+        var b = p.redes[rd] || {};
+        return '<span class="ins-previa-bloco" style="--cor: ' + corDaRede(rd) + '">' +
+          '<select class="entrada ins-select" data-previa-rede="' + i + "|" + rd + '" aria-label="Rede destes números">' +
+          REDES.map(function (r) { return '<option value="' + r.chave + '"' + (r.chave === rd ? " selected" : "") + ">" + r.nome + "</option>"; }).join("") +
+          '</select><span class="ins-previa-numeros">' + METRICAS.map(function (mt) {
+            return '<label class="ins-previa-num"><span>' + mt.curto + '</span><input class="ins-num" type="text" inputmode="numeric" data-previa-num="' + i + "|" + rd + "|" + mt.chave +
+              '" value="' + esc(b[mt.chave] == null ? "" : numeroBonito(b[mt.chave])) + '"></label>';
+          }).join("") + "</span></span>";
+      }).join("");
   }
   function htmlInsights() {
     var lista = metricasVisiveis();
@@ -4876,8 +4938,14 @@
     if (el.id === "cal-data" && calAberto) { marcarData(calAberto, el.value); return; }
     if (el.id === "arq-metricas") { lerArquivosMetricas(el.files); el.value = ""; return; }
     if (el.dataset && el.dataset.previaRede != null && prevMetricas) {
-      var lr = prevMetricas.linhas[+el.dataset.previaRede];
-      if (lr) { var antes = Object.keys(lr.post.redes)[0]; var dados = antes ? lr.post.redes[antes] : {}; lr.post.redes = {}; lr.post.redes[el.value] = dados; }
+      var pr = el.dataset.previaRede.split("|"), lr = prevMetricas.linhas[+pr[0]];
+      if (lr && pr[1] !== el.value) {
+        // troca a rede destes números; se a outra rede já tiver números no mesmo post, as 2 trocam de lugar
+        var dados = lr.post.redes[pr[1]] || {}, outros = lr.post.redes[el.value];
+        delete lr.post.redes[pr[1]];
+        if (outros) lr.post.redes[pr[1]] = outros;
+        lr.post.redes[el.value] = dados;
+      }
       // espera o campo perder o foco antes de redesenhar a prévia
       setTimeout(renderTodos, 0);
       return;
@@ -4903,9 +4971,8 @@
     if (el.dataset && el.dataset.previaNum != null && prevMetricas) {
       var pn2 = el.dataset.previaNum.split("|"), ln2 = prevMetricas.linhas[+pn2[0]];
       if (ln2) {
-        var rd2 = Object.keys(ln2.post.redes)[0] || redePadrao;
-        var bb = ln2.post.redes[rd2] = ln2.post.redes[rd2] || {};
-        bb[pn2[1]] = el.value.trim() ? numeroDoTexto(el.value) : null;
+        var bb = ln2.post.redes[pn2[1]] = ln2.post.redes[pn2[1]] || {};
+        bb[pn2[2]] = el.value.trim() ? numeroDoTexto(el.value) : null;
       }
       // espera o campo perder o foco antes de redesenhar a prévia
       setTimeout(renderTodos, 0);
