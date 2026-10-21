@@ -331,6 +331,10 @@
   .gancho-rodape { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 14px 16px; border: 1px solid var(--laranja); border-radius: 12px; }
   .btn-gancho-ia { border-color: var(--laranja); color: var(--laranja); }
   .painel-gancho { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding: 14px; background: var(--fundo); border: 1px solid var(--laranja); border-radius: 10px; }
+  .gancho-tela { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+  .bloco .gancho-tela, .bloco .painel-gancho { margin-left: 30px; }
+  .gancho-tela label { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--navy-fraco); white-space: nowrap; }
+  .gancho-tela .entrada { flex: 1; width: auto; }
   .gia-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
   .gia-topo b { font-size: 15px; }
   .gia-linha { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
@@ -3854,7 +3858,9 @@
         '<button type="button" class="apagar" data-apagar="' + i + '" aria-label="Apagar o bloco ' + def.nome + '">Apagar</button></div>' +
         (b.tipo === "gancho" ? seletorGanchoHtml(b) : "") +
         campoRico("bx-" + b.id, 'data-bloco="' + i + '" aria-labelledby="bn-' + b.id + '"', "Escreva aqui") +
-        (b === blocoDoGancho() ? '<div class="painel-gancho" id="painel-gancho" hidden></div>' : "") +
+        (b === blocoDoGancho() ? '<div class="gancho-tela"><label for="gancho-tela">' + (TIPOS[r.tipo].blocos === "youtube" ? "Thumbnail" : "Texto na tela") + "</label>" +
+          '<input class="entrada" id="gancho-tela" type="text" value="' + esc(r.textoTela || "") + '" placeholder="O texto escrito que entra junto com o gancho"></div>' +
+          '<div class="painel-gancho" id="painel-gancho" hidden></div>' : "") +
         "</article>";
     }).join("");
     r.blocos.forEach(function (b) { preencherRico($("bx-" + b.id), b.texto); });
@@ -5190,7 +5196,12 @@
     if (!atual) return;
     if (el.id === "codigo") { atual.codigo = el.value.trim(); }
     else if (el.id === "titulo") { arrumarCampo(el, e); atual.titulo = el.value; }
-    else if (el.id === "textoTela") { arrumarCampo(el, e); atual.textoTela = el.value; }
+    else if (el.id === "textoTela" || el.id === "gancho-tela") {
+      // o texto na tela aparece em 2 lugares, no alto do roteiro e no bloco do gancho, e um copia o outro
+      arrumarCampo(el, e); atual.textoTela = el.value;
+      var outro = $(el.id === "textoTela" ? "gancho-tela" : "textoTela");
+      if (outro) outro.value = el.value;
+    }
     else if (el.id === "legenda") { arrumarCampo(el, e); atual.legenda = el.value; crescer(el); }
     else if (el.dataset.bloco != null) {
       arrumarCampo(el, e);
