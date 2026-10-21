@@ -605,6 +605,11 @@
   }
   .ins-cartao-nome { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--navy-fraco); }
   .ins-cartao-numero { font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .ins-cartao-rede {
+    font-size: 12px; color: var(--navy-suave); border-left: 3px solid var(--cor); padding-left: 7px;
+    margin-top: 3px; font-variant-numeric: tabular-nums;
+  }
+  .ins-mais-rede { border-color: var(--cor); color: var(--cor); }
   .ins-tabela {
     display: grid; grid-template-columns: 104px repeat(5, minmax(66px, 1fr)) 118px 86px;
     gap: 4px 6px; align-items: center;
@@ -2162,7 +2167,9 @@
     mostrarEstado("salvando", chave ? "Publicação marcada para " + dataDoDia(chave) : "Data tirada");
   }
   /* ---------- Insights: as métricas do Instagram e do TikTok ---------- */
-  var REDES = [{ chave: "ig", nome: "Instagram", cor: "#c13584" }, { chave: "tt", nome: "TikTok", cor: "#111827" }];
+  // Os reels de teste aparecem só para quem não segue o perfil, então são avaliados à parte do Instagram.
+  var REDES = [{ chave: "ig", nome: "Instagram", cor: "#c13584" }, { chave: "rt", nome: "Reels de teste", cor: "#7b4fb3" },
+    { chave: "tt", nome: "TikTok", cor: "#111827" }];
   var METRICAS = [
     { chave: "visualizacoes", nome: "Visualizações", curto: "Visualizações" },
     { chave: "seguidores", nome: "Novos seguidores", curto: "Seguidores" },
@@ -2219,6 +2226,7 @@
   function redeDoTexto(v) {
     var s = chaveDoTexto(v);
     if (/tiktok|tik tok|\btt\b/.test(s)) return "tt";
+    if (/reels? de teste|reels? teste|teste de reels?|trial reels?|\bteste\b|\brt\b/.test(s)) return "rt";
     if (/instagram|insta|reels|\big\b/.test(s)) return "ig";
     return "";
   }
@@ -2369,6 +2377,7 @@
       var so = chaveDoTexto(l);
       if (so === "instagram" || so === "reels" || so === "instagram reels") { rede = "ig"; return; }
       if (so === "tiktok" || so === "tik tok") { rede = "tt"; return; }
+      if (/^(reels? de teste|reels? teste|teste de reels?|trial reels?|teste)$/.test(so)) { rede = "rt"; return; }
       var m = l.match(/^([^:]{2,70}):\s*(.*)$/);
       if (!m) return;
       var col = colunaDe(m[1]), valor = String(m[2]).trim();
@@ -2462,7 +2471,7 @@
   }
   function metricaNova(titulo) {
     var agora = new Date().toISOString();
-    return { id: novoId(), titulo: titulo || "", roteiroId: "", data: "", ig: redeVazia(), tt: redeVazia(), criado: agora, atualizado: agora };
+    return { id: novoId(), titulo: titulo || "", roteiroId: "", data: "", ig: redeVazia(), rt: redeVazia(), tt: redeVazia(), criado: agora, atualizado: agora };
   }
   function salvarMetrica(m, depois) {
     m.atualizado = new Date().toISOString();
@@ -2598,7 +2607,7 @@
     return REDES.map(function (r) { return r.chave; }).filter(function (rd) {
       if (filtroRede && filtroRede !== rd) return false;
       var b = m[rd];
-      if (!temNumero(b)) return false;
+      if (!temNumero(b) && !(b && b.aberta)) return false;
       if (filtroPago === "pago" && !b.pago) return false;
       if (filtroPago === "organico" && b.pago) return false;
       return true;
@@ -2683,14 +2692,17 @@
       return h;
     }
 
-    var somas = {}, quantosPostos = 0, quantosPagos = 0, investido = 0;
+    var somas = {}, porRede = {}, quantosPostos = 0, quantosPagos = 0, investido = 0;
     METRICAS.forEach(function (mt) { somas[mt.chave] = 0; });
+    REDES.forEach(function (r) { porRede[r.chave] = { posts: 0 }; METRICAS.forEach(function (mt) { porRede[r.chave][mt.chave] = 0; }); });
     lista.forEach(function (m) {
-      var redes = redesDoPost(m);
+      // uma rede aberta à mão e ainda sem número não entra nas médias
+      var redes = redesDoPost(m).filter(function (rd) { return temNumero(m[rd]); });
       if (redes.length) quantosPostos++;
       redes.forEach(function (rd) {
         var b = m[rd];
-        METRICAS.forEach(function (mt) { if (b[mt.chave] != null) somas[mt.chave] += b[mt.chave]; });
+        METRICAS.forEach(function (mt) { if (b[mt.chave] != null) { somas[mt.chave] += b[mt.chave]; porRede[rd][mt.chave] += b[mt.chave]; } });
+        porRede[rd].posts++;
         if (b.pago) quantosPagos++;
         if (b.investido != null) investido += b.investido;
       });
@@ -2699,7 +2711,12 @@
       var media = quantosPostos ? Math.round(somas[mt.chave] / quantosPostos) : 0;
       return '<div class="ins-cartao"><span class="ins-cartao-nome">' + mt.nome + "</span>" +
         '<strong class="ins-cartao-numero">' + numeroBonito(somas[mt.chave]) + "</strong>" +
-        '<span class="aviso">média de ' + numeroBonito(media) + " por post</span></div>";
+        '<span class="aviso">média de ' + numeroBonito(media) + " por post</span>" +
+        (filtroRede ? "" : REDES.filter(function (r) { return porRede[r.chave].posts; }).map(function (r) {
+          var pr = porRede[r.chave];
+          return '<span class="ins-cartao-rede" style="--cor: ' + r.cor + '">' + r.nome + ": " + numeroBonito(pr[mt.chave]) +
+            " · média " + numeroBonito(Math.round(pr[mt.chave] / pr.posts)) + "</span>";
+        }).join("")) + "</div>";
     }).join("") +
       '<div class="ins-cartao"><span class="ins-cartao-nome">Posts na conta</span>' +
       '<strong class="ins-cartao-numero">' + quantosPostos + "</strong>" +
@@ -2725,6 +2742,9 @@
         }).join("") + "</select>" +
         '<input class="entrada ins-data" type="date" data-met-data="' + m.id + '" value="' + esc(m.data || "") + '" aria-label="Data da publicação">' +
         (m.roteiroId && acervo[m.roteiroId] ? '<button type="button" class="btn btn-mini" data-abrir="' + m.roteiroId + '">Abrir o roteiro</button>' : "") +
+        (filtroRede ? "" : REDES.filter(function (r) { return redes.indexOf(r.chave) === -1; }).map(function (r) {
+          return '<button type="button" class="btn btn-mini ins-mais-rede" style="--cor: ' + r.cor + '" data-met-abrir-rede="' + m.id + "|" + r.chave + '">+ ' + r.nome + "</button>";
+        }).join("")) +
         '<button type="button" class="apagar ins-excluir" data-met-apagar="' + m.id + '">Excluir</button>' +
         "</div>";
       redes.forEach(function (rd) {
@@ -4846,6 +4866,13 @@
     if (borigem) { filtroPago = borigem.dataset.origem; renderTodos(); return; }
     var bordem = e.target.closest("[data-ordem]");
     if (bordem) { ordemInsights = bordem.dataset.ordem; renderTodos(); return; }
+    var bmais = e.target.closest("[data-met-abrir-rede]");
+    if (bmais) {
+      var pm = bmais.dataset.metAbrirRede.split("|");
+      alterarMetrica(pm[0], function (c) { c[pm[1]] = c[pm[1]] || redeVazia(); c[pm[1]].aberta = true; });
+      renderTodos();
+      return;
+    }
     var bpago = e.target.closest("[data-met-pago]");
     if (bpago) {
       var pp = bpago.dataset.metPago.split("|");
