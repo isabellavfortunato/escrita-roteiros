@@ -382,6 +382,13 @@
   .tela .area { font-size: 16px; }
   .tela .area-design { font-family: var(--ui); font-size: 14px; background: var(--fundo); min-height: 64px; color: var(--navy-suave); border-color: var(--linha); }
   .story-formato { display: flex; flex-direction: column; gap: 6px; }
+  /* Story compacto: 2 colunas e pelo menos 6 stories numa tela de notebook. As caixas crescem conforme o texto. */
+  .tela.tela-story { padding: 10px 12px 12px; gap: 6px; }
+  .tela-story .tela-nome { font-size: 21px; }
+  .tela-story .story-formato { flex-direction: row; align-items: center; gap: 8px; }
+  .tela-story .story-formato .caixa { flex: 1; padding-block: 5px; font-size: 13.5px; }
+  .tela-story .area-rica { min-height: 58px; padding-block: 8px; }
+  .tela-story .area-design { min-height: 38px; padding-block: 7px; font-size: 13.5px; }
   .story-formato .caixa { padding-block: 8px; font-size: 14px; }
   .tela .sub { font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--navy-fraco); font-weight: 600; }
 
@@ -3563,7 +3570,7 @@
     } else {
       h += '<section class="resumo"><span class="aviso" id="t-resumo"></span><button class="btn" id="add-tela" type="button">Adicionar tela</button></section>';
       h += barraDeFormato();
-      h += '<section class="telas' + (r.tipo === "stories" ? " telas-largas" : "") + '" id="telas"></section>';
+      h += '<section class="telas" id="telas"></section>';
       if (c.legenda) h += campoDaLegenda(r, c);
     }
     h += '<div class="mudar"><span class="mudar-rotulo">Passar este roteiro para</span>' +
@@ -3918,7 +3925,7 @@
     $("telas").innerHTML = r.telas.map(function (t, i) {
       var fixa = telaFixa(r.tipo, i, total);
       var podeExcluir = r.tipo === "carrossel" ? !fixa : total > 1;
-      return '<article class="tela' + (fixa ? " fixa" : "") + (r.tipo === "stories" ? " tela-larga" : "") + '">' +
+      return '<article class="tela' + (fixa ? " fixa" : "") + (r.tipo === "stories" ? " tela-story" : "") + '">' +
         '<div class="tela-topo"><span class="tela-nome">' + nomeTela(r.tipo, i, total) + "</span>" +
         '<span class="tela-pos">' + (i + 1) + " de " + total + "</span>" +
         '<span class="contador" id="c-tela-' + i + '"></span>' +
