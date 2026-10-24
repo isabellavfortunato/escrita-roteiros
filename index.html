@@ -3928,8 +3928,11 @@
     $("telas").innerHTML = r.telas.map(function (t, i) {
       var fixa = telaFixa(r.tipo, i, total);
       var podeExcluir = r.tipo === "carrossel" ? !fixa : total > 1;
-      return '<article class="tela' + (fixa ? " fixa" : "") + (r.tipo === "stories" ? " tela-story" : "") + '">' +
-        '<div class="tela-topo"><span class="tela-nome">' + nomeTela(r.tipo, i, total) + "</span>" +
+      return '<article class="tela' + (fixa ? " fixa" : "") + (r.tipo === "stories" ? " tela-story" : "") + '" data-id="' + t.id + '">' +
+        '<div class="tela-topo">' + (fixa || r.tipo === "estatico" ? "" :
+          '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar ' + nomeTela(r.tipo, i, total) +
+          ' para mudar a ordem" title="Arraste para mudar a ordem, ou use as setas do teclado">⠿</span>') +
+        '<span class="tela-nome">' + nomeTela(r.tipo, i, total) + "</span>" +
         '<span class="tela-pos">' + (i + 1) + " de " + total + "</span>" +
         '<span class="contador" id="c-tela-' + i + '"></span>' +
         (podeExcluir ? '<button type="button" class="apagar" data-excluir="' + i + '" aria-label="Excluir ' + nomeTela(r.tipo, i, total) + '">Excluir</button>' : (fixa ? '<span class="tela-fixa-tag">fixa</span>' : "")) +
@@ -3964,11 +3967,18 @@
       add.hidden = total >= tetoDeTelas(r.tipo) || r.tipo === "estatico";
       add.textContent = r.tipo === "stories" ? "Adicionar story" : r.tipo === "caixinha" ? "Adicionar pergunta" : "Adicionar tela";
     });
+    ligarArrasto($("telas"), ".tela", function (ids) {
+      var antes = atual.telas.map(function (x) { return x.id; }).join(",");
+      if (antes === ids.join(",")) return;
+      atual.telas = ids.map(function (id) { return atual.telas.filter(function (x) { return x.id === id; })[0]; }).filter(Boolean);
+      renderTelas(); atualizarMedidas(); agendarSalvar();
+    }, true);
   }
 
   /* Arrastar para mudar a ordem, com mouse ou com o dedo. As setas do teclado
      fazem o mesmo quando a alça está em foco. */
-  function ligarArrasto(caixa, seletor, aoSoltar) {
+  // grade: os itens ficam lado a lado, como os stories em 2 colunas, então vale a posição do dedo nas 2 direções
+  function ligarArrasto(caixa, seletor, aoSoltar, grade) {
     if (!caixa || caixa._arrasto) return;
     caixa._arrasto = true;
     var alvo = null;
@@ -3984,6 +3994,13 @@
       document.body.classList.add("arrastando-algo");
       var mover = function (ev) {
         if (!alvo) return;
+        if (grade) {
+          var sob = document.elementFromPoint(ev.clientX, ev.clientY);
+          var outro = sob && sob.closest && sob.closest(seletor);
+          if (!outro || outro === alvo || !caixa.contains(outro) || outro.classList.contains("fixa")) return;
+          if (alvo.compareDocumentPosition(outro) & Node.DOCUMENT_POSITION_FOLLOWING) outro.after(alvo); else outro.before(alvo);
+          return;
+        }
         var y = ev.clientY;
         itens().forEach(function (outro) {
           if (outro === alvo) return;
@@ -4008,13 +4025,15 @@
     });
     caixa.addEventListener("keydown", function (e) {
       var pega = e.target.closest("[data-pega]");
-      if (!pega || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+      var antes = e.key === "ArrowUp" || (grade && e.key === "ArrowLeft");
+      var depois = e.key === "ArrowDown" || (grade && e.key === "ArrowRight");
+      if (!pega || (!antes && !depois)) return;
       var item = pega.closest(seletor);
       if (!item) return;
       e.preventDefault();
-      var vizinho = e.key === "ArrowUp" ? item.previousElementSibling : item.nextElementSibling;
-      if (!vizinho || !vizinho.matches(seletor)) return;
-      if (e.key === "ArrowUp") vizinho.before(item); else vizinho.after(item);
+      var vizinho = antes ? item.previousElementSibling : item.nextElementSibling;
+      if (!vizinho || !vizinho.matches(seletor) || vizinho.classList.contains("fixa")) return;
+      if (antes) vizinho.before(item); else vizinho.after(item);
       avisar();
       var nova = item.querySelector("[data-pega]");
       if (nova) nova.focus();
