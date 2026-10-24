@@ -382,6 +382,8 @@
   .tela .area { font-size: 16px; }
   .tela .area-design { font-family: var(--ui); font-size: 14px; background: var(--fundo); min-height: 64px; color: var(--navy-suave); border-color: var(--linha); }
   .story-formato { display: flex; flex-direction: column; gap: 6px; }
+  .add-tela-fim { display: flex; justify-content: center; }
+  .add-tela-fim .btn { min-width: 220px; }
   /* Story compacto: 2 colunas e pelo menos 6 stories numa tela de notebook. As caixas crescem conforme o texto. */
   .tela.tela-story { padding: 10px 12px 12px; gap: 6px; }
   .tela-story .tela-nome { font-size: 21px; }
@@ -3571,6 +3573,7 @@
       h += '<section class="resumo"><span class="aviso" id="t-resumo"></span><button class="btn" id="add-tela" type="button">Adicionar tela</button></section>';
       h += barraDeFormato();
       h += '<section class="telas" id="telas"></section>';
+      h += '<div class="add-tela-fim"><button class="btn" id="add-tela-fim" type="button">Adicionar tela</button></div>';
       if (c.legenda) h += campoDaLegenda(r, c);
     }
     h += '<div class="mudar"><span class="mudar-rotulo">Passar este roteiro para</span>' +
@@ -3954,10 +3957,13 @@
       var a = $("tx-" + t.id), d = $("ds-" + t.id);
       preencherRico(a, t.texto); d.value = t.design || ""; crescer(d);
     });
-    var add = $("add-tela");
-    add.hidden = total >= tetoDeTelas(r.tipo);
-    add.textContent = r.tipo === "stories" ? "Adicionar story" : r.tipo === "caixinha" ? "Adicionar pergunta" : "Adicionar tela";
-    if (r.tipo === "estatico") add.hidden = true;
+    // o botão aparece em cima e embaixo das telas, para não precisar subir a página toda para acrescentar
+    ["add-tela", "add-tela-fim"].forEach(function (qual) {
+      var add = $(qual);
+      if (!add) return;
+      add.hidden = total >= tetoDeTelas(r.tipo) || r.tipo === "estatico";
+      add.textContent = r.tipo === "stories" ? "Adicionar story" : r.tipo === "caixinha" ? "Adicionar pergunta" : "Adicionar tela";
+    });
   }
 
   /* Arrastar para mudar a ordem, com mouse ou com o dedo. As setas do teclado
@@ -5743,11 +5749,16 @@
       renderTelas(); atualizarMedidas(); agendarSalvar();
       return;
     }
-    if (e.target.id === "add-tela") {
+    if (e.target.id === "add-tela" || e.target.id === "add-tela-fim") {
       if (atual.telas.length >= tetoDeTelas(atual.tipo)) return;
-      if (atual.tipo === "carrossel" && atual.telas.length >= 2) atual.telas.splice(atual.telas.length - 1, 0, telaVazia());
-      else atual.telas.push(telaVazia());
+      var nova = telaVazia();
+      if (atual.tipo === "carrossel" && atual.telas.length >= 2) atual.telas.splice(atual.telas.length - 1, 0, nova);
+      else atual.telas.push(nova);
       renderTelas(); atualizarMedidas(); agendarSalvar();
+      if (e.target.id === "add-tela-fim") {
+        var caixa = $("tx-" + nova.id);
+        if (caixa) { caixa.focus(); caixa.scrollIntoView({ block: "center", behavior: "smooth" }); }
+      }
       return;
     }
     var ber = e.target.closest("[data-etiquetar-roteiro]");
