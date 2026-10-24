@@ -1624,19 +1624,19 @@
     if (el.isContentEditable) return textoAteCursor(el).length >= semMarcas(htmlParaMarcas(el)).length;
     return el.selectionStart === el.value.length;
   }
+  // O acerto do ditado só acontece quando a caixa perde o foco. Reescrever a caixa enquanto o texto entra
+  // dessincroniza programas de ditado como o Wispr Flow: a primeira parte entra e as seguintes se perdem.
   function arrumarCampo(el, e) {
-    if (!pareceDitado(e) || !noFimDoCampo(el)) return false;
+    if (!e || e.type !== "focusout") return false;
     if (el.isContentEditable) {
       var t = htmlParaMarcas(el), novo = arrumarDitado(t);
       if (novo === t) return false;
       preencherRico(el, novo);
-      cursorNoFim(el);
       return true;
     }
     var v = el.value, x = arrumarDitado(v);
     if (x === v) return false;
     el.value = x;
-    el.selectionStart = el.selectionEnd = x.length;
     return true;
   }
   function campoRico(id, attrs, placeholder) {
@@ -5159,6 +5159,15 @@
       document.execCommand("insertLineBreak");
       document.execCommand("insertText", false, MARCA_LISTA);
     } else document.execCommand("insertLineBreak");
+  });
+  ed.addEventListener("focusout", function (e) {
+    var el = e.target;
+    if (!atual || !el) return;
+    var campo = el.id === "titulo" || el.id === "textoTela" || el.id === "gancho-tela" || el.id === "legenda" ||
+      (el.isContentEditable && el.classList && el.classList.contains("area-rica") && (el.dataset.bloco != null || el.dataset.tela != null));
+    if (!campo) return;
+    // avisa o tratador de digitação para guardar o texto acertado, como se tivesse sido digitado
+    if (arrumarCampo(el, e)) el.dispatchEvent(new Event("input", { bubbles: true }));
   });
   ed.addEventListener("paste", function (e) {
     var el = e.target.closest && e.target.closest(".area-rica");
