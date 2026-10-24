@@ -3715,6 +3715,29 @@
       emenda: String(g.emenda || "").trim(), porque: String(g.porque || "").trim(), verdade: !!g.so_se_for_verdade
     };
   }
+  // Acha a lista de ganchos na resposta, venha ela pela ferramenta, como texto com JSON ou com a lista escrita como texto.
+  function ganchosDaResposta(corpo) {
+    var partes = (corpo && corpo.content) || [];
+    function lerLista(v) {
+      if (typeof v === "string") { try { v = JSON.parse(v); } catch (e) { return null; } }
+      if (Array.isArray(v)) return v;
+      if (v && typeof v === "object") {
+        if (v.ganchos) return lerLista(v.ganchos);
+        var chave = Object.keys(v).filter(function (k) { return Array.isArray(v[k]); })[0];
+        if (chave) return v[chave];
+      }
+      return null;
+    }
+    for (var i = 0; i < partes.length; i++) {
+      if (partes[i].type === "tool_use") { var l = lerLista(partes[i].input); if (l && l.length) return l; }
+    }
+    var texto = partes.filter(function (c) { return c.type === "text"; }).map(function (c) { return c.text; }).join("\n");
+    var ini = texto.indexOf("{"), fim = texto.lastIndexOf("}");
+    if (ini !== -1 && fim > ini) { var l2 = lerLista(texto.slice(ini, fim + 1)); if (l2 && l2.length) return l2; }
+    ini = texto.indexOf("["); fim = texto.lastIndexOf("]");
+    if (ini !== -1 && fim > ini) { var l3 = lerLista(texto.slice(ini, fim + 1)); if (l3 && l3.length) return l3; }
+    return null;
+  }
   function pedirGanchos() {
     if (!atual || !atual.blocos) return;
     if (ganchoIA.rid !== atual.id) ganchoIA = { rid: atual.id, aberto: true, carregando: false, opcoes: [], historico: [], erro: "", trocarChave: false };
@@ -3736,7 +3759,8 @@
       },
       body: JSON.stringify({
         model: MODELO_GANCHO,
-        max_tokens: 3000,
+        // folga grande, porque o modelo pensa antes de responder e o pensamento entra nessa conta
+        max_tokens: 16000,
         system: REGRAS_GANCHO + "\n\nBanco de ganchos, com famílias, tipos e exemplos de estrutura:\n\n" + bancoResumido(),
         tools: [FERRAMENTA_GANCHOS],
         // este modelo não aceita obrigar o uso da ferramenta, então o pedido diz para usá-la e o texto puro serve de reserva
@@ -3758,15 +3782,15 @@
         atualizarPainelGancho();
         return;
       }
-      var bloco = (res.corpo.content || []).filter(function (c) { return c.type === "tool_use"; })[0];
-      var lista = bloco && bloco.input && bloco.input.ganchos;
-      if (!lista) {
-        // reserva: a resposta veio em texto, com o JSON dentro
-        var texto = (res.corpo.content || []).filter(function (c) { return c.type === "text"; }).map(function (c) { return c.text; }).join("\n");
-        var ini = texto.indexOf("{"), fim = texto.lastIndexOf("}");
-        try { lista = JSON.parse(texto.slice(ini, fim + 1)).ganchos; } catch (err) { lista = null; }
+      var lista = ganchosDaResposta(res.corpo);
+      if (!lista || !lista.length) {
+        try { console.log("Resposta do Claude sem ganchos", res.corpo); } catch (err) {}
+        var motivo = res.corpo && res.corpo.stop_reason;
+        ganchoIA.erro = motivo === "max_tokens" ? "A resposta do Claude foi cortada antes dos ganchos. Clique de novo." :
+          "A resposta veio sem ganchos" + (motivo ? " (motivo: " + motivo + ")" : "") + ". Clique de novo e, se repetir, me mande o print.";
+        atualizarPainelGancho();
+        return;
       }
-      if (!lista || !lista.length) { ganchoIA.erro = "A resposta veio sem ganchos. Clique de novo."; atualizarPainelGancho(); return; }
       ganchoIA.opcoes = lista.slice(0, 3).map(ganchoConferido);
       ganchoIA.escolhido = null;
       ganchoIA.opcoes.forEach(function (g) { ganchoIA.historico.push(g.familia + " · " + g.tipo + ": " + g.falado); });
