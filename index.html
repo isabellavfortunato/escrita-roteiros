@@ -580,6 +580,10 @@
   }
   .cal-card:hover, .cal-card.aberto { border-color: var(--navy); border-left-color: var(--cor); }
   .cal-card.arrastando { opacity: .4; }
+  .cal-card.publicado { opacity: .62; background: var(--fundo); }
+  .cal-card.publicado:hover, .cal-card.publicado.aberto { opacity: 1; }
+  .cal-card-pub { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--verde); }
+  .cal-pub-abre { margin-top: 12px; }
   .cal-card-tipo { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--cor); }
   .cal-card-titulo {
     font-size: 12.5px; font-weight: 600; line-height: 1.3; color: var(--navy);
@@ -1131,7 +1135,7 @@
   var virandoLote = false; // as ideias escolhidas estão escolhendo o destino
   var buscaTodos = "", filtroTodos = "", situacaoTodos = "", temasTodos = {}, loteMarcadas = {};
   var vistaTodos = { calendario: 1, insights: 1 }[lerLocal(CHAVE_VISTA)] ? lerLocal(CHAVE_VISTA) : "lista";
-  var mesCal = null, calAberto = null, timerCal = null;
+  var mesCal = null, calAberto = null, timerCal = null, calPubAberto = true;
   var carregouMetricas = false, importarMetricas = false, prevMetricas = null, erroImportar = "", timerMetrica = null;
   var filtroRede = "", filtroPago = "", ordemInsights = "visualizacoes", redePadrao = "ig", buscaInsights = "";
   var familiaAberta = null, categoriaAberta = null;
@@ -2135,9 +2139,10 @@
   }
   function cartaoCal(r) {
     var titulo = (r.tituloPublicacao || "").trim() || (r.titulo || "").trim() || "Sem título";
-    return '<div class="cal-card' + (calAberto === r.id ? " aberto" : "") + '" draggable="true" data-cal="' + r.id + '" style="--cor: ' + (COR_FORMATO[r.tipo] || "#4b5563") + '" title="' + esc(titulo) + '">' +
+    return '<div class="cal-card' + (calAberto === r.id ? " aberto" : "") + (foiPublicado(r) ? " publicado" : "") + '" draggable="true" data-cal="' + r.id + '" style="--cor: ' + (COR_FORMATO[r.tipo] || "#4b5563") + '" title="' + esc(titulo) + '">' +
       '<span class="cal-card-tipo">' + esc(TIPOS[r.tipo].nome) + "</span>" +
       '<span class="cal-card-titulo" id="cal-nome-' + r.id + '">' + esc(titulo) + "</span>" +
+      (foiPublicado(r) ? '<span class="cal-card-pub">Publicado</span>' : "") +
       etiquetasDoCartao(r) + "</div>";
   }
   // No cartão do calendário: o tema do roteiro e a cor da roupa escolhida para a gravação.
@@ -2155,9 +2160,13 @@
     if (!mesCal) mesCal = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     var aPub = roteirosVivos().filter(function (r) { return r.aPublicar; });
     var semData = aPub.filter(function (r) { return !r.dataPublicacao; });
+    // os publicados continuam no dia deles, mais apagados, e o calendário vira também o histórico do que foi ao ar
+    var publicados = roteirosDoLugar("publicados");
+    var pubSemData = publicados.filter(function (r) { return !r.dataPublicacao; });
+    var noCal = aPub.concat(publicados);
     var porDia = {};
-    aPub.forEach(function (r) { if (r.dataPublicacao) (porDia[r.dataPublicacao] = porDia[r.dataPublicacao] || []).push(r); });
-    if (calAberto && !aPub.some(function (r) { return r.id === calAberto; })) calAberto = null;
+    noCal.forEach(function (r) { if (r.dataPublicacao) (porDia[r.dataPublicacao] = porDia[r.dataPublicacao] || []).push(r); });
+    if (calAberto && !noCal.some(function (r) { return r.id === calAberto; })) calAberto = null;
     var h = '<div class="cal">';
     h += '<div class="cal-lado">';
     if (calAberto) {
@@ -2179,7 +2188,11 @@
     h += '<aside class="cal-fila cal-solta" data-soltar=""><h3 class="cal-fila-titulo">A publicar sem data (' + semData.length + ")</h3>" +
       (semData.length ? semData.map(cartaoCal).join("")
         : '<p class="aviso">' + (aPub.length ? "Todos os roteiros a publicar já têm data." : "Nenhum roteiro esperando data. Em Todos os roteiros, marque os que estão prontos e clique em A publicar.") + "</p>") +
-      '<p class="aviso cal-dica">Arraste um roteiro para o dia da publicação. Para tirar a data, arraste de volta para cá.</p></aside>';
+      '<p class="aviso cal-dica">Arraste um roteiro para o dia da publicação. Para tirar a data, arraste de volta para cá.</p>' +
+      (pubSemData.length ? '<button type="button" class="rotulo rotulo-abre cal-pub-abre" id="cal-pub-abre" aria-expanded="' + calPubAberto + '">' +
+        '<span class="seta" aria-hidden="true">' + (calPubAberto ? "▾" : "▸") + "</span> Publicados sem data (" + pubSemData.length + ")</button>" +
+        (calPubAberto ? '<p class="aviso">Arraste para o dia em que foi ao ar.</p>' + pubSemData.map(cartaoCal).join("") : "") : "") +
+      "</aside>";
     h += '</div>';
     h += '<section class="cal-mes">';
     h += '<div class="cal-topo"><button type="button" class="btn btn-mini" data-mes="-1" aria-label="Mês anterior">‹</button>' +
@@ -5475,7 +5488,11 @@
     if (e.target.id === "mandar-calendario") {
       var idsCal = escolhidosDaLista();
       if (!idsCal.length) return;
-      mudarSituacao(idsCal, "publicar");
+      // quem já foi publicado continua em Publicados e aparece no calendário entre os publicados sem data
+      var aMarcar = idsCal.filter(function (id) { return !foiPublicado(acervo[id]); });
+      if (aMarcar.length) mudarSituacao(aMarcar, "publicar");
+      else marcados = {};
+      calPubAberto = true;
       lugarTodos = "";
       vistaTodos = "calendario";
       gravarLocal(CHAVE_VISTA, vistaTodos);
@@ -5564,6 +5581,7 @@
     }
     var bcal = e.target.closest("[data-cal]");
     if (bcal) { calAberto = calAberto === bcal.dataset.cal ? null : bcal.dataset.cal; calFoco = !!calAberto; renderTodos(); return; }
+    if (e.target.closest("#cal-pub-abre")) { calPubAberto = !calPubAberto; renderTodos(); return; }
     if (e.target.id === "cal-fechar") { calAberto = null; renderTodos(); return; }
     var broupa = e.target.closest("[data-roupa]");
     if (broupa && calAberto) {
