@@ -511,6 +511,23 @@
     padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
   }
   .item .tag-publicar { align-self: flex-start; margin-top: 2px; }
+  .tag-teleprompter {
+    justify-self: start; background: #6a4c93; color: #ffffff; border-radius: 999px;
+    padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
+  }
+  .item .tag-teleprompter { align-self: flex-start; margin-top: 2px; }
+  .estagios { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .estagios .aviso { font-weight: 600; margin-right: 4px; }
+  .barra-escolha .estagios .aviso { margin-right: 4px; }
+  .barra-escolha .estagios .btn-estagio, .btn-estagio { min-width: 0; padding: 6px 12px; font-size: 13.5px; }
+  .estagio-seta { color: var(--navy-fraco); font-size: 16px; }
+  .btn-estagio[aria-pressed="true"] { color: #ffffff; }
+  .btn-estagio.estagio-rascunho[aria-pressed="true"] { background: var(--navy-suave); border-color: var(--navy-suave); }
+  .btn-estagio.estagio-pronto[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); }
+  .btn-estagio.estagio-teleprompter[aria-pressed="true"] { background: #6a4c93; border-color: #6a4c93; }
+  .btn-estagio.estagio-publicar[aria-pressed="true"] { background: #0b6e99; border-color: #0b6e99; }
+  .btn-estagio.estagio-publicado[aria-pressed="true"] { background: var(--verde); border-color: var(--verde); }
+  .estagios-editor { padding-top: 16px; border-top: 1px solid var(--linha); }
   .mudar-situacao { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .mudar-situacao .btn[disabled] { opacity: .4; cursor: default; }
 
@@ -768,7 +785,7 @@
   /* Em baixo, a mudança de situação fica à esquerda e os destinos em blocos de 3. */
   .barra-acoes { align-items: flex-start; justify-content: space-between; gap: 16px; }
   .barra-acoes .mudar-situacao { align-items: flex-start; align-content: flex-start; flex: 0 1 auto; }
-  .destinos { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: 0 1 auto; }
+  .destinos { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 auto; justify-content: flex-end; }
   @media (max-width: 900px) {
     .barra-acoes { flex-direction: column; }
     .destinos { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
@@ -777,7 +794,7 @@
   .barra-escolha .aviso:empty { margin-right: auto; min-width: 0; }
   .barra-etiquetar { padding-block: 8px; }
   .barra-escolha .btn { min-width: 140px; }
-  .destinos .btn { min-width: 0; width: 100%; }
+  .destinos .btn { min-width: 0; }
   .barra-escolha .btn-mini { min-width: 0; }
   .barra-escolha .btn[disabled] { opacity: .45; cursor: default; }
   .barra-escolha .btn[disabled]:hover { background: var(--papel); color: var(--navy); }
@@ -2022,7 +2039,36 @@
     return TIPOS[filtroTodos] ? TIPOS[filtroTodos].nome : filtroTodos;
   }
   /* ---------- Situação e calendário de publicação ---------- */
-  function situacaoDe(r) { return r.aPublicar ? "publicar" : r.pronto ? "pronto" : "rascunho"; }
+  // Os estágios do trabalho, na ordem. "publicar" é o estágio Calendário: o roteiro espera data ou já tem dia marcado.
+  var ESTAGIOS = [
+    { chave: "rascunho", nome: "Não pronto", curto: "Não pronto" },
+    { chave: "pronto", nome: "Pronto para publicar", curto: "Pronto" },
+    { chave: "teleprompter", nome: "Teleprompter", curto: "Teleprompter" },
+    { chave: "publicar", nome: "Calendário", curto: "Calendário" },
+    { chave: "publicado", nome: "Publicado", curto: "Publicado" }
+  ];
+  function nomeDoEstagio(ch) { var e = ESTAGIOS.filter(function (x) { return x.chave === ch; })[0]; return e ? e.nome : ""; }
+  function situacaoDe(r) {
+    return r.publicado ? "publicado" : r.aPublicar ? "publicar" : r.teleprompter ? "teleprompter" : r.pronto ? "pronto" : "rascunho";
+  }
+  // Escolher um estágio traz o roteiro de volta para o trabalho: ele sai do Depois e do Arquivo.
+  // Publicado leva para Publicados e mantém a data do calendário.
+  var DICA_ESTAGIO = {
+    rascunho: "Ainda em escrita",
+    pronto: "Texto pronto, ainda não foi para o teleprompter",
+    teleprompter: "Já está no teleprompter, falta gravar",
+    publicar: "Gravado e esperando o dia, ou com o dia marcado. Abre o calendário",
+    publicado: "Já foi ao ar. Vai para Publicados e continua no dia dele no calendário"
+  };
+  function definirEstagio(c, est) {
+    c.pronto = est !== "rascunho";
+    c.teleprompter = est === "teleprompter";
+    c.aPublicar = est === "publicar";
+    if (est !== "rascunho") c.revisar = false;
+    c.etiquetas = (c.etiquetas || []).filter(function (n) { return n !== "Depois"; });
+    delete c.depois; delete c.arquivado; delete c.publicado;
+    if (est === "publicado") c.publicado = true;
+  }
   var MESES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
   var DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
   var COR_FORMATO = { instagram: "#c13584", tiktok: "#111827", carrossel: "#0f7a8c", stories: "#8a6114", estatico: "#4b5563", youtube: "#c4302b", caixinha: "#6b4a2b" };
@@ -2127,15 +2173,12 @@
   function mudarSituacao(ids, sit) {
     ids.forEach(function (id) {
       alterarRoteiro(id, function (c) {
-        c.aPublicar = sit === "publicar";
-        c.pronto = sit === "pronto";
-        if (sit !== "rascunho") c.revisar = false;
+        definirEstagio(c, sit);
       });
     });
     marcados = {};
     renderTodos();
-    var nomes = { rascunho: "não pronto", pronto: "pronto", publicar: "a publicar" };
-    mostrarEstado("salvando", ids.length + " " + plural(ids.length, "roteiro passou", "roteiros passaram") + " para " + nomes[sit]);
+    mostrarEstado("salvando", ids.length + " " + plural(ids.length, "roteiro passou", "roteiros passaram") + " para " + nomeDoEstagio(sit));
   }
   function cartaoCal(r) {
     var titulo = (r.tituloPublicacao || "").trim() || (r.titulo || "").trim() || "Sem título";
@@ -2185,9 +2228,9 @@
         '<button type="button" class="btn btn-mini" id="cal-tirar-data"' + (r.dataPublicacao ? "" : " disabled") + ">Tirar a data</button>" +
         '<button type="button" class="btn btn-mini" data-abrir="' + r.id + '">Abrir o roteiro</button></div></div>';
     }
-    h += '<aside class="cal-fila cal-solta" data-soltar=""><h3 class="cal-fila-titulo">A publicar sem data (' + semData.length + ")</h3>" +
+    h += '<aside class="cal-fila cal-solta" data-soltar=""><h3 class="cal-fila-titulo">No calendário, sem data (' + semData.length + ")</h3>" +
       (semData.length ? semData.map(cartaoCal).join("")
-        : '<p class="aviso">' + (aPub.length ? "Todos os roteiros a publicar já têm data." : "Nenhum roteiro esperando data. Em Todos os roteiros, marque os que estão prontos e clique em A publicar.") + "</p>") +
+        : '<p class="aviso">' + (aPub.length ? "Todos os roteiros do calendário já têm dia." : "Nenhum roteiro esperando data. Em Todos os roteiros, marque os roteiros e escolha o estágio Calendário.") + "</p>") +
       '<p class="aviso cal-dica">Arraste um roteiro para o dia da publicação. Para tirar a data, arraste de volta para cá.</p>' +
       (pubSemData.length ? '<button type="button" class="rotulo rotulo-abre cal-pub-abre" id="cal-pub-abre" aria-expanded="' + calPubAberto + '">' +
         '<span class="seta" aria-hidden="true">' + (calPubAberto ? "▾" : "▸") + "</span> Publicados sem data (" + pubSemData.length + ")</button>" +
@@ -3123,7 +3166,7 @@
   var VISTAS = [
     { chave: "publicados", nome: "Publicados", sub: "Já foram ao ar", rotulo: ["roteiro", "roteiros"], cor: "var(--verde)", lugar: true },
     { chave: "arquivo", nome: "Arquivo", sub: "Guardados para garimpar", rotulo: ["roteiro", "roteiros"], cor: "var(--vinho)", lugar: true },
-    { chave: "calendario", nome: "Calendário", sub: "Publicações marcadas", rotulo: ["a publicar", "a publicar"], cor: "var(--laranja)" },
+    { chave: "calendario", nome: "Calendário", sub: "Publicações marcadas", rotulo: ["roteiro", "roteiros"], cor: "var(--laranja)" },
     { chave: "insights", nome: "Insights", sub: "Métricas dos posts", rotulo: ["post", "posts"], cor: "var(--mostarda)" }
   ];
   function htmlVistas(total, aPublicar) {
@@ -3150,16 +3193,17 @@
     var revisar = universo.filter(function (r) { return r.revisar; }).length;
     var filtros = [["", "Todos"]].concat(QUADRANTE.map(function (t) { return [t, TIPOS[t].nome]; }));
     var quantosEm = function (sit) { return universo.filter(function (r) { return situacaoDe(r) === sit; }).length; };
-    var situacoes = [["", "Todas (" + total + ")"], ["rascunho", "Não pronto (" + quantosEm("rascunho") + ")"],
-      ["pronto", "Pronto (" + quantosEm("pronto") + ")"], ["publicar", "A publicar (" + quantosEm("publicar") + ")"],
-      ["revisar", "A revisar (" + revisar + ")"]];
-    var nomeSituacao = { pronto: "Pronto", rascunho: "Não pronto", publicar: "A publicar", revisar: "A revisar" };
+    var situacoes = [["", "Todas (" + total + ")"]].concat(ESTAGIOS.filter(function (e) {
+      return e.chave !== "publicado" || quantosEm("publicado");
+    }).map(function (e) { return [e.chave, e.nome + " (" + quantosEm(e.chave) + ")"]; })).concat([["revisar", "A revisar (" + revisar + ")"]]);
+    var nomeSituacao = { revisar: "A revisar" };
+    ESTAGIOS.forEach(function (e) { nomeSituacao[e.chave] = e.nome; });
     var h = '<div class="ideias-wrap lista-wrap todos-wrap"><div class="ideias-topo"><div><h2>Todos os roteiros</h2>' +
       '<span class="aviso">' + total + " " +
       (lugarTodos ? plural(total, "roteiro em " + nomeLugar, "roteiros em " + nomeLugar) : plural(total, "roteiro guardado", "roteiros guardados")) +
       (vistaTodos === "lista" ? " · " + { titulo: "em ordem de título", recentes: "dos mais recentes para os mais antigos", antigos: "dos mais antigos para os mais recentes" }[ordemTodos]
         : vistaTodos === "insights" ? " · " + Object.keys(metricas).length + " " + plural(Object.keys(metricas).length, "post com métricas", "posts com métricas")
-        : " · " + quantosEm("publicar") + " a publicar") + "</span></div>" +
+        : " · " + quantosEm("publicar") + " no calendário") + "</span></div>" +
       (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
       htmlVistas(roteirosVivos().length, roteirosVivos().filter(function (r) { return r.aPublicar; }).length);
     if (vistaTodos === "insights") {
@@ -3219,21 +3263,18 @@
         (lista.length && escolhidos >= lista.length ? "Desmarcar os " + lista.length : "Marcar os " + lista.length) + "</button>" +
       '<button type="button" class="btn" id="limpar-marcas"' + trava + ">Limpar</button>" +
       '<button type="button" class="btn btn-laranja" id="baixar-escolhidos"' + trava + ">Baixar em docx</button></div>" +
+      '<div class="barra-linha estagios" role="group" aria-label="Mudar o estágio dos roteiros escolhidos"><span class="aviso">Mudar o estágio para</span>' +
+      ESTAGIOS.map(function (f, i) {
+        return (i ? '<span class="estagio-seta" aria-hidden="true">›</span>' : "") +
+          '<button type="button" class="btn btn-estagio estagio-' + f.chave + '" data-mudar-situacao="' + f.chave + '"' + trava +
+          ' title="' + esc(DICA_ESTAGIO[f.chave]) + '">' + f.nome + "</button>";
+      }).join("") + "</div>" +
       '<div class="barra-linha barra-acoes">' +
-      '<span class="mudar-situacao"><span class="aviso">Mudar para</span>' +
-      [["rascunho", "Não pronto"], ["pronto", "Pronto"], ["publicar", "A publicar"]].map(function (f) {
-        return '<button type="button" class="btn btn-mini" data-mudar-situacao="' + f[0] + '"' + trava + ">" + f[1] + "</button>";
-      }).join("") + "</span>" +
       '<div class="destinos">' +
       '<button type="button" class="btn" id="voltar-lote"' + trava + ' title="Devolve o assunto para as ideias e apaga os roteiros escolhidos">Voltar para ideias</button>' +
-      '<button type="button" class="btn btn-calendario" id="mandar-calendario"' + trava +
-        ' title="Manda os roteiros escolhidos para a fila do calendário e abre o calendário para você marcar o dia">Calendário</button>' +
       '<button type="button" class="btn btn-depois" data-mandar="depois"' + trava +
         ' title="Tira os roteiros escolhidos das listas normais e guarda no Depois">' +
         (todosJaNoLugar("depois") ? "Tirar do depois" : "Para depois") + "</button>" +
-      '<button type="button" class="btn btn-publicado" data-mandar="publicado"' + trava +
-        ' title="Tira os roteiros escolhidos das listas normais e guarda em Publicados">' +
-        (todosJaNoLugar("publicado") ? "Tirar dos publicados" : "Publicado") + "</button>" +
       '<button type="button" class="btn btn-arquivado" data-mandar="arquivado"' + trava +
         ' title="Tira os roteiros escolhidos das listas normais e guarda no Arquivo">' +
         (todosJaNoLugar("arquivado") ? "Tirar do arquivo" : "Arquivar") + "</button>" +
@@ -3269,7 +3310,8 @@
           (foiPublicado(r) ? '<span class="tag-publicado">Publicado</span>'
             : foiArquivado(r) ? '<span class="tag-arquivado">Arquivado</span>'
             : noDepois(r) ? '<span class="tag-depois">Depois</span>'
-            : r.aPublicar ? '<span class="tag-publicar">A publicar</span>'
+            : r.aPublicar ? '<span class="tag-publicar">Calendário' + (r.dataPublicacao ? " · " + dataDoDia(r.dataPublicacao) : "") + "</span>"
+            : r.teleprompter ? '<span class="tag-teleprompter">Teleprompter</span>'
             : r.pronto ? '<span class="tag-pronto">Pronto</span>'
             : r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
           (pilulasDoRoteiro(r) || '<span class="etiquetas-linha"></span>') +
@@ -3404,11 +3446,11 @@
     atualizarContagens();
     if (abaAtual === "ideias" || abaAtual === "todos" || abaAtual === "familias") return;
     var lista = doTipo(abaAtual), total = lista.length;
-    var prontos = lista.filter(function (r) { return situacaoDe(r) === "pronto"; }).length;
-    var aPublicar = lista.filter(function (r) { return r.aPublicar; }).length;
     var fg = $("filtros-gaveta");
     if (fg) {
-      var linhaSituacao = [["", "Todos (" + total + ")"], ["rascunho", "Rascunho (" + (total - prontos - aPublicar) + ")"], ["pronto", "Pronto (" + prontos + ")"], ["publicar", "A publicar (" + aPublicar + ")"]]
+      var quantosNa = function (ch) { return lista.filter(function (r) { return situacaoDe(r) === ch; }).length; };
+      var linhaSituacao = [["", "Todos (" + total + ")"]].concat(ESTAGIOS.filter(function (e) { return e.chave !== "publicado"; })
+        .map(function (e) { return [e.chave, e.curto + " (" + quantosNa(e.chave) + ")"]; }))
         .map(function (f) {
           return '<button type="button" class="filtro filtro-mini' + (f[0] === "pronto" ? " filtro-pronto" : "") +
             '" data-situacao="' + f[0] + '" aria-pressed="' + (filtroSituacao === f[0]) + '">' + f[1] + "</button>";
@@ -3465,7 +3507,8 @@
       return '<li><button class="item" data-id="' + r.id + '" aria-current="' + (atual && atual.id === r.id) + '">' +
         (r.codigo ? '<span class="codigo-pilula">' + esc(r.codigo) + "</span>" : "") +
         '<span class="item-titulo' + (r.titulo ? "" : " vazio") + '">' + (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
-        (r.aPublicar ? '<span class="tag-publicar">A publicar' + (r.dataPublicacao ? " · " + dataDoDia(r.dataPublicacao) : "") + "</span>"
+        (r.aPublicar ? '<span class="tag-publicar">Calendário' + (r.dataPublicacao ? " · " + dataDoDia(r.dataPublicacao) : "") + "</span>"
+          : r.teleprompter ? '<span class="tag-teleprompter">Teleprompter</span>'
           : r.pronto ? '<span class="tag-pronto">Pronto para publicar</span>' : "") +
         pilulasDoRoteiro(r) +
         '<span class="item-meta">' + esc(metaItem(r)) + "</span></button></li>";
@@ -3594,11 +3637,16 @@
         return '<button type="button" class="btn btn-mini btn-mudar" data-mudar="' + t +
           '" title="Leva o mesmo texto para o formato ' + esc(TIPOS[t].nome) + '">' + esc(TIPOS[t].nome) + "</button>";
       }).join("") + "</div>";
+    var estAtual = situacaoDe(r);
+    h += '<div class="estagios estagios-editor" role="group" aria-label="Estágio deste roteiro"><span class="aviso">Estágio</span>' +
+      ESTAGIOS.map(function (f, i) {
+        return (i ? '<span class="estagio-seta" aria-hidden="true">›</span>' : "") +
+          '<button type="button" class="btn btn-estagio estagio-' + f.chave + '" data-estagio="' + f.chave + '" aria-pressed="' + (estAtual === f.chave) +
+          '" title="' + esc(DICA_ESTAGIO[f.chave]) + '">' + f.nome + "</button>";
+      }).join("") + "</div>";
     h += '<div class="acoes"><button class="btn btn-laranja" id="copiar" type="button">Copiar roteiro</button>' +
       '<button class="btn" id="baixar-docx" type="button">Baixar em docx</button>' +
-      '<button class="btn btn-pronto" id="marcar-pronto" type="button" aria-pressed="' + (r.pronto ? "true" : "false") +
-        '" title="Marca o roteiro como pronto. Depois, em Todos os roteiros, você marca os prontos e manda para A publicar.">' +
-        (r.pronto ? "Pronto" : "Marcar como pronto") + "</button>" +
+
       '<button class="btn" id="duplicar-roteiro" type="button" title="Cria uma cópia deste roteiro para você mudar sem perder o original">Duplicar</button>' +
       '<button class="btn" id="voltar-ideia" type="button" title="Devolve o assunto para as ideias e apaga este roteiro">Voltar para ideias</button>' +
       '<button class="btn btn-perigo" id="excluir" type="button">Excluir roteiro</button></div>';
@@ -4833,7 +4881,7 @@
     copia.id = novoId();
     copia.titulo = (r.titulo || "Sem título") + " (cópia)";
     copia.criado = copia.atualizado = new Date().toISOString();
-    delete copia.pronto; delete copia.aPublicar; delete copia.dataPublicacao; delete copia.codigo;
+    delete copia.pronto; delete copia.aPublicar; delete copia.teleprompter; delete copia.publicado; delete copia.dataPublicacao; delete copia.codigo;
     delete copia.tituloPublicacao; delete copia.revisar; delete copia.corRoupa;
     (copia.blocos || []).forEach(function (b) { b.id = novoId(); });
     (copia.telas || []).forEach(function (t) { t.id = novoId(); });
@@ -5513,7 +5561,11 @@
     var bms = e.target.closest("[data-mudar-situacao]");
     if (bms) {
       var ids = Object.keys(marcados).filter(function (k) { return marcados[k] && acervo[k]; });
-      if (ids.length) mudarSituacao(ids, bms.dataset.mudarSituacao);
+      if (!ids.length) return;
+      mudarSituacao(ids, bms.dataset.mudarSituacao);
+      if (bms.dataset.mudarSituacao === "publicar") {
+        lugarTodos = ""; vistaTodos = "calendario"; gravarLocal(CHAVE_VISTA, vistaTodos); renderTodos();
+      }
       return;
     }
     var bvista = e.target.closest("[data-vista]");
@@ -5842,6 +5894,16 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
+    var best = e.target.closest("[data-estagio]");
+    if (best && atual) {
+      var novoEst = best.dataset.estagio;
+      definirEstagio(atual, novoEst);
+      mostrarEstado("salvando", "Estágio: " + nomeDoEstagio(novoEst));
+      agendarSalvar();
+      renderEditor();
+      renderListaDepois();
+      return;
+    }
     if (e.target.id === "marcar-pronto") {
       atual.pronto = !atual.pronto;
       if (atual.pronto) atual.revisar = false;
@@ -5856,7 +5918,7 @@
     }
     if (e.target.id === "marcar-revisar") {
       atual.revisar = !atual.revisar;
-      if (atual.revisar) atual.aPublicar = false;
+      if (atual.revisar) { atual.aPublicar = false; atual.teleprompter = false; }
       if (atual.revisar && atual.pronto) {
         atual.pronto = false;
         var bp = $("marcar-pronto");
