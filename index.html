@@ -809,7 +809,8 @@
   .marcar input { width: 17px; height: 17px; accent-color: var(--navy); cursor: pointer; }
   .linha-abrir {
     flex: 1 1 auto; min-width: 0; background: transparent; border: 0;
-    display: grid; grid-template-columns: minmax(0, 1fr) 104px 84px 272px 148px; align-items: center; gap: 12px;
+    display: grid; align-items: center; gap: 12px;
+    grid-template-columns: minmax(180px, 1fr) minmax(56px, var(--col-tipo, 88px)) minmax(80px, var(--col-estagio, 132px)) minmax(40px, var(--col-etiquetas, 200px)) minmax(80px, var(--col-meta, 132px));
     padding: 11px 14px; text-align: left; color: var(--navy);
   }
   .codigo-lista {
@@ -829,7 +830,29 @@
     justify-self: start; background: var(--laranja); color: #ffffff; border-radius: 999px;
     padding: 2px 9px; font-size: 11.5px; font-weight: 600; white-space: nowrap;
   }
-  .linha-abrir .etiquetas-linha { justify-content: flex-start; width: 272px; max-width: 272px; }
+  .linha-abrir .etiquetas-linha { justify-content: flex-start; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
+  .linha-abrir > [class^="tag-"] { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .linha-abrir .linha-tipo, .linha-abrir .linha-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* Cabeçalho das colunas, com as divisórias de arrastar. Ele segue as mesmas medidas das linhas.
+     A largura escolhida é o máximo de cada coluna: em tela estreita elas encolhem antes de o título ficar abaixo de 180 pixels. */
+  .linha.linha-cab { background: transparent; border: 0; border-radius: 0; }
+  .linha.linha-cab:hover { border-color: transparent; }
+  .cab-espaco { flex: 0 0 auto; width: calc(14px + 17px + 4px + 34px + 8px + 104px + 10px); }
+  .cab-colunas {
+    flex: 1 1 auto; min-width: 0; display: grid; gap: 12px; padding: 0 14px 2px;
+    grid-template-columns: minmax(180px, 1fr) minmax(56px, var(--col-tipo, 88px)) minmax(80px, var(--col-estagio, 132px)) minmax(40px, var(--col-etiquetas, 200px)) minmax(80px, var(--col-meta, 132px));
+  }
+  .cab-col {
+    position: relative; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--navy-fraco); white-space: nowrap; overflow: visible;
+  }
+  .cab-meta { text-align: right; }
+  .divisoria {
+    position: absolute; top: -4px; bottom: -4px; right: -9px; width: 6px; cursor: col-resize;
+    border-left: 2px solid var(--linha); touch-action: none;
+  }
+  .divisoria:hover, .redimensionando .divisoria { border-left-color: var(--laranja); }
+  body.redimensionando { cursor: col-resize; user-select: none; }
   .etiquetas-roteiro { margin-left: 0; padding: 12px 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px; }
   .item .etiquetas-linha { margin-top: 2px; max-width: 100%; flex-wrap: wrap; overflow: visible; }
   .filtros { align-items: center; }
@@ -854,6 +877,7 @@
   .filtros .filtro-etiqueta:hover { background: color-mix(in srgb, var(--cor) 10%, transparent); color: var(--cor); }
   @media (max-width: 700px) {
     .linha-abrir { grid-template-columns: minmax(0, 1fr) auto; row-gap: 4px; }
+    .linha.linha-cab { display: none; }
     .linha-abrir .etiquetas-linha { grid-column: 1 / -1; max-width: 100%; }
     .linha-meta { grid-column: 2; text-align: right; }
     .linha-tipo { grid-column: 1; }
@@ -3186,6 +3210,75 @@
         '<span class="nav-ideias-conta"><strong>' + n + "</strong><span>" + plural(n, v.rotulo[0], v.rotulo[1]) + "</span></span></button>";
     }).join("") + "</div>";
   }
+  /* ---------- Larguras das colunas de Todos os roteiros ----------
+     O título ocupa o que sobra, com um mínimo. As outras colunas têm largura própria, mudada arrastando as divisórias
+     do cabeçalho, e a escolha fica guardada neste navegador. Duplo clique numa divisória volta às larguras originais. */
+  var COLUNAS = [
+    { chave: "titulo", nome: "Título" },
+    { chave: "tipo", nome: "Formato", padrao: 88, min: 60 },
+    { chave: "estagio", nome: "Estágio", padrao: 132, min: 80 },
+    { chave: "etiquetas", nome: "Etiquetas", padrao: 200, min: 60 },
+    { chave: "meta", nome: "Medida e data", padrao: 132, min: 90 }
+  ];
+  var CHAVE_COLUNAS = "caderno-colunas-v1";
+  var larguras = (function () {
+    var salvo = {}, l = {};
+    try { salvo = JSON.parse(lerLocal(CHAVE_COLUNAS) || "{}") || {}; } catch (e) { salvo = {}; }
+    COLUNAS.forEach(function (c) { if (c.padrao) l[c.chave] = +salvo[c.chave] || c.padrao; });
+    return l;
+  })();
+  function estiloColunas() {
+    return COLUNAS.filter(function (c) { return c.padrao; }).map(function (c) { return "--col-" + c.chave + ": " + larguras[c.chave] + "px"; }).join("; ");
+  }
+  function htmlCabecalhoColunas() {
+    return '<div class="linha linha-cab" aria-hidden="true"><span class="cab-espaco"></span><div class="cab-colunas">' +
+      COLUNAS.map(function (c, i) {
+        return '<span class="cab-col cab-' + c.chave + '">' + c.nome +
+          (i < COLUNAS.length - 1 ? '<span class="divisoria" data-divisoria="' + i + '" title="Arraste para mudar a largura. Duplo clique volta ao original"></span>' : "") +
+          "</span>";
+      }).join("") + "</div></div>";
+  }
+  function aplicarLarguras() {
+    var tab = document.querySelector(".tabela");
+    if (tab) tab.setAttribute("style", estiloColunas());
+  }
+  // Arrastar a divisória entre 2 colunas passa largura de uma para a outra. Na divisória do título,
+  // a coluna da direita cresce ou encolhe e o título fica com o resto.
+  (function ligarDivisorias() {
+    var arrasto = null;
+    document.addEventListener("pointerdown", function (e) {
+      var d = e.target.closest && e.target.closest("[data-divisoria]");
+      if (!d) return;
+      e.preventDefault();
+      var i = +d.dataset.divisoria;
+      arrasto = { i: i, x: e.clientX, esq: larguras[COLUNAS[i].chave], dir: larguras[COLUNAS[i + 1].chave] };
+      document.body.classList.add("redimensionando");
+    });
+    document.addEventListener("pointermove", function (e) {
+      if (!arrasto) return;
+      var dx = e.clientX - arrasto.x, ce = COLUNAS[arrasto.i], cd = COLUNAS[arrasto.i + 1];
+      if (!ce.padrao) {
+        larguras[cd.chave] = Math.max(cd.min, arrasto.dir - dx);
+      } else {
+        var soma = arrasto.esq + arrasto.dir;
+        var nova = Math.min(soma - cd.min, Math.max(ce.min, arrasto.esq + dx));
+        larguras[ce.chave] = nova; larguras[cd.chave] = soma - nova;
+      }
+      aplicarLarguras();
+    });
+    document.addEventListener("pointerup", function () {
+      if (!arrasto) return;
+      arrasto = null;
+      document.body.classList.remove("redimensionando");
+      gravarLocal(CHAVE_COLUNAS, JSON.stringify(larguras));
+    });
+    document.addEventListener("dblclick", function (e) {
+      if (!e.target.closest || !e.target.closest("[data-divisoria]")) return;
+      COLUNAS.forEach(function (c) { if (c.padrao) larguras[c.chave] = c.padrao; });
+      gravarLocal(CHAVE_COLUNAS, JSON.stringify(larguras));
+      aplicarLarguras();
+    });
+  })();
   function renderTodos() {
     var universo = lugarTodos ? roteirosDoLugar(lugarTodos) : roteirosVivos();
     var total = universo.length, lista = visiveisDaLista();
@@ -3293,7 +3386,7 @@
         : lugarTodos === "arquivo" ? "Arquivo vazio. Marque os roteiros na lista e clique em Arquivar."
         : "Nenhum roteiro com esse filtro.") + "</p>";
     else {
-      h += '<div class="tabela">' + lista.map(function (r, n) {
+      h += '<div class="tabela" style="' + estiloColunas() + '">' + htmlCabecalhoColunas() + lista.map(function (r, n) {
         var medida = TIPOS[r.tipo].video
           ? palavrasVideo(r) + " " + plural(palavrasVideo(r), "palavra", "palavras")
           : (r.telas || []).length + " " + medidaDasTelas(r.tipo, (r.telas || []).length);
