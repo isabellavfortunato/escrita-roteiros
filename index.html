@@ -4447,7 +4447,30 @@
     return partes.join("");
   }
   function montarDocx(roteiros) {
-    var corpo = roteiros.map(corpoDoRoteiro).join(quebraDePagina());
+    return empacotarDocx(roteiros.map(corpoDoRoteiro).join(quebraDePagina()));
+  }
+  // O corpo das ideias escolhidas: um título, a data e cada ideia numerada,
+  // com as etiquetas dela embaixo quando existirem.
+  function corpoDasIdeias(lista) {
+    var d = new Date();
+    var partes = [paragrafo("Ideias", { titulo: true })];
+    partes.push(paragrafo(lista.length + " " + plural(lista.length, "ideia", "ideias") + " · " +
+      String(d.getDate()).padStart(2, "0") + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + d.getFullYear()));
+    lista.forEach(function (i, n) {
+      var texto = (i.texto || "").trim() || "Ideia em branco";
+      texto.split(/\n+/).forEach(function (linha, k) {
+        if (!semMarcas(linha).trim()) return;
+        partes.push(paragrafoFormatado(linha.trim(), k ? "" : (n + 1) + ". "));
+      });
+      var et = (i.etiquetas || []).filter(function (x) { return x; });
+      if (et.length) partes.push(paragrafo(et.join(" · ")));
+    });
+    return partes.join("");
+  }
+  function montarDocxIdeias(lista) {
+    return empacotarDocx(corpoDasIdeias(lista));
+  }
+  function empacotarDocx(corpo) {
     var documento = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
       corpo + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1418" w:right="1418" w:bottom="1418" w:left="1418"/></w:sectPr>' +
@@ -4487,13 +4510,25 @@
   }
   function baixarDocx(roteiros) {
     if (!roteiros.length) return;
-    var blob, nome = nomeDeArquivo(roteiros);
+    var blob;
     try { blob = montarDocx(roteiros); }
     catch (e) { mostrarEstado("erro", "Não foi possível montar o documento"); return; }
+    entregarDocx(blob, nomeDeArquivo(roteiros),
+      roteiros.length === 1 ? "Documento pronto" : roteiros.length + " roteiros no documento");
+  }
+  // Baixa em docx as ideias escolhidas, com a mesma aparência dos roteiros.
+  function baixarIdeiasDocx(lista) {
+    if (!lista.length) return;
+    var blob;
+    try { blob = montarDocxIdeias(lista); }
+    catch (e) { mostrarEstado("erro", "Não foi possível montar o documento"); return; }
+    var d = new Date();
+    var nome = "Ideias " + String(d.getDate()).padStart(2, "0") + "-" + String(d.getMonth() + 1).padStart(2, "0") + ".docx";
+    entregarDocx(blob, nome, lista.length + " " + plural(lista.length, "ideia no documento", "ideias no documento"));
+  }
+  function entregarDocx(blob, nome, aviso) {
     mostrarEstado("salvando", "Preparando o documento");
-    var pronto = function () {
-      mostrarEstado("salvo", roteiros.length === 1 ? "Documento pronto" : roteiros.length + " roteiros no documento");
-    };
+    var pronto = function () { mostrarEstado("salvo", aviso); };
     var pelaPagina = function () {
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
@@ -4711,6 +4746,8 @@
         '<button type="button" class="btn" id="marcar-todas-ideias">' +
         (lista.length && escolhidas.length >= lista.length ? "Desmarcar as " + lista.length : "Marcar as " + lista.length) + "</button>" +
         '<button type="button" class="btn" id="limpar-ideias-marcadas"' + (escolhidas.length ? "" : " disabled") + ">Limpar</button>" +
+        '<button type="button" class="btn btn-laranja" id="baixar-ideias"' + (escolhidas.length ? "" : " disabled") +
+        ' title="Baixa as ideias escolhidas num documento do Word">Baixar em docx</button>' +
         '<button type="button" class="btn" id="virar-lote"' + (escolhidas.length ? "" : " disabled") +
         ' aria-expanded="' + virandoLote + '">Virar roteiro</button>' +
         '<button type="button" class="btn" id="arquivar-escolhidas"' + (escolhidas.length ? "" : " disabled") +
@@ -5788,6 +5825,10 @@
     if (bot) { ordemTodos = bot.dataset.ordemTodos; gravarLocal(CHAVE_ORD_TODOS, ordemTodos); renderTodos(); return; }
     var boi = e.target.closest("[data-ordem-ideias]");
     if (boi) { ordemIdeias = boi.dataset.ordemIdeias; gravarLocal(CHAVE_ORD_IDEIAS, ordemIdeias); renderIdeias(); return; }
+    if (e.target.id === "baixar-ideias") {
+      baixarIdeiasDocx(ideiasFiltradas().filter(function (i) { return ideiasMarcadas[i.id]; }));
+      return;
+    }
     if (e.target.id === "arquivar-escolhidas") { arquivarEmLote(); return; }
     if (e.target.id === "excluir-ideias-escolhidas") {
       if (!confirmarDuasVezes(e.target, "Clique de novo: some para sempre", "Excluir")) return;
