@@ -132,7 +132,7 @@
     background: var(--fundo-lateral); border-right: 1px solid var(--linha);
     padding: 20px 18px; display: flex; flex-direction: column; gap: 14px;
   }
-  .gaveta-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .gaveta-topo { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 8px; }
   .gaveta h2 { margin: 0; font-family: var(--display); font-weight: 400; font-size: 22px; letter-spacing: 0.05em; color: var(--navy-medio); }
   .gaveta-conteudo { display: flex; flex-direction: column; gap: 14px; }
   .abrir-gaveta { display: none; }
@@ -1035,6 +1035,7 @@
       <div class="gaveta-topo">
         <h2 id="gaveta-titulo">Roteiros</h2>
         <button class="btn abrir-gaveta" id="abrir-gaveta" aria-expanded="false" aria-controls="gaveta-conteudo">Ver lista</button>
+        <button class="btn" id="importar-roteiros" type="button" title="Importa vários carrosséis de uma vez, a partir de um documento" hidden>Importar</button>
         <button class="btn btn-laranja" id="novo">Novo</button>
       </div>
       <div class="gaveta-conteudo" id="gaveta-conteudo">
@@ -1183,6 +1184,9 @@
   var timersIdeia = {};
   var busca = "", buscaIdeias = "";
   var importando = false;
+  var importandoRoteiros = false;   // painel de importar carrosséis em lote
+  var prevCarrosseis = null;        // a prévia do que foi lido do documento
+  var erroCarrosseis = "";
   var virandoId = null;   // ideia que está escolhendo o destino
   var virandoLote = false; // as ideias escolhidas estão escolhendo o destino
   var buscaTodos = "", filtroTodos = "", situacaoTodos = "", temasTodos = {}, loteMarcadas = {};
@@ -3508,8 +3512,16 @@
     document.querySelector(".corpo").classList.toggle("sem-gaveta", ehIdeias || ehLista || ehConsulta);
     var bt = $("ver-todos"); if (bt) bt.setAttribute("aria-pressed", String(ehLista));
     var bf2 = $("ver-familias"); if (bf2) bf2.setAttribute("aria-pressed", String(ehConsulta));
+    var btImp = $("importar-roteiros");
+    if (btImp) {
+      btImp.hidden = abaAtual !== "carrossel";
+      btImp.setAttribute("aria-expanded", String(importandoRoteiros));
+      btImp.textContent = importandoRoteiros ? "Fechar" : "Importar";
+    }
+    if (abaAtual !== "carrossel" && importandoRoteiros) { importandoRoteiros = false; prevCarrosseis = null; erroCarrosseis = ""; }
     if (ehConsulta) { atual = null; renderFamilias(); renderLista(); return; }
     if (!arm) return;
+    if (importandoRoteiros && abaAtual === "carrossel") { atual = null; renderImportarCarrosseis(); renderLista(); return; }
     if (ehIdeias) { atual = null; renderIdeias(); }
     else if (ehLista) { atual = null; renderTodos(); }
     else if (carregou) abrirMaisRecente();
@@ -4870,6 +4882,146 @@
       (repetidas && !deixarPassar ? " · " + repetidas + " " + plural(repetidas, "já está na lista e não entra", "já estão na lista e não entram") : "") +
       (n > LIMITE_IMPORTACAO ? " (o limite por vez é " + LIMITE_IMPORTACAO + ")" : "");
   }
+  /* ---------- Importar carrosséis em lote ----------
+     O documento vem com um carrossel por bloco, no formato
+     "1. Título", "Tipo: ...", "Capa: ...", "Card 1: ...", "Chamada: ...". */
+  function lerCarrosseis(linhas) {
+    var lista = [], atualC = null, soltas = 0;
+    function fechar() {
+      if (atualC && (atualC.capa || atualC.cards.length || atualC.chamada)) lista.push(atualC);
+      atualC = null;
+    }
+    linhas.forEach(function (bruta) {
+      var l = String(bruta == null ? "" : bruta).replace(/\s+/g, " ").trim();
+      if (!l) return;
+      var mt = l.match(/^\d+\s*[.)\-]\s*(.+)$/);
+      if (mt) { fechar(); atualC = { titulo: mt[1].trim(), tipo: "", capa: "", cards: [], chamada: "" }; return; }
+      if (!atualC) return;   // o título do documento, antes do primeiro carrossel
+      var mc = l.match(/^cards?\s*\d*\s*[:.\-]\s*(.*)$/i);
+      if (mc) { if (mc[1].trim()) atualC.cards.push(mc[1].trim()); return; }
+      var mr = l.match(/^([A-Za-zÀ-ÿ ]{3,16})\s*:\s*(.*)$/);
+      if (mr) {
+        var chave = chaveDoTexto(mr[1]), valor = mr[2].trim();
+        if (chave === "tipo") { atualC.tipo = valor; return; }
+        if (chave === "capa" || chave === "capa do carrossel") { atualC.capa = valor; return; }
+        if (chave === "chamada" || chave === "cta" || chave === "fechamento") { atualC.chamada = valor; return; }
+      }
+      // linha sem rótulo dentro de um carrossel: continua o último card
+      if (atualC.cards.length) atualC.cards[atualC.cards.length - 1] += " " + l;
+      else soltas++;
+    });
+    fechar();
+    return { lista: lista, soltas: soltas };
+  }
+  function lerArquivoCarrosseis(arquivo) {
+    if (!arquivo) return;
+    erroCarrosseis = "";
+    mostrarEstado("salvando", "Lendo " + (arquivo.name || "o arquivo"));
+    var promessa;
+    if (/\.docx$/i.test(arquivo.name || "")) {
+      promessa = arquivo.arrayBuffer().then(function (buf) {
+        var itens = lerZip(buf);
+        var doc = itens.filter(function (x) { return x.nome === "word/document.xml"; })[0];
+        if (!doc) throw new Error("Não achei o texto dentro deste docx");
+        return descomprimir(doc);
+      }).then(function (xml) { return conteudoDoDocx(xml).linhas; });
+    } else {
+      promessa = arquivo.text().then(function (x) { return x.replace(/\r\n?/g, "\n").split("\n"); });
+    }
+    promessa.then(function (linhas) {
+      montarPreviaCarrosseis(lerCarrosseis(linhas), arquivo.name || "");
+    }).catch(function (e) {
+      erroCarrosseis = (e && e.message) || "Não consegui ler este arquivo";
+      prevCarrosseis = null;
+      mostrarEstado("erro", erroCarrosseis);
+      aplicarAba();
+    });
+  }
+  function montarPreviaCarrosseis(lido, origem) {
+    var jaTem = {};
+    doTipo("carrossel").forEach(function (r) { jaTem[chaveDoTexto(r.titulo || "")] = true; });
+    lido.lista.forEach(function (c) {
+      c.repetido = !!jaTem[chaveDoTexto(c.titulo)];
+      c.usar = !c.repetido;
+      c.telas = 1 + c.cards.length + (c.chamada ? 1 : 0);
+    });
+    prevCarrosseis = { lista: lido.lista, soltas: lido.soltas, origem: origem };
+    erroCarrosseis = lido.lista.length ? "" : "Não achei nenhum carrossel neste arquivo. Confira se cada um começa com o número e o título.";
+    mostrarEstado(lido.lista.length ? "neutro" : "erro",
+      lido.lista.length ? lido.lista.length + " " + plural(lido.lista.length, "carrossel lido", "carrosséis lidos") : erroCarrosseis);
+    aplicarAba();
+  }
+  function roteiroDoCarrossel(c) {
+    var r = novoRoteiro("carrossel");
+    delete r._novo;
+    r.titulo = c.titulo;
+    r.textoTela = c.capa;
+    if (/lista/i.test(c.tipo)) r.modalidade = "Lista";
+    var textos = [c.capa].concat(c.cards);
+    if (c.chamada) textos.push(c.chamada);
+    r.telas = textos.map(function (x) { var tela = telaVazia(); tela.texto = x; return tela; });
+    return r;
+  }
+  function importarCarrosseis() {
+    if (!prevCarrosseis || !arm) return;
+    var escolhidos = prevCarrosseis.lista.filter(function (c) { return c.usar; });
+    if (!escolhidos.length) { mostrarEstado("neutro", "Nenhum carrossel marcado para importar"); return; }
+    if (escolhidos.length > LIMITE_IMPORTACAO) {
+      mostrarEstado("erro", "São " + escolhidos.length + ". Importe no máximo " + LIMITE_IMPORTACAO + " por vez.");
+      return;
+    }
+    var novos = escolhidos.map(roteiroDoCarrossel);
+    novos.forEach(function (r) { acervo[r.id] = r; });
+    importandoRoteiros = false;
+    prevCarrosseis = null;
+    aplicarAba();
+    var a = arm, feitas = 0, erros = 0;
+    mostrarEstado("salvando", "Importando 0 de " + novos.length);
+    novos.reduce(function (pr, r) {
+      return pr.then(function () {
+        if (a !== arm) return;
+        return a.salvar("roteiros", r.id, limpo(r)).then(function () {
+          feitas++; mostrarEstado("salvando", "Importando " + feitas + " de " + novos.length);
+        }, function () { erros++; });
+      });
+    }, Promise.resolve()).then(function () {
+      if (erros) mostrarEstado("erro", erros + " " + plural(erros, "carrossel não foi salvo", "carrosséis não foram salvos") + ". Confira a conexão.");
+      else mostrarEstado("salvo", feitas + " " + plural(feitas, "carrossel importado", "carrosséis importados"));
+      atualizarContagens();
+      renderLista();
+    });
+  }
+  function renderImportarCarrosseis() {
+    var h = '<section class="importar" id="painel-importar-roteiros">' +
+      '<p class="aviso">Escolha o docx com os carrosséis, ou cole o conteúdo no campo de baixo. Cada carrossel começa com o número e o título, e dentro dele valem as linhas Tipo, Capa, Card 1 em diante e Chamada. A capa vira a primeira tela e a chamada vira a última.</p>' +
+      '<div class="ins-linha-arquivo"><label class="rotulo" for="arq-carrosseis">Arquivo</label>' +
+      '<input class="entrada ins-arquivo" id="arq-carrosseis" type="file" accept=".docx,.txt,.md"></div>' +
+      '<label class="rotulo" for="carrosseis-texto">Ou cole o conteúdo aqui</label>' +
+      '<textarea class="area importar-area" id="carrosseis-texto" placeholder="1. Título do carrossel&#10;Tipo: carrossel de lista, 7 cards&#10;Capa: ...&#10;Card 1: ...&#10;Chamada: ..."></textarea>' +
+      '<div class="importar-acoes"><span class="aviso"></span>' +
+      '<button type="button" class="btn" id="ler-carrosseis-texto">Ler o texto colado</button>' +
+      '<button type="button" class="btn" id="cancelar-importar-roteiros">Fechar</button></div>';
+    if (erroCarrosseis) h += '<p class="ins-erro">' + esc(erroCarrosseis) + "</p>";
+    if (prevCarrosseis && prevCarrosseis.lista.length) {
+      var marcados = prevCarrosseis.lista.filter(function (c) { return c.usar; }).length;
+      var repetidos = prevCarrosseis.lista.filter(function (c) { return c.repetido; }).length;
+      h += '<div class="ins-previa"><h3 class="cal-fila-titulo">Prévia de ' + prevCarrosseis.lista.length + " " +
+        plural(prevCarrosseis.lista.length, "carrossel", "carrosséis") +
+        (prevCarrosseis.origem ? " de " + esc(prevCarrosseis.origem) : "") + "</h3>";
+      if (repetidos) h += '<p class="aviso">' + repetidos + " " + plural(repetidos, "já existe nos carrosséis e veio desmarcado", "já existem nos carrosséis e vieram desmarcados") + ".</p>";
+      if (prevCarrosseis.soltas) h += '<p class="aviso">' + prevCarrosseis.soltas + " " + plural(prevCarrosseis.soltas, "linha solta foi ignorada", "linhas soltas foram ignoradas") + ".</p>";
+      h += prevCarrosseis.lista.map(function (c, i) {
+        return '<label class="linha-opcao"><input type="checkbox" data-prev-carrossel="' + i + '"' + (c.usar ? " checked" : "") + "> " +
+          "<b>" + esc(c.titulo) + "</b> · " + c.telas + " " + plural(c.telas, "tela", "telas") +
+          (c.repetido ? " · já existe" : "") + "</label>";
+      }).join("");
+      h += '<div class="importar-acoes"><span class="aviso">' + marcados + " " + plural(marcados, "marcado", "marcados") + "</span>" +
+        '<button type="button" class="btn" id="marcar-todos-carrosseis">' + (marcados >= prevCarrosseis.lista.length ? "Desmarcar todos" : "Marcar todos") + "</button>" +
+        '<button type="button" class="btn btn-laranja" id="confirmar-importar-roteiros"' + (marcados ? "" : " disabled") + ">Importar " + marcados + "</button></div></div>";
+    }
+    h += "</section>";
+    $("editor").innerHTML = h;
+  }
   function importarIdeias() {
     var lista = linhasDaImportacao();
     if (!lista.length || !arm) return;
@@ -5169,6 +5321,13 @@
     busca = ""; $("busca").value = "";
     aplicarAba();
     window.scrollTo(0, 0);
+  });
+  // O botão de importar fica na gaveta, fora do editor, então tem escuta própria.
+  var btImportar = document.getElementById("importar-roteiros");
+  if (btImportar) btImportar.addEventListener("click", function () {
+    importandoRoteiros = !importandoRoteiros;
+    if (!importandoRoteiros) { prevCarrosseis = null; erroCarrosseis = ""; }
+    aplicarAba();
   });
   $("novo").addEventListener("click", function () {
     if (!carregou) return;
@@ -5492,6 +5651,13 @@
     var el = e.target;
     if (el.id === "cal-data" && calAberto) { marcarData(calAberto, el.value); return; }
     if (el.id === "arq-metricas") { lerArquivosMetricas(el.files); el.value = ""; return; }
+    if (el.id === "arq-carrosseis") { lerArquivoCarrosseis(el.files && el.files[0]); el.value = ""; return; }
+    if (el.dataset && el.dataset.prevCarrossel != null && prevCarrosseis) {
+      var alvoC = prevCarrosseis.lista[+el.dataset.prevCarrossel];
+      if (alvoC) alvoC.usar = el.checked;
+      setTimeout(renderImportarCarrosseis, 0);
+      return;
+    }
     if (el.dataset && el.dataset.previaRede != null && prevMetricas) {
       var pr = el.dataset.previaRede.split("|"), lr = prevMetricas.linhas[+pr[0]];
       if (lr && pr[1] !== el.value) {
@@ -5933,6 +6099,25 @@
       if (origem) virarRoteiro(origem, bd.dataset.destino);
       return;
     }
+    if (e.target.id === "cancelar-importar-roteiros") {
+      importandoRoteiros = false; prevCarrosseis = null; erroCarrosseis = "";
+      aplicarAba();
+      return;
+    }
+    if (e.target.id === "ler-carrosseis-texto") {
+      var campoC = $("carrosseis-texto");
+      var bruto = campoC ? campoC.value : "";
+      if (!bruto.trim()) { mostrarEstado("neutro", "Cole o conteúdo antes de ler"); return; }
+      montarPreviaCarrosseis(lerCarrosseis(bruto.replace(/\r\n?/g, "\n").split("\n")), "");
+      return;
+    }
+    if (e.target.id === "marcar-todos-carrosseis" && prevCarrosseis) {
+      var todosJaC = prevCarrosseis.lista.every(function (c) { return c.usar; });
+      prevCarrosseis.lista.forEach(function (c) { c.usar = !todosJaC; });
+      renderImportarCarrosseis();
+      return;
+    }
+    if (e.target.id === "confirmar-importar-roteiros") { importarCarrosseis(); return; }
     if (e.target.id === "abrir-importar") { importando = true; renderIdeias(); return; }
     if (e.target.id === "cancelar-importar") { importando = false; renderIdeias(); return; }
     if (e.target.id === "confirmar-importar") { importarIdeias(); return; }
