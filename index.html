@@ -1158,6 +1158,7 @@
   var CHAVE_ABA = "caderno-roteiros-aba";
   var CHAVE_FILTROS = "caderno-abrir-filtros";
   var CHAVE_ETIQUETAR = "caderno-abrir-etiquetar";
+  var CHAVE_ETIQUETAR_ROT = "caderno-abrir-etiquetar-roteiros";
   var CHAVE_FORMATO = "caderno-abrir-formato";
   var CHAVE_TEMA = "caderno-abrir-tema";
   var CHAVE_SITUACAO = "caderno-abrir-situacao";
@@ -1202,6 +1203,8 @@
   var filtroEtiquetaRoteiro = {};
   var abrirFiltros = lerLocal(CHAVE_FILTROS) === "1";
   var abrirEtiquetar = lerLocal(CHAVE_ETIQUETAR) === "1";
+  var abrirEtiquetarRoteiros = lerLocal(CHAVE_ETIQUETAR_ROT) === "1";
+  var loteRoteiro = {};   // etiquetas marcadas para pôr ou tirar em lote nos roteiros
   var abrirFormato = lerLocal(CHAVE_FORMATO) === "1";
   var abrirTema = lerLocal(CHAVE_TEMA) === "1";
   var abrirSituacao = lerLocal(CHAVE_SITUACAO) !== "0";
@@ -2208,6 +2211,23 @@
     atualizarContagens();
     mostrarEstado("salvando", novas.length + " " + plural(novas.length, "ideia nova", "ideias novas") + " nas ideias" +
       (repetidas ? " · " + repetidas + " " + plural(repetidas, "já existia", "já existiam") : ""));
+  }
+  // Põe ou tira as mesmas etiquetas em todos os roteiros marcados de uma vez.
+  function etiquetarRoteirosEmLote(nomes, tirar) {
+    var ids = escolhidosDaLista();
+    if (!ids.length || !nomes.length) return;
+    ids.forEach(function (id) {
+      alterarRoteiro(id, function (c) {
+        var atuais = c.etiquetas || [];
+        if (tirar) c.etiquetas = atuais.filter(function (x) { return nomes.indexOf(x) === -1; });
+        else c.etiquetas = atuais.concat(nomes.filter(function (n) { return atuais.indexOf(n) === -1; }));
+      });
+    });
+    marcados = {};
+    loteRoteiro = {};
+    renderTodos();
+    mostrarEstado("salvando", (tirar ? "Etiqueta tirada de " : "Etiqueta posta em ") +
+      ids.length + " " + plural(ids.length, "roteiro", "roteiros"));
   }
   function mudarSituacao(ids, sit) {
     ids.forEach(function (id) {
@@ -3392,7 +3412,20 @@
         ? '<button type="button" class="btn btn-virar" id="virar-ideia"' + trava +
           ' title="Cria uma ideia nova a partir do título de cada roteiro escolhido, sem tirar o roteiro de onde ele está">Virar ideia</button>'
         : "") +
-      "</div></div></div>";
+      "</div></div></div>" +
+      '<div class="filtros etiquetas-lote">' +
+      '<button type="button" class="rotulo rotulo-abre" id="abrir-etiquetar-roteiros" aria-expanded="' + abrirEtiquetarRoteiros + '">' +
+      '<span class="seta" aria-hidden="true">' + (abrirEtiquetarRoteiros ? "▾" : "▸") + "</span> Etiquetar os escolhidos</button>" +
+      (abrirEtiquetarRoteiros
+        ? botoesTodasNenhuma("lote-roteiro") + ETIQUETAS_ROTEIRO.map(function (e) {
+            return '<button type="button" class="filtro filtro-etiqueta" data-lote-roteiro="' + esc(e.nome) + '"' +
+              ' aria-pressed="' + (!!loteRoteiro[e.nome]) + '" style="--cor: ' + e.cor + '">' + esc(e.nome) + "</button>";
+          }).join("") +
+          '<span class="lote-acoes"><button type="button" class="btn btn-mini" id="lote-roteiro-por"' +
+          (escolhidos && Object.keys(loteRoteiro).length ? "" : " disabled") + ">Pôr nos escolhidos</button>" +
+          '<button type="button" class="btn btn-mini" id="lote-roteiro-tirar"' +
+          (escolhidos && Object.keys(loteRoteiro).length ? "" : " disabled") + ">Tirar dos escolhidos</button></span>"
+        : "") + "</div>";
     if (lugarTodos) h += '<p class="aviso aviso-curto">Em ' + nomeLugar + ", fora das listas normais</p>";
     if (!carregou) h += '<p class="carregando">Abrindo o caderno.</p>';
     else if (!lista.length) h += '<p class="aviso">' +
@@ -5477,6 +5510,10 @@
       loteMarcadas = {};
       if (todas) nomesIdeia.forEach(function (n) { loteMarcadas[n] = true; });
       renderIdeias();
+    } else if (grupo === "lote-roteiro") {
+      loteRoteiro = {};
+      if (todas) nomesRoteiro.forEach(function (n) { loteRoteiro[n] = true; });
+      renderTodos();
     } else if (grupo.indexOf("ideia:") === 0) {
       var ideia = ideias[grupo.slice(6)]; if (!ideia) return;
       ideia.etiquetas = todas ? nomesIdeia.slice() : [];
@@ -5852,6 +5889,23 @@
       vistaTodos = "calendario";
       gravarLocal(CHAVE_VISTA, vistaTodos);
       renderTodos();
+      return;
+    }
+    if (e.target.closest("#abrir-etiquetar-roteiros")) {
+      abrirEtiquetarRoteiros = !abrirEtiquetarRoteiros;
+      gravarLocal(CHAVE_ETIQUETAR_ROT, abrirEtiquetarRoteiros ? "1" : "0");
+      renderTodos();
+      return;
+    }
+    var blr = e.target.closest("[data-lote-roteiro]");
+    if (blr) {
+      var nomeLote = blr.dataset.loteRoteiro;
+      if (loteRoteiro[nomeLote]) delete loteRoteiro[nomeLote]; else loteRoteiro[nomeLote] = true;
+      renderTodos();
+      return;
+    }
+    if (e.target.id === "lote-roteiro-por" || e.target.id === "lote-roteiro-tirar") {
+      etiquetarRoteirosEmLote(Object.keys(loteRoteiro), e.target.id === "lote-roteiro-tirar");
       return;
     }
     if (e.target.id === "virar-ideia") {
