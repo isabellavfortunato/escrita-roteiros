@@ -788,6 +788,16 @@
   .filtro:hover { border-color: var(--navy); color: var(--navy); }
   .filtro[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: var(--creme); font-weight: 600; }
   .tabela { display: flex; flex-direction: column; gap: 2px; }
+  .busca-resumo { margin: 4px 0 2px; }
+  .busca-grupo { margin: 18px 0 6px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--navy-suave); }
+  .busca-onde { margin: -1px 0 4px 192px; font-size: 12px; color: var(--navy-fraco); font-style: italic; }
+  .busca-ideias-lista { display: flex; flex-direction: column; gap: 4px; }
+  .busca-ideia {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left;
+    padding: 10px 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 8px; color: var(--navy); font-size: 14px;
+  }
+  .busca-ideia:hover { border-color: var(--navy); }
+  @media (max-width: 700px) { .busca-onde { margin-left: 14px; } }
   .barra-escolha {
     display: flex; flex-direction: column; align-items: stretch; gap: 12px;
     padding: 12px 14px; background: var(--papel); border: 1px solid var(--linha); border-radius: 10px;
@@ -2045,6 +2055,11 @@
       });
   }
   function visiveisDaLista() {
+    // durante a busca geral, os visíveis são todos os roteiros achados, de qualquer lugar, para Marcar os N valer para eles
+    if (buscaTodos) {
+      var procurado = chaveDoTexto(buscaTodos);
+      return todosOsRoteiros().filter(function (r) { return textoParaBusca(r).indexOf(procurado) !== -1; });
+    }
     var lista = lugarTodos ? roteirosDoLugar(lugarTodos) : roteirosVivos();
     // a situação combina com o formato ou com o tema escolhido
     if (situacaoTodos) lista = lista.filter(function (r) { return situacaoTodos === "revisar" ? r.revisar : situacaoDe(r) === situacaoTodos; });
@@ -2058,12 +2073,6 @@
       lista = lista.filter(function (r) { return temEtiqueta(r, etiqueta); });
     }
     else if (filtroTodos) lista = lista.filter(function (r) { return r.tipo === filtroTodos; });
-    if (buscaTodos) {
-      var b = buscaTodos.toLowerCase();
-      lista = lista.filter(function (r) {
-        return ((r.titulo || "") + " " + (r.codigo || "")).toLowerCase().indexOf(b) !== -1;
-      });
-    }
     if (ordemTodos !== "titulo") {
       lista = lista.slice().sort(function (x, y) {
         return ordemTodos === "antigos"
@@ -3314,6 +3323,79 @@
       aplicarLarguras();
     });
   })();
+  function linhaDaLista(r, n) {
+        var medida = TIPOS[r.tipo].video
+          ? palavrasVideo(r) + " " + plural(palavrasVideo(r), "palavra", "palavras")
+          : (r.telas || []).length + " " + medidaDasTelas(r.tipo, (r.telas || []).length);
+        return '<div class="linha' + (marcados[r.id] ? " marcada" : "") + '">' +
+          '<label class="marcar"><input type="checkbox" data-marcar="' + r.id + '"' + (marcados[r.id] ? " checked" : "") + ' aria-label="Escolher ' + esc(r.titulo || "Sem título") + '"></label>' +
+          '<span class="linha-num" aria-hidden="true">' + (n + 1) + "</span>" +
+          '<input class="codigo codigo-lista" type="text" data-codigo="' + r.id + '" value="' + esc(r.codigo || "") +
+          '" placeholder="IMG_0000" aria-label="Código do vídeo de ' + esc(r.titulo || "Sem título") +
+          '" title="O código do arquivo gravado no celular">' +
+          '<button type="button" class="linha-abrir" data-abrir="' + r.id + '">' +
+          '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' +
+          (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
+          '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
+          (foiPublicado(r) ? '<span class="tag-publicado">Publicado</span>'
+            : foiArquivado(r) ? '<span class="tag-arquivado">Arquivado</span>'
+            : noDepois(r) ? '<span class="tag-depois">Depois</span>'
+            : r.aPublicar ? '<span class="tag-publicar">Calendário' + (r.dataPublicacao ? " · " + dataDoDia(r.dataPublicacao) : "") + "</span>"
+            : r.teleprompter ? '<span class="tag-teleprompter">Teleprompter</span>'
+            : r.pronto ? '<span class="tag-pronto">Pronto</span>'
+            : r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
+          (pilulasDoRoteiro(r) || '<span class="etiquetas-linha"></span>') +
+          '<span class="linha-meta">' + medida + " · " + dataCurta(r.atualizado) + "</span></button></div>";
+  }
+  /* ---------- Busca geral ----------
+     Com algo escrito na busca de Todos os roteiros, a lista dá lugar aos resultados de todos os lugares de uma vez,
+     sem os filtros: listas normais, Publicados, Depois, Arquivo e Ideias. A busca olha o título, o código do vídeo,
+     o texto na tela, a legenda, o texto dos blocos e das telas e, nas ideias, o texto da ideia. */
+  function textoParaBusca(r) {
+    var partes = [r.titulo, r.codigo, r.textoTela, r.legenda, r.tituloPublicacao];
+    (r.blocos || []).forEach(function (b) { partes.push(b.texto); });
+    (r.telas || []).forEach(function (x) { partes.push(x.texto, x.design, x.pergunta); });
+    return chaveDoTexto(partes.filter(Boolean).join(" "));
+  }
+  function ondeAchou(r, procurado) {
+    if (chaveDoTexto((r.titulo || "") + " " + (r.codigo || "")).indexOf(procurado) !== -1) return "";
+    if (chaveDoTexto(r.textoTela).indexOf(procurado) !== -1) return "no texto na tela";
+    if (chaveDoTexto(r.legenda).indexOf(procurado) !== -1) return "na legenda";
+    return "no texto do roteiro";
+  }
+  function htmlBuscaGeral() {
+    var procurado = chaveDoTexto(buscaTodos);
+    if (!procurado) return "";
+    var achados = todosOsRoteiros().filter(function (r) { return textoParaBusca(r).indexOf(procurado) !== -1; });
+    var grupos = [
+      ["", "Nas listas de trabalho"], ["publicados", "Em Publicados"], ["depois", "No Depois"], ["arquivo", "No Arquivo"]
+    ].map(function (g) {
+      return { nome: g[1], lista: achados.filter(function (r) { return lugarDe(r) === g[0]; }) };
+    });
+    var ideiasAchadas = listaIdeias().filter(function (i) { return chaveDoTexto(i.texto).indexOf(procurado) !== -1; });
+    var total = achados.length + ideiasAchadas.length;
+    var h = '<p class="aviso busca-resumo">' + (total ? total + " " + plural(total, "resultado", "resultados") : "Nenhum resultado") +
+      ' para "' + esc(buscaTodos) + '" em todos os lugares, sem os filtros. Para voltar à lista, apague a busca.</p>';
+    var n = 0;
+    grupos.forEach(function (g) {
+      if (!g.lista.length) return;
+      h += '<h3 class="busca-grupo">' + g.nome + " (" + g.lista.length + ")</h3>" +
+        '<div class="tabela" style="' + estiloColunas() + '">' + g.lista.map(function (r) {
+          var onde = ondeAchou(r, procurado);
+          return linhaDaLista(r, n++) + (onde ? '<p class="busca-onde">Achado ' + onde + "</p>" : "");
+        }).join("") + "</div>";
+    });
+    if (ideiasAchadas.length) {
+      h += '<h3 class="busca-grupo">Nas ideias (' + ideiasAchadas.length + ")</h3>" +
+        '<div class="busca-ideias-lista">' + ideiasAchadas.map(function (i) {
+          return '<button type="button" class="busca-ideia" data-ver-ideia="' + i.id + '">' +
+            '<span class="busca-ideia-texto">' + esc(i.texto || "") + "</span>" +
+            (i.arquivada ? '<span class="tag-arquivado">Arquivada</span>' : "") +
+            "</button>";
+        }).join("") + "</div>";
+    }
+    return h;
+  }
   function renderTodos() {
     var universo = lugarTodos ? roteirosDoLugar(lugarTodos) : roteirosVivos();
     var total = universo.length, lista = visiveisDaLista();
@@ -3332,7 +3414,7 @@
       (vistaTodos === "lista" ? " · " + { titulo: "em ordem de título", recentes: "dos mais recentes para os mais antigos", antigos: "dos mais antigos para os mais recentes" }[ordemTodos]
         : vistaTodos === "insights" ? " · " + Object.keys(metricas).length + " " + plural(Object.keys(metricas).length, "post com métricas", "posts com métricas")
         : " · " + quantosEm("publicar") + " no calendário") + "</span></div>" +
-      (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar pelo título" aria-label="Buscar pelo título" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
+      (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar em tudo" aria-label="Buscar em todos os roteiros e ideias" title="Procura no título, no código, no texto na tela, na legenda e no texto dos roteiros, em todos os lugares, e no texto das ideias" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
       htmlVistas(roteirosVivos().length, roteirosVivos().filter(function (r) { return r.aPublicar; }).length);
     if (vistaTodos === "insights") {
       h += htmlInsights() + "</div>";
@@ -3426,38 +3508,16 @@
           '<button type="button" class="btn btn-mini" id="lote-roteiro-tirar"' +
           (escolhidos && Object.keys(loteRoteiro).length ? "" : " disabled") + ">Tirar dos escolhidos</button></span>"
         : "") + "</div>";
-    if (lugarTodos) h += '<p class="aviso aviso-curto">Em ' + nomeLugar + ", fora das listas normais</p>";
+    if (lugarTodos && !buscaTodos) h += '<p class="aviso aviso-curto">Em ' + nomeLugar + ", fora das listas normais</p>";
     if (!carregou) h += '<p class="carregando">Abrindo o caderno.</p>';
+    else if (buscaTodos) h += htmlBuscaGeral();
     else if (!lista.length) h += '<p class="aviso">' +
       (lugarTodos === "depois" ? "Nenhum roteiro no depois. Marque os roteiros na lista e clique em Para depois."
         : lugarTodos === "publicados" ? "Nenhum roteiro publicado ainda. Marque os roteiros na lista e clique em Publicado."
         : lugarTodos === "arquivo" ? "Arquivo vazio. Marque os roteiros na lista e clique em Arquivar."
         : "Nenhum roteiro com esse filtro.") + "</p>";
     else {
-      h += '<div class="tabela" style="' + estiloColunas() + '">' + htmlCabecalhoColunas() + lista.map(function (r, n) {
-        var medida = TIPOS[r.tipo].video
-          ? palavrasVideo(r) + " " + plural(palavrasVideo(r), "palavra", "palavras")
-          : (r.telas || []).length + " " + medidaDasTelas(r.tipo, (r.telas || []).length);
-        return '<div class="linha' + (marcados[r.id] ? " marcada" : "") + '">' +
-          '<label class="marcar"><input type="checkbox" data-marcar="' + r.id + '"' + (marcados[r.id] ? " checked" : "") + ' aria-label="Escolher ' + esc(r.titulo || "Sem título") + '"></label>' +
-          '<span class="linha-num" aria-hidden="true">' + (n + 1) + "</span>" +
-          '<input class="codigo codigo-lista" type="text" data-codigo="' + r.id + '" value="' + esc(r.codigo || "") +
-          '" placeholder="IMG_0000" aria-label="Código do vídeo de ' + esc(r.titulo || "Sem título") +
-          '" title="O código do arquivo gravado no celular">' +
-          '<button type="button" class="linha-abrir" data-abrir="' + r.id + '">' +
-          '<span class="linha-titulo' + (r.titulo ? "" : " vazio") + '">' +
-          (r.titulo ? esc(r.titulo) : "Sem título") + "</span>" +
-          '<span class="linha-tipo">' + TIPOS[r.tipo].nome + "</span>" +
-          (foiPublicado(r) ? '<span class="tag-publicado">Publicado</span>'
-            : foiArquivado(r) ? '<span class="tag-arquivado">Arquivado</span>'
-            : noDepois(r) ? '<span class="tag-depois">Depois</span>'
-            : r.aPublicar ? '<span class="tag-publicar">Calendário' + (r.dataPublicacao ? " · " + dataDoDia(r.dataPublicacao) : "") + "</span>"
-            : r.teleprompter ? '<span class="tag-teleprompter">Teleprompter</span>'
-            : r.pronto ? '<span class="tag-pronto">Pronto</span>'
-            : r.revisar ? '<span class="tag-revisar">A revisar</span>' : '<span class="tag-vazia"></span>') +
-          (pilulasDoRoteiro(r) || '<span class="etiquetas-linha"></span>') +
-          '<span class="linha-meta">' + medida + " · " + dataCurta(r.atualizado) + "</span></button></div>";
-      }).join("") + "</div>";
+      h += '<div class="tabela" style="' + estiloColunas() + '">' + htmlCabecalhoColunas() + lista.map(linhaDaLista).join("") + "</div>";
     }
     h += "</div>";
     $("editor").innerHTML = h;
@@ -5816,6 +5876,18 @@
     }
     var btn = e.target.closest("[data-todas], [data-nenhuma]");
     if (btn) { todasOuNenhuma(btn.dataset.todas != null ? btn.dataset.todas : btn.dataset.nenhuma, btn.dataset.todas != null); return; }
+    var vi = e.target.closest("[data-ver-ideia]");
+    if (vi) {
+      var ideiaAchada = ideias[vi.dataset.verIdeia];
+      salvarPendente();
+      abaAtual = "ideias";
+      gravarLocal(CHAVE_ABA, abaAtual);
+      buscaIdeias = buscaTodos;
+      verArquivadas = !!(ideiaAchada && ideiaAchada.arquivada);
+      aplicarAba();
+      window.scrollTo(0, 0);
+      return;
+    }
     var ab = e.target.closest("[data-abrir]");
     if (ab) {
       var alvo = acervo[ab.dataset.abrir];
