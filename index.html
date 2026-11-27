@@ -366,6 +366,9 @@
   .telas { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
   /* O story escreve mais por tela, então a caixa é mais larga e mais alta. */
   .telas.telas-largas { grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); }
+  /* Stories e carrossel: sempre 2 cartões por fileira, também no iPad e no celular, para economizar espaço. */
+  .telas.telas-duas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .telas-duas .tela-topo { flex-wrap: wrap; row-gap: 4px; }
   .tela-larga .area-rica { min-height: 190px; font-size: 18px; line-height: 1.7; }
   .tela-larga .area-design { min-height: 80px; }
   .tela {
@@ -1015,6 +1018,13 @@
     .card.estatico { display: none; }
     .medidor { gap: 10px; padding-block: 10px 12px; }
     .telas, .telas.telas-largas { grid-template-columns: minmax(0, 1fr); }
+    .telas.telas-duas { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .telas-duas .tela.tela-story { padding: 8px 8px 10px; }
+    .telas-duas .tela-story .tela-nome { font-size: 18px; }
+    .telas-duas .tela-pos { display: none; }
+    .telas-duas .tela-story .story-formato { flex-direction: column; align-items: stretch; gap: 4px; }
+    .telas-duas .tela-story .story-formato .caixa { font-size: 13px; }
+    .telas-duas .tela-story .area-rica, .telas-duas .tela-story .area-design { font-size: 14px; padding-inline: 8px; }
     .tela-larga .area-rica { min-height: 150px; }
     .card-principal .card-valor { font-size: 38px; }
     .card-valor { font-size: 28px; }
@@ -1094,7 +1104,7 @@
     instagram: { nome: "Instagram", sub: "Vídeo curto · 280 a 300 palavras", video: true, min: 280, max: 300, duracao: "1:40<small>min</small>" },
     tiktok:    { nome: "TikTok", sub: "Vídeo longo · 350 a 435 palavras", video: true, min: 350, max: 435, duracao: "2:00<small>a</small>2:30<small>min</small>" },
     carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, inicio: 2, porTela: 25 },
-    stories:   { nome: "Stories", sub: "10 telas ideais, sem limite · 174 palavras por tela, 1 minuto cada", video: false, telas: 10, telasMax: Infinity, porTela: 174 },
+    stories:   { nome: "Stories", sub: "10 telas ideais, sem limite · 174 palavras por tela, 1 minuto cada", video: false, telas: 10, inicio: 2, telasMax: Infinity, porTela: 174 },
     estatico:  { nome: "Post estático", sub: "Uma arte · até 100 palavras", video: false, telas: 1, porTela: 100, legenda: true },
     caixinha:  { nome: "Caixinha de perguntas", sub: "Até 10 respostas · 45 palavras cada", video: false, telas: 10, porTela: 45, perguntas: true },
     youtube:   { nome: "YouTube", sub: "Vídeo longo · 1.740 a 3.480 palavras", video: true, min: 1740, max: 3480, duracao: "10<small>a</small>20<small>min</small>", blocos: "youtube", tetoLegenda: 150, rotuloLegenda: "Descrição" },
@@ -3845,7 +3855,7 @@
       h += barraDeFormato();
       var livre = r.tipo === "stories" ? htmlTextoLivre(r) : "";
       if (livre && r.textoLivreEmCima) h += livre;
-      h += '<section class="telas" id="telas"></section>';
+      h += '<section class="telas' + (r.tipo === "stories" || r.tipo === "carrossel" ? " telas-duas" : "") + '" id="telas"></section>';
       h += '<div class="add-tela-fim"><button class="btn" id="add-tela-fim" type="button">Adicionar tela</button></div>';
       if (livre && !r.textoLivreEmCima) h += livre;
       if (c.legenda) h += campoDaLegenda(r, c);
