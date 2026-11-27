@@ -386,6 +386,11 @@
   .tela .area-design { font-family: var(--ui); font-size: 14px; background: var(--fundo); min-height: 64px; color: var(--navy-suave); border-color: var(--linha); }
   .story-formato { display: flex; flex-direction: column; gap: 6px; }
   .add-tela-fim { display: flex; justify-content: center; }
+  .topo-direita { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  .vistas-mini { display: flex; gap: 6px; }
+  .vista-cartao .nav-ideias-nome { min-width: 0; }
+  .vista-cartao .nav-ideias-nome b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .vistas-mini .btn[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #ffffff; }
   .texto-livre { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: var(--papel); border: 1px dashed var(--navy-fraco); border-radius: 12px; }
   .texto-livre-topo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .texto-livre-topo .tela-nome { font-size: 21px; }
@@ -3247,22 +3252,27 @@
   // Os três modos de ver os roteiros, no mesmo feitio dos cartões de Ideias e de Roteiros.
   // Os 4 cartões de Todos os roteiros. A lista comum é o jeito de sempre, então
   // ela não tem cartão: aparece quando nenhum dos 4 está escolhido.
+  // Os 4 cartões do topo. Todos limpa qualquer filtro e volta às listas de trabalho; os outros 3 ligam e desligam
+  // com um clique. Calendário e Insights ficam em botões menores, ao lado da busca.
   var VISTAS = [
+    { chave: "todos", nome: "Todos", sub: "Sem nenhum filtro", rotulo: ["roteiro", "roteiros"], cor: "var(--mostarda)" },
+    { chave: "teleprompter", nome: "Teleprompter", sub: "Falta gravar", rotulo: ["roteiro", "roteiros"], cor: "#b79be3" },
     { chave: "publicados", nome: "Publicados", sub: "Já foram ao ar", rotulo: ["roteiro", "roteiros"], cor: "var(--verde)", lugar: true },
-    { chave: "arquivo", nome: "Arquivo", sub: "Guardados para garimpar", rotulo: ["roteiro", "roteiros"], cor: "var(--vinho)", lugar: true },
-    { chave: "calendario", nome: "Calendário", sub: "Publicações marcadas", rotulo: ["roteiro", "roteiros"], cor: "var(--laranja)" },
-    { chave: "insights", nome: "Insights", sub: "Métricas dos posts", rotulo: ["post", "posts"], cor: "var(--mostarda)" }
+    { chave: "arquivo", nome: "Arquivados", sub: "Guardados para garimpar", rotulo: ["roteiro", "roteiros"], cor: "var(--vinho)", lugar: true }
   ];
+  function semFiltro() { return !lugarTodos && !situacaoTodos && !filtroTodos && !Object.keys(temasTodos).some(function (k) { return temasTodos[k]; }); }
   function htmlVistas(total, aPublicar) {
     var contas = {
+      todos: roteirosVivos().length,
+      teleprompter: roteirosVivos().filter(function (r) { return situacaoDe(r) === "teleprompter"; }).length,
       publicados: roteirosDoLugar("publicados").length,
-      arquivo: roteirosDoLugar("arquivo").length,
-      calendario: aPublicar,
-      insights: Object.keys(metricas).length
+      arquivo: roteirosDoLugar("arquivo").length
     };
     return '<div class="vistas-cartoes" role="tablist" aria-label="Como ver os roteiros">' + VISTAS.map(function (v) {
       var n = contas[v.chave];
-      var escolhido = v.lugar ? lugarTodos === v.chave : vistaTodos === v.chave && !lugarTodos;
+      var naLista = vistaTodos === "lista";
+      var escolhido = !naLista ? false : v.lugar ? lugarTodos === v.chave
+        : v.chave === "teleprompter" ? !lugarTodos && situacaoTodos === "teleprompter" : semFiltro();
       return '<button type="button" class="nav-ideias vista-cartao" role="tab" data-vista="' + v.chave +
         '" aria-selected="' + escolhido + '" style="--cor: ' + v.cor + '">' +
         '<span class="nav-ideias-nome"><b>' + v.nome + "<i>.</i></b>" +
@@ -3430,7 +3440,12 @@
       (vistaTodos === "lista" ? " · " + { titulo: "em ordem de título", recentes: "dos mais recentes para os mais antigos", antigos: "dos mais antigos para os mais recentes" }[ordemTodos]
         : vistaTodos === "insights" ? " · " + Object.keys(metricas).length + " " + plural(Object.keys(metricas).length, "post com métricas", "posts com métricas")
         : " · " + quantosEm("publicar") + " no calendário") + "</span></div>" +
-      (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar em tudo" aria-label="Buscar em todos os roteiros e ideias" title="Procura no título, no código, no texto na tela, na legenda e no texto dos roteiros, em todos os lugares, e no texto das ideias" value="' + esc(buscaTodos) + '">' : "") + "</div>" +
+      '<div class="topo-direita"><div class="vistas-mini">' +
+        '<button type="button" class="btn btn-mini" data-vista="calendario" aria-pressed="' + (vistaTodos === "calendario") + '">Calendário (' +
+          roteirosVivos().filter(function (r) { return r.aPublicar; }).length + ")</button>" +
+        '<button type="button" class="btn btn-mini" data-vista="insights" aria-pressed="' + (vistaTodos === "insights") + '">Insights (' +
+          Object.keys(metricas).length + ")</button></div>" +
+      (vistaTodos === "lista" ? '<input class="busca busca-todos" id="busca-todos" type="search" placeholder="Buscar em tudo" aria-label="Buscar em todos os roteiros e ideias" title="Procura no título, no código, no texto na tela, na legenda e no texto dos roteiros, em todos os lugares, e no texto das ideias" value="' + esc(buscaTodos) + '">' : "") + "</div></div>" +
       htmlVistas(roteirosVivos().length, roteirosVivos().filter(function (r) { return r.aPublicar; }).length);
     if (vistaTodos === "insights") {
       h += htmlInsights() + "</div>";
@@ -6038,8 +6053,16 @@
     var bvista = e.target.closest("[data-vista]");
     if (bvista) {
       var alvo = bvista.dataset.vista;
-      if (alvo === "publicados" || alvo === "arquivo") {
-        lugarTodos = lugarTodos === alvo ? "" : alvo;
+      var limparTudo = function () { lugarTodos = ""; situacaoTodos = ""; filtroTodos = ""; temasTodos = {}; buscaTodos = ""; vistaTodos = "lista"; };
+      if (alvo === "todos") {
+        limparTudo();
+      } else if (alvo === "teleprompter") {
+        var jaEsta = vistaTodos === "lista" && !lugarTodos && situacaoTodos === "teleprompter";
+        limparTudo();
+        if (!jaEsta) situacaoTodos = "teleprompter";
+      } else if (alvo === "publicados" || alvo === "arquivo") {
+        lugarTodos = vistaTodos === "lista" && lugarTodos === alvo ? "" : alvo;
+        situacaoTodos = "";
         vistaTodos = "lista";
       } else {
         lugarTodos = "";
@@ -6130,7 +6153,7 @@
       return;
     }
     var bsit = e.target.closest("[data-situacao-todos]");
-    if (bsit) { situacaoTodos = bsit.dataset.situacaoTodos; renderTodos(); return; }
+    if (bsit) { situacaoTodos = bsit.dataset.situacaoTodos; if (situacaoTodos) lugarTodos = ""; renderTodos(); return; }
     if (e.target.closest("#abrir-tema")) {
       abrirTema = !abrirTema;
       gravarLocal(CHAVE_TEMA, abrirTema ? "1" : "0");
