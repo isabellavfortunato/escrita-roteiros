@@ -383,6 +383,11 @@
   .tela .area-design { font-family: var(--ui); font-size: 14px; background: var(--fundo); min-height: 64px; color: var(--navy-suave); border-color: var(--linha); }
   .story-formato { display: flex; flex-direction: column; gap: 6px; }
   .add-tela-fim { display: flex; justify-content: center; }
+  .texto-livre { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; background: var(--papel); border: 1px dashed var(--navy-fraco); border-radius: 12px; }
+  .texto-livre-topo { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .texto-livre-topo .tela-nome { font-size: 21px; }
+  .texto-livre-topo .btn { margin-left: auto; }
+  .texto-livre .area-rica { min-height: 120px; }
   .add-tela-fim .btn { min-width: 220px; }
   /* Story compacto: 2 colunas e pelo menos 6 stories numa tela de notebook. As caixas crescem conforme o texto. */
   .tela.tela-story { padding: 10px 12px 12px; gap: 6px; }
@@ -1088,7 +1093,7 @@
   var TIPOS = {
     instagram: { nome: "Instagram", sub: "Vídeo curto · 280 a 300 palavras", video: true, min: 280, max: 300, duracao: "1:40<small>min</small>" },
     tiktok:    { nome: "TikTok", sub: "Vídeo longo · 350 a 435 palavras", video: true, min: 350, max: 435, duracao: "2:00<small>a</small>2:30<small>min</small>" },
-    carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, porTela: 25 },
+    carrossel: { nome: "Carrossel", sub: "Até 20 telas · 25 palavras por tela", video: false, telas: 20, inicio: 2, porTela: 25 },
     stories:   { nome: "Stories", sub: "10 telas ideais, sem limite · 174 palavras por tela, 1 minuto cada", video: false, telas: 10, telasMax: Infinity, porTela: 174 },
     estatico:  { nome: "Post estático", sub: "Uma arte · até 100 palavras", video: false, telas: 1, porTela: 100, legenda: true },
     caixinha:  { nome: "Caixinha de perguntas", sub: "Até 10 respostas · 45 palavras cada", video: false, telas: 10, porTela: 45, perguntas: true },
@@ -1472,7 +1477,8 @@
       r.blocos = blocosDoTipo(tipo).map(blocoVazio);
       r.blocos.forEach(function (b) { if (b.tipo === "yt-canal") b.texto = APRESENTACAO_CANAL; });
     }
-    else for (var i = 0; i < TIPOS[tipo].telas; i++) r.telas.push(telaVazia());
+    // o carrossel nasce só com a capa e o fechamento; as outras telas entram à mão
+    else for (var i = 0; i < (TIPOS[tipo].inicio || TIPOS[tipo].telas); i++) r.telas.push(telaVazia());
     r._novo = true;
     return r;
   }
@@ -3352,7 +3358,7 @@
      sem os filtros: listas normais, Publicados, Depois, Arquivo e Ideias. A busca olha o título, o código do vídeo,
      o texto na tela, a legenda, o texto dos blocos e das telas e, nas ideias, o texto da ideia. */
   function textoParaBusca(r) {
-    var partes = [r.titulo, r.codigo, r.textoTela, r.legenda, r.tituloPublicacao];
+    var partes = [r.titulo, r.codigo, r.textoTela, r.legenda, r.tituloPublicacao, r.textoLivre];
     (r.blocos || []).forEach(function (b) { partes.push(b.texto); });
     (r.telas || []).forEach(function (x) { partes.push(x.texto, x.design, x.pergunta); });
     return chaveDoTexto(partes.filter(Boolean).join(" "));
@@ -3837,8 +3843,11 @@
     } else {
       h += '<section class="resumo"><span class="aviso" id="t-resumo"></span><button class="btn" id="add-tela" type="button">Adicionar tela</button></section>';
       h += barraDeFormato();
+      var livre = r.tipo === "stories" ? htmlTextoLivre(r) : "";
+      if (livre && r.textoLivreEmCima) h += livre;
       h += '<section class="telas" id="telas"></section>';
       h += '<div class="add-tela-fim"><button class="btn" id="add-tela-fim" type="button">Adicionar tela</button></div>';
+      if (livre && !r.textoLivreEmCima) h += livre;
       if (c.legenda) h += campoDaLegenda(r, c);
     }
     h += '<div class="mudar"><span class="mudar-rotulo">Passar este roteiro para</span>' +
@@ -4193,12 +4202,19 @@
   // As 10 telas do story são o ideal, e não o teto: dá para continuar o texto em mais telas.
   function tetoDeTelas(tipo) { return TIPOS[tipo].telasMax || TIPOS[tipo].telas; }
 
+  // Caixa de texto livre dos stories: fora dos cartões, para anotações, roteiro corrido ou o que não cabe num story.
+  function htmlTextoLivre(r) {
+    return '<section class="texto-livre"><div class="texto-livre-topo"><span class="tela-nome">Texto livre</span>' +
+      '<span class="aviso">Fora dos stories e da contagem de palavras</span>' +
+      '<button type="button" class="btn btn-mini" id="mover-livre">' + (r.textoLivreEmCima ? "Mover para baixo dos stories" : "Mover para cima dos stories") + "</button></div>" +
+      campoRico("tx-livre", 'data-livre="1" aria-label="Texto livre"', "Escreva aqui o que não é story") + "</section>";
+  }
   function renderTelas() {
     var r = atual, total = r.telas.length;
     $("telas").innerHTML = r.telas.map(function (t, i) {
       var fixa = telaFixa(r.tipo, i, total);
       var podeExcluir = r.tipo === "carrossel" ? !fixa : total > 1;
-      return '<article class="tela' + (fixa ? " fixa" : "") + (r.tipo === "stories" ? " tela-story" : "") + '" data-id="' + t.id + '">' +
+      return '<article class="tela' + (fixa ? " fixa" : "") + (r.tipo === "stories" || r.tipo === "carrossel" ? " tela-story" : "") + '" data-id="' + t.id + '">' +
         '<div class="tela-topo">' + (fixa || r.tipo === "estatico" ? "" :
           '<span class="pega" data-pega="1" tabindex="0" role="button" aria-label="Arrastar ' + nomeTela(r.tipo, i, total) +
           ' para mudar a ordem" title="Arraste para mudar a ordem, ou use as setas do teclado">⠿</span>') +
@@ -4237,6 +4253,8 @@
       add.hidden = total >= tetoDeTelas(r.tipo) || r.tipo === "estatico";
       add.textContent = r.tipo === "stories" ? "Adicionar story" : r.tipo === "caixinha" ? "Adicionar pergunta" : "Adicionar tela";
     });
+    var cxLivre = $("tx-livre");
+    if (cxLivre && !cxLivre.contains(document.activeElement)) preencherRico(cxLivre, r.textoLivre || "");
     ligarArrasto($("telas"), ".tela", function (ids) {
       var antes = atual.telas.map(function (x) { return x.id; }).join(",");
       if (antes === ids.join(",")) return;
@@ -5641,7 +5659,7 @@
     var el = e.target;
     if (!atual || !el) return;
     var campo = el.id === "titulo" || el.id === "textoTela" || el.id === "gancho-tela" || el.id === "legenda" ||
-      (el.isContentEditable && el.classList && el.classList.contains("area-rica") && (el.dataset.bloco != null || el.dataset.tela != null));
+      (el.isContentEditable && el.classList && el.classList.contains("area-rica") && (el.dataset.bloco != null || el.dataset.tela != null || el.dataset.livre != null));
     if (!campo) return;
     // avisa o tratador de digitação para guardar o texto acertado, como se tivesse sido digitado
     if (arrumarCampo(el, e)) el.dispatchEvent(new Event("input", { bubbles: true }));
@@ -5731,6 +5749,12 @@
       var txb = htmlParaMarcas(el);
       if (!semMarcas(txb).trim() && !el.textContent.trim()) { txb = ""; if (el.innerHTML && !el.querySelector("img")) el.innerHTML = ""; }
       atual.blocos[+el.dataset.bloco].texto = txb;
+    }
+    else if (el.dataset.livre != null) {
+      arrumarCampo(el, e);
+      var txl = htmlParaMarcas(el);
+      if (!el.textContent.trim()) { txl = ""; el.innerHTML = ""; }
+      atual.textoLivre = txl;
     }
     else if (el.dataset.tela != null && el.tagName !== "SELECT") {
       if (el.isContentEditable) {
@@ -6301,6 +6325,14 @@
     if (ex) {
       atual.telas.splice(+ex.dataset.excluir, 1);
       renderTelas(); atualizarMedidas(); agendarSalvar();
+      return;
+    }
+    if (e.target.id === "mover-livre") {
+      atual.textoLivreEmCima = !atual.textoLivreEmCima;
+      agendarSalvar();
+      renderEditor();
+      var cx = $("tx-livre");
+      if (cx) cx.scrollIntoView({ block: "center" });
       return;
     }
     if (e.target.id === "add-tela" || e.target.id === "add-tela-fim") {
